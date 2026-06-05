@@ -1,0 +1,1167 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useFieldArray, useForm } from 'react-hook-form'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { z } from 'zod'
+import { getOrder } from '../../orders/api/orders.api'
+import { getShipmentLabel, getShipmentWaybill } from '../../../shared/api/labels.api'
+import {
+  assignShipmentDriver,
+  completeShipmentDelivery,
+  createShipmentDeliveryAttempt,
+  getShipment,
+  getShipmentsPrintList,
+  listDeliveryAttempts,
+  updateShipmentStatus,
+} from '../api/shipments.api'
+import type {
+  CreateDeliveryAttemptPayload,
+  ReturnCondition,
+  ShipmentPrintListResponse,
+  ShipmentItemResultStatus,
+  ShipmentStatus,
+} from '../types/shipment.types'
+import { listAuditTimeline } from '../../../shared/api/audit.api'
+import { getApiErrorMessage, isApiNotFound } from '../../../shared/api/api-error'
+import { Can } from '../../../shared/auth/Can'
+import { PERMISSIONS } from '../../../shared/auth/permission-keys'
+import { hasPermission } from '../../../shared/auth/permissions'
+import { ApprovalActionButtons } from '../../../shared/components/actions/ApprovalActionButtons'
+import { Attachments } from '../../../shared/components/attachments/Attachments'
+import { FieldError } from '../../../shared/components/forms/FieldError'
+import { LabelDocumentDialog } from '../../../shared/components/labels/LabelDocumentDialog'
+import { DriverSelector } from '../../../shared/components/selectors/DriverSelector'
+import { EmptyState } from '../../../shared/components/states/EmptyState'
+import { ErrorState } from '../../../shared/components/states/ErrorState'
+import { LoadingState } from '../../../shared/components/states/LoadingState'
+import { Timeline } from '../../../shared/components/timeline/Timeline'
+import { Button } from '../../../shared/components/ui/Button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
+import { Dialog } from '../../../shared/components/ui/Dialog'
+import { Input } from '../../../shared/components/ui/Input'
+import { PageHeader } from '../../../shared/components/ui/PageHeader'
+import { Select } from '../../../shared/components/ui/Select'
+import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
+import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
+import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
+import { pickDisplayLabel } from '../../../shared/i18n/locale'
+import { adminPath } from '../../../shared/routing/paths'
+import { formatDate } from '../../../shared/utils/formatters'
+import { listWarehouseProducts } from '../../warehouse/api/warehouse.api'
+import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
+import { NotFoundState } from '../../../shared/components/states/NotFoundState'
+import { PrintView } from '../../../shared/components/print/PrintView'
+import { useAuthStore } from '../../auth/store/auth.store'
+
+const shipmentStatuses: ShipmentStatus[] = [
+  'pending_pickup',
+  'driver_assigned',
+  'picked_up',
+  'arrived_at_hub',
+  'sorting',
+  'ready_for_dispatch',
+  'in_transit',
+  'out_for_delivery',
+  'delivery_attempted',
+  'rescheduled',
+  'delivered',
+  'partially_delivered',
+  'failed',
+  'returned',
+  'returned_to_hub',
+  'returned_to_warehouse',
+  'cancelled',
+]
+
+const manualShipmentStatuses = shipmentStatuses.filter((status) => !['delivered', 'partially_delivered', 'failed'].includes(status))
+
+const deliveryResultOptions = ['failed', 'postponed', 'rescheduled', 'customer_unreachable', 'customer_refused']
+
+const statusSchema = z.object({
+  status: z.custom<ShipmentStatus>(
+    (value) => typeof value === 'string' && shipmentStatuses.includes(value as ShipmentStatus),
+    { message: 'Status is required.' },
+  ),
+  notes: z.string().optional(),
+})
+
+const assignDriverSchema = z.object({
+  driver_id: z.number().min(1, 'Driver is required.'),
+})
+
+const deliveryAttemptSchema = z.object({
+  result: z.string().min(1, 'Result is required.'),
+  reason: z.string().min(1, 'Reason is required.'),
+  notes: z.string().optional(),
+  next_action: z.string().optional(),
+  next_attempt_date: z.string().optional(),
+})
+
+type StatusFormValues = z.infer<typeof statusSchema>
+type AssignDriverFormValues = z.infer<typeof assignDriverSchema>
+type DeliveryAttemptFormValues = z.infer<typeof deliveryAttemptSchema>
+type PrintShipmentListFormValues = {
+  date: string
+  status: string
+}
+
+type CompleteDeliveryFormValues = {
+  shipment_status: 'delivered' | 'partially_delivered' | 'failed'
+  notes: string
+  items: Array<{
+    order_item_id: number
+    result_status: ShipmentItemResultStatus
+    quantity: number
+    warehouse_product_id: number
+    return_condition: '' | ReturnCondition
+    notes: string
+  }>
+}
+
+function UpdateStatusDialog({
+  error,
+  isSubmitting,
+  onClose,
+  onSubmit,
+  open,
+  currentStatus,
+}: {
+  error?: unknown
+  isSubmitting: boolean
+  onClose: () => void
+  onSubmit: (values: StatusFormValues) => void
+  open: boolean
+  currentStatus: ShipmentStatus
+}) {
+  const { formError, getFieldError } = useFormApiErrors(error)
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<StatusFormValues>({
+    resolver: zodResolver(statusSchema),
+    defaultValues: { status: currentStatus, notes: '' },
+  })
+
+  return (
+    <Dialog open={open} onClose={onClose} title={<CardTitle>Update Status</CardTitle>}>
+      <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
+        <label className="field">
+          <span>Status</span>
+          <Select {...register('status')}>
+            {manualShipmentStatuses.map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </Select>
+          <FieldError error={errors.status?.message ?? getFieldError('status')} />
+        </label>
+        <label className="field">
+          <span>Notes</span>
+          <Input {...register('notes')} />
+          <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
+        </label>
+        {formError ? <div className="form-error">{formError}</div> : null}
+        <div className="form-actions">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={isSubmitting}>
+            Update Status
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function AssignDriverDialog({
+  error,
+  isSubmitting,
+  onClose,
+  onSubmit,
+  open,
+  currentDriverId,
+}: {
+  error?: unknown
+  isSubmitting: boolean
+  onClose: () => void
+  onSubmit: (values: AssignDriverFormValues) => void
+  open: boolean
+  currentDriverId?: number | null
+}) {
+  const { formError, getFieldError } = useFormApiErrors(error)
+  const {
+    setValue,
+    watch,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<AssignDriverFormValues>({
+    resolver: zodResolver(assignDriverSchema),
+    defaultValues: { driver_id: currentDriverId ?? 0 },
+  })
+
+  return (
+    <Dialog open={open} onClose={onClose} title={<CardTitle>Assign Driver</CardTitle>}>
+      <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
+        <label className="field">
+          <span>Driver</span>
+          <DriverSelector
+            value={watch('driver_id') ? String(watch('driver_id')) : ''}
+            onChange={(driverId) => setValue('driver_id', driverId ? Number(driverId) : 0, { shouldValidate: true })}
+          />
+          <FieldError error={errors.driver_id?.message ?? getFieldError('driver_id')} />
+        </label>
+        {formError ? <div className="form-error">{formError}</div> : null}
+        <div className="form-actions">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={isSubmitting}>
+            Assign Driver
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function DeliveryAttemptDialog({
+  error,
+  isSubmitting,
+  onClose,
+  onSubmit,
+  open,
+}: {
+  error?: unknown
+  isSubmitting: boolean
+  onClose: () => void
+  onSubmit: (values: DeliveryAttemptFormValues) => void
+  open: boolean
+}) {
+  const { formError, getFieldError } = useFormApiErrors(error)
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<DeliveryAttemptFormValues>({
+    resolver: zodResolver(deliveryAttemptSchema),
+    defaultValues: {
+      result: 'failed',
+      reason: '',
+      notes: '',
+      next_action: '',
+      next_attempt_date: '',
+    },
+  })
+
+  return (
+    <Dialog open={open} onClose={onClose} title={<CardTitle>Add Delivery Attempt</CardTitle>}>
+      <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
+        <label className="field">
+          <span>Result</span>
+          <Select {...register('result')}>
+            {deliveryResultOptions.map((result) => (
+              <option key={result} value={result}>{result}</option>
+            ))}
+          </Select>
+          <FieldError error={errors.result?.message ?? getFieldError('result')} />
+        </label>
+        <label className="field">
+          <span>Reason</span>
+          <Input {...register('reason')} />
+          <FieldError error={errors.reason?.message ?? getFieldError('reason')} />
+        </label>
+        <label className="field">
+          <span>Notes</span>
+          <Input {...register('notes')} />
+          <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
+        </label>
+        <label className="field">
+          <span>Next Action</span>
+          <Input {...register('next_action')} />
+          <FieldError error={errors.next_action?.message ?? getFieldError('next_action')} />
+        </label>
+        <label className="field">
+          <span>Next Attempt Date</span>
+          <Input type="datetime-local" {...register('next_attempt_date')} />
+          <FieldError error={errors.next_attempt_date?.message ?? getFieldError('next_attempt_date')} />
+        </label>
+        {formError ? <div className="form-error">{formError}</div> : null}
+        <div className="form-actions">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={isSubmitting}>
+            Add Attempt
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function ShipmentPrintDialog({
+  error,
+  initialDate,
+  initialStatus,
+  isSubmitting,
+  onClose,
+  onSubmit,
+  open,
+}: {
+  error?: unknown
+  initialDate: string
+  initialStatus: string
+  isSubmitting: boolean
+  onClose: () => void
+  onSubmit: (values: PrintShipmentListFormValues) => void
+  open: boolean
+}) {
+  const { formError, getFieldError } = useFormApiErrors(error)
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<PrintShipmentListFormValues>({
+    defaultValues: {
+      date: initialDate,
+      status: initialStatus,
+    },
+  })
+
+  useEffect(() => {
+    if (open) {
+      reset({
+        date: initialDate,
+        status: initialStatus,
+      })
+    }
+  }, [initialDate, initialStatus, open, reset])
+
+  return (
+    <Dialog open={open} onClose={onClose} title={<CardTitle>Load Print View</CardTitle>} variant="small">
+      <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
+        <label className="field">
+          <span>Print Date</span>
+          <Input
+            type="date"
+            {...register('date', { required: 'Print date is required.' })}
+          />
+          <FieldError error={errors.date?.message ?? getFieldError('date')} />
+        </label>
+        <label className="field">
+          <span>Status</span>
+          <Select {...register('status')}>
+            <option value="">All statuses</option>
+            {shipmentStatuses.map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </Select>
+          <FieldError error={errors.status?.message ?? getFieldError('status')} />
+        </label>
+        <p className="table-meta">
+          Driver and delivery location filters are taken from this shipment when available.
+        </p>
+        {formError ? <div className="form-error">{formError}</div> : null}
+        <div className="form-actions">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={isSubmitting}>
+            Load Print View
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function CompleteDeliveryDialog({
+  error,
+  isSubmitting,
+  onClose,
+  onSubmit,
+  open,
+  fulfillmentType,
+  merchantId,
+  orderItems,
+}: {
+  error?: unknown
+  isSubmitting: boolean
+  onClose: () => void
+  onSubmit: (values: CompleteDeliveryFormValues) => void
+  open: boolean
+  fulfillmentType?: string
+  merchantId: number
+  orderItems: Array<{
+    id: number
+    product_name: string
+    quantity: number
+    delivered_quantity?: number
+    returned_quantity?: number
+    damaged_quantity?: number
+  }>
+}) {
+  const { formError, getFieldError } = useFormApiErrors(error)
+  const remainingItems = useMemo(
+    () => orderItems.map((item) => ({
+      ...item,
+      remaining: Math.max(
+        0,
+        item.quantity - (item.delivered_quantity ?? 0) - (item.returned_quantity ?? 0) - (item.damaged_quantity ?? 0),
+      ),
+    })).filter((item) => item.remaining > 0),
+    [orderItems],
+  )
+  const warehouseProductsQuery = useQuery({
+    queryKey: ['warehouse-products', 'complete-delivery', merchantId],
+    queryFn: () => listWarehouseProducts({ merchant_id: merchantId, status: 'active' }),
+    enabled: open && fulfillmentType === 'from_warehouse' && merchantId > 0,
+  })
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<CompleteDeliveryFormValues>({
+    defaultValues: {
+      shipment_status: 'delivered',
+      notes: '',
+      items: remainingItems.map((item) => ({
+        order_item_id: item.id,
+        result_status: 'delivered',
+        quantity: item.remaining,
+        warehouse_product_id: 0,
+        return_condition: '',
+        notes: '',
+      })),
+    },
+  })
+  const { fields } = useFieldArray({ control, name: 'items' })
+
+  useEffect(() => {
+    reset({
+      shipment_status: 'delivered',
+      notes: '',
+      items: remainingItems.map((item) => ({
+        order_item_id: item.id,
+        result_status: 'delivered',
+        quantity: item.remaining,
+        warehouse_product_id: 0,
+        return_condition: '',
+        notes: '',
+      })),
+    })
+  }, [open, remainingItems, reset])
+
+  return (
+    <Dialog open={open} onClose={onClose} title={<CardTitle>Complete Delivery</CardTitle>}>
+      {remainingItems.length ? (
+        <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
+          <label className="field">
+            <span>Shipment Status</span>
+            <Select {...register('shipment_status')}>
+              <option value="delivered">delivered</option>
+              <option value="partially_delivered">partially_delivered</option>
+              <option value="failed">failed</option>
+            </Select>
+            <FieldError error={errors.shipment_status?.message ?? getFieldError('shipment_status')} />
+          </label>
+          <label className="field">
+            <span>Notes</span>
+            <Input {...register('notes')} />
+            <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
+          </label>
+
+          <div className="order-items-list">
+            {fields.map((field, index) => {
+              const orderItem = remainingItems[index]
+              const resultStatus = watch(`items.${index}.result_status`)
+              const showReturnCondition = fulfillmentType === 'from_warehouse' && (resultStatus === 'returned' || resultStatus === 'damaged')
+
+              return (
+                <div className="order-item-row" key={field.id}>
+                  <input type="hidden" {...register(`items.${index}.order_item_id`, { valueAsNumber: true })} />
+                  <label className="field">
+                    <span>Product</span>
+                    <Input value={orderItem.product_name} disabled />
+                  </label>
+                  <label className="field">
+                    <span>Ordered</span>
+                    <Input value={String(orderItem.quantity)} disabled />
+                  </label>
+                  <label className="field">
+                    <span>Remaining</span>
+                    <Input value={String(orderItem.remaining)} disabled />
+                  </label>
+                  <label className="field">
+                    <span>Result</span>
+                    <Select {...register(`items.${index}.result_status`)}>
+                      <option value="delivered">delivered</option>
+                      <option value="returned">returned</option>
+                      <option value="damaged">damaged</option>
+                      <option value="cancelled">cancelled</option>
+                    </Select>
+                    <FieldError error={errors.items?.[index]?.result_status?.message ?? getFieldError(`items.${index}.result_status`)} />
+                  </label>
+                  <label className="field">
+                    <span>Quantity</span>
+                    <Input
+                      type="number"
+                      {...register(`items.${index}.quantity`, {
+                        valueAsNumber: true,
+                        validate: (value) => {
+                          if (!value || value <= 0) {
+                            return 'Quantity must be at least 1.'
+                          }
+                          if (value > orderItem.remaining) {
+                            return 'Quantity cannot exceed the remaining quantity for this item.'
+                          }
+                          return true
+                        },
+                      })}
+                    />
+                    <FieldError error={errors.items?.[index]?.quantity?.message ?? getFieldError(`items.${index}.quantity`)} />
+                  </label>
+                  {showReturnCondition ? (
+                    <>
+                      <label className="field">
+                        <span>Warehouse Product</span>
+                        <Select {...register(`items.${index}.warehouse_product_id`, { valueAsNumber: true })}>
+                          <option value={0}>Select product</option>
+                          {(warehouseProductsQuery.data?.data ?? []).map((product) => (
+                            <option key={product.id} value={product.id}>
+                              {product.name} ({product.sku})
+                            </option>
+                          ))}
+                        </Select>
+                        <FieldError error={errors.items?.[index]?.warehouse_product_id?.message ?? getFieldError(`items.${index}.warehouse_product_id`)} />
+                      </label>
+                      <label className="field">
+                        <span>Return Condition</span>
+                        <Select
+                          {...register(`items.${index}.return_condition`, {
+                            validate: (value) => (showReturnCondition && !value ? 'Return condition is required.' : true),
+                          })}
+                        >
+                          <option value="">Select condition</option>
+                          <option value="sellable">sellable</option>
+                          <option value="damaged">damaged</option>
+                          <option value="disposed">disposed</option>
+                        </Select>
+                        <FieldError error={errors.items?.[index]?.return_condition?.message ?? getFieldError(`items.${index}.return_condition`)} />
+                      </label>
+                    </>
+                  ) : null}
+                  <label className="field">
+                    <span>Notes</span>
+                    <Input {...register(`items.${index}.notes`)} />
+                    <FieldError error={errors.items?.[index]?.notes?.message ?? getFieldError(`items.${index}.notes`)} />
+                  </label>
+                </div>
+              )
+            })}
+          </div>
+
+          {formError ? <div className="form-error">{formError}</div> : null}
+          <div className="form-actions">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              Complete Delivery
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <EmptyState
+          title="No remaining order items"
+          description="All order items already have completed delivery counters, so there is nothing left to complete here."
+        />
+      )}
+    </Dialog>
+  )
+}
+
+export function ShipmentDetailsPage() {
+  const { shipmentId } = useParams()
+  const user = useAuthStore((state) => state.user)
+  const [statusOpen, setStatusOpen] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [completeDeliveryOpen, setCompleteDeliveryOpen] = useState(false)
+  const [deliveryAttemptOpen, setDeliveryAttemptOpen] = useState(false)
+  const [printOpen, setPrintOpen] = useState(false)
+  const [printData, setPrintData] = useState<ShipmentPrintListResponse['data'] | null>(null)
+  const [successMessage, setSuccessMessage] = useState('')
+  const queryClient = useQueryClient()
+  const canViewDeliveryAttempts = hasPermission(user, PERMISSIONS.DELIVERY_ATTEMPTS_VIEW)
+  const canViewTimeline = hasPermission(user, PERMISSIONS.AUDIT_LOGS_TIMELINE)
+  const query = useQuery({
+    queryKey: ['shipments', shipmentId],
+    queryFn: () => getShipment(shipmentId!),
+    enabled: Boolean(shipmentId),
+  })
+  const shipmentData = query.data?.data
+  const orderQuery = useQuery({
+    queryKey: ['shipments', shipmentId, 'order'],
+    queryFn: () => getOrder(shipmentData!.order_id),
+    enabled: Boolean(shipmentData?.order_id),
+  })
+  const attemptsQuery = useQuery({
+    queryKey: ['delivery-attempts', shipmentId],
+    queryFn: () => listDeliveryAttempts({ shipment_id: shipmentId! }),
+    enabled: Boolean(shipmentId) && canViewDeliveryAttempts,
+  })
+  const timelineQuery = useQuery({
+    queryKey: ['shipments', shipmentId, 'timeline'],
+    queryFn: () => listAuditTimeline({ auditable_type: 'shipment', auditable_id: shipmentId! }),
+    enabled: Boolean(shipmentId) && canViewTimeline,
+  })
+
+  async function invalidateShipment() {
+    await queryClient.invalidateQueries({ queryKey: ['shipments'] })
+    await queryClient.invalidateQueries({ queryKey: ['shipments', shipmentId] })
+    await queryClient.invalidateQueries({ queryKey: ['shipments', shipmentId, 'order'] })
+    await queryClient.invalidateQueries({ queryKey: ['delivery-attempts', shipmentId] })
+    await queryClient.invalidateQueries({ queryKey: ['shipments', shipmentId, 'timeline'] })
+    await queryClient.invalidateQueries({ queryKey: ['orders'] })
+  }
+
+  const statusMutation = useMutation({
+    mutationFn: (values: StatusFormValues) => updateShipmentStatus(shipmentId!, values),
+    onSuccess: async () => {
+      setStatusOpen(false)
+      setSuccessMessage('Shipment status updated successfully.')
+      await invalidateShipment()
+    },
+  })
+  const assignMutation = useMutation({
+    mutationFn: (values: AssignDriverFormValues) => assignShipmentDriver(shipmentId!, values),
+    onSuccess: async () => {
+      setAssignOpen(false)
+      setSuccessMessage('Driver assigned successfully.')
+      await invalidateShipment()
+    },
+  })
+  const completeDeliveryMutation = useMutation({
+    mutationFn: (values: CompleteDeliveryFormValues) => completeShipmentDelivery(shipmentId!, {
+      shipment_status: values.shipment_status,
+      notes: values.notes || undefined,
+      items: values.items.map((item) => ({
+        order_item_id: item.order_item_id,
+        result_status: item.result_status,
+        quantity: item.quantity,
+        ...(item.warehouse_product_id ? { warehouse_product_id: item.warehouse_product_id } : {}),
+        ...((item.return_condition && (item.result_status === 'returned' || item.result_status === 'damaged'))
+          ? { return_condition: item.return_condition }
+          : {}),
+        ...(item.notes ? { notes: item.notes } : {}),
+      })),
+    }),
+    onSuccess: async () => {
+      setCompleteDeliveryOpen(false)
+      setSuccessMessage('Delivery completed successfully.')
+      await invalidateShipment()
+    },
+  })
+  const deliveryAttemptMutation = useMutation({
+    mutationFn: (values: DeliveryAttemptFormValues) => {
+      const payload: CreateDeliveryAttemptPayload = {
+        result: values.result,
+        reason: values.reason,
+        notes: values.notes || undefined,
+        next_action: values.next_action || undefined,
+        next_attempt_date: values.next_attempt_date
+          ? values.next_attempt_date.replace('T', ' ') + ':00'
+          : undefined,
+      }
+      return createShipmentDeliveryAttempt(shipmentId!, payload)
+    },
+    onSuccess: async () => {
+      setDeliveryAttemptOpen(false)
+      setSuccessMessage('Delivery attempt recorded successfully.')
+      await invalidateShipment()
+    },
+  })
+  const printMutation = useMutation({
+    mutationFn: getShipmentsPrintList,
+    onSuccess: (response) => {
+      setPrintData(response.data)
+    },
+  })
+
+  if (query.isLoading) {
+    return (
+      <LoadingState
+        title="Loading shipment"
+        description="Fetching shipment details and status history from the API."
+      />
+    )
+  }
+
+  if (query.isError && isApiNotFound(query.error)) {
+    return (
+      <NotFoundState
+        title="Shipment not found"
+        description="This shipment could not be found in the shipments API."
+      />
+    )
+  }
+
+  if (query.isError || !query.data) {
+    return <ErrorState message={getApiErrorMessage(query.error)} onRetry={() => void query.refetch()} />
+  }
+
+  const shipment = query.data.data
+  const order = orderQuery.data?.data
+  const orderItems = order?.items ?? []
+  const canAssignDriver = !['delivered', 'cancelled'].includes(shipment.status)
+  const canCompleteDelivery = !['delivered', 'partially_delivered', 'failed', 'cancelled', 'returned', 'returned_to_hub', 'returned_to_warehouse'].includes(shipment.status)
+  const timelineItems = (timelineQuery.data?.data ?? []).map((item) => ({
+    id: item.id,
+    title: `${item.event_type} - ${item.action}`,
+    subtitle: item.user?.name ?? 'System',
+    description: item.notes ?? 'No notes were recorded for this event.',
+    timestamp: item.created_at,
+  }))
+
+  const defaultPrintDate = shipment.histories[shipment.histories.length - 1]?.created_at?.slice(0, 10)
+    ?? shipment.created_at.slice(0, 10)
+
+  return (
+    <section className="page-section">
+      <PageHeader
+        title={shipment.shipment_number}
+        description={`Shipment created from order #${shipment.order_number ?? shipment.order_id}.`}
+        actions={
+          <div className="page-header__button-row">
+            <Can permission={PERMISSIONS.SHIPMENTS_UPDATE_STATUS}>
+              {canAssignDriver ? (
+                <Button variant="secondary" onClick={() => setStatusOpen(true)}>
+                  Update Status
+                </Button>
+              ) : null}
+            </Can>
+            <Can permission={PERMISSIONS.SHIPMENTS_ASSIGN_DRIVER}>
+              {canAssignDriver ? (
+                <Button variant="secondary" onClick={() => setAssignOpen(true)}>
+                  Assign Driver
+                </Button>
+              ) : null}
+            </Can>
+            <Can permission={PERMISSIONS.DELIVERY_ATTEMPTS_CREATE}>
+              <Button variant="secondary" onClick={() => setDeliveryAttemptOpen(true)}>
+                Add Delivery Attempt
+              </Button>
+            </Can>
+            <Can permission={PERMISSIONS.SHIPMENTS_UPDATE_STATUS}>
+              {canCompleteDelivery ? (
+                <Button variant="secondary" onClick={() => setCompleteDeliveryOpen(true)}>
+                  Complete Delivery
+                </Button>
+              ) : null}
+            </Can>
+            <Can permission={PERMISSIONS.SHIPMENTS_PRINT}>
+              <Button variant="secondary" onClick={() => setPrintOpen(true)} loading={printMutation.isPending}>
+                Load Print View
+              </Button>
+            </Can>
+            <LabelDocumentDialog
+              defaultFormat="html"
+              fetchDocument={(options) => getShipmentLabel(shipment.id, options)}
+              title={`Shipment Label - ${shipment.shipment_number}`}
+              triggerLabel="Label"
+            />
+            <LabelDocumentDialog
+              defaultFormat="html"
+              fetchDocument={(options) => getShipmentWaybill(shipment.id, options)}
+              title={`Shipment Waybill - ${shipment.shipment_number}`}
+              triggerLabel="Waybill"
+            />
+            <Link className="ui-link-reset" to={adminPath('/shipments')}>
+              <Button variant="secondary">Back to shipments</Button>
+            </Link>
+          </div>
+        }
+      />
+
+      {successMessage ? <div className="form-success">{successMessage}</div> : null}
+      {statusMutation.error ? <div className="form-error">{getApiErrorMessage(statusMutation.error)}</div> : null}
+      {assignMutation.error ? <div className="form-error">{getApiErrorMessage(assignMutation.error)}</div> : null}
+      {completeDeliveryMutation.error ? <div className="form-error">{getApiErrorMessage(completeDeliveryMutation.error)}</div> : null}
+      {deliveryAttemptMutation.error ? <div className="form-error">{getApiErrorMessage(deliveryAttemptMutation.error)}</div> : null}
+      {printMutation.error ? <div className="form-error">{getApiErrorMessage(printMutation.error)}</div> : null}
+
+      <div className="details-grid">
+        <Card className="detail-card">
+          <CardHeader>
+            <CardTitle>Overview</CardTitle>
+            <CardDescription>Shipment summary, customer, order type, and collection values.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <dl className="detail-list">
+              <div><dt>Merchant</dt><dd>{shipment.merchant_name}</dd></div>
+              <div><dt>Customer</dt><dd>{shipment.customer_name}</dd></div>
+              <div><dt>Phone</dt><dd>{shipment.customer_phone}</dd></div>
+              <div>
+                <dt>Status</dt>
+                <dd>
+                  <StatusBadge value={shipment.status}>
+                    {pickDisplayLabel(shipment.status, shipment.status_label)}
+                  </StatusBadge>
+                </dd>
+              </div>
+              <div><dt>Order Type</dt><dd>{shipment.order_type ?? '-'}</dd></div>
+              <div><dt>Fulfillment Type</dt><dd>{shipment.fulfillment_type ?? '-'}</dd></div>
+              <div><dt>Payment Type</dt><dd>{pickDisplayLabel(shipment.payment_type, shipment.payment_type_label)}</dd></div>
+              <div><dt>Assigned Driver</dt><dd>{shipment.assigned_driver_name ?? '-'}</dd></div>
+              <div><dt>COD Amount</dt><dd><MoneyDisplay value={shipment.cod_amount} /></dd></div>
+              <div><dt>Delivered COD Amount</dt><dd><MoneyDisplay value={shipment.delivered_cod_amount ?? null} /></dd></div>
+              <div><dt>Shipping Fee</dt><dd><MoneyDisplay value={shipment.shipping_fee} /></dd></div>
+              <div><dt>Created At</dt><dd>{formatDate(shipment.created_at)}</dd></div>
+            </dl>
+          </CardContent>
+        </Card>
+
+        <Card className="detail-card">
+          <CardHeader>
+            <CardTitle>Delivery</CardTitle>
+            <CardDescription>Delivery destination and tracking notes.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <dl className="detail-list">
+              <div><dt>Governorate</dt><dd>{shipment.delivery_governorate_name}</dd></div>
+              <div><dt>Area</dt><dd>{shipment.delivery_area_name ?? '-'}</dd></div>
+              <div><dt>Address</dt><dd>{shipment.delivery_address}</dd></div>
+              <div><dt>Tracking Notes</dt><dd>{shipment.tracking_notes ?? '-'}</dd></div>
+              <div>
+                <dt>Order</dt>
+                <dd>
+                  <Link className="table-link" to={adminPath(`/orders/${shipment.order_id}`)}>
+                    {shipment.order_number ?? `#${shipment.order_id}`}
+                  </Link>
+                </dd>
+              </div>
+              <div>
+                <dt>Public Tracking</dt>
+                <dd>{`/track/${shipment.shipment_number}`}</dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="table-card">
+        <CardHeader className="section-title-row">
+          <CardTitle>Status History</CardTitle>
+          <CardDescription>Chronological history returned by the shipment API.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TableContainer>
+            <Table variant="compact">
+              <thead>
+                <tr>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Changed By</TableHead>
+                  <TableHead>Changed At</TableHead>
+                </tr>
+              </thead>
+              <tbody>
+                {shipment.histories.map((history) => (
+                  <tr key={history.id}>
+                    <TableCell><StatusBadge value={history.status} /></TableCell>
+                    <TableCell>{history.notes ?? '-'}</TableCell>
+                    <TableCell>{history.changed_by_name}</TableCell>
+                    <TableCell>{formatDate(history.created_at)}</TableCell>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
+      <Can permission={PERMISSIONS.DELIVERY_ATTEMPTS_VIEW}>
+        <Card className="table-card">
+          <CardHeader className="section-title-row">
+            <div>
+              <CardTitle>Delivery Attempts</CardTitle>
+              <CardDescription>Driver attempts linked to this shipment.</CardDescription>
+            </div>
+            <Can permission={PERMISSIONS.DELIVERY_ATTEMPTS_CREATE}>
+              <Button variant="secondary" onClick={() => setDeliveryAttemptOpen(true)}>
+                Add Delivery Attempt
+              </Button>
+            </Can>
+          </CardHeader>
+          <CardContent>
+            {attemptsQuery.isLoading ? <LoadingState title="Loading delivery attempts" /> : null}
+            {attemptsQuery.isError ? (
+              <ErrorState
+                title="Unable to load delivery attempts"
+                message={getApiErrorMessage(attemptsQuery.error)}
+                onRetry={() => void attemptsQuery.refetch()}
+              />
+            ) : null}
+            {!attemptsQuery.isLoading && !attemptsQuery.isError && !(attemptsQuery.data?.data.length) ? (
+              <EmptyState title="No delivery attempts" description="No delivery attempts have been recorded for this shipment." />
+            ) : null}
+            {attemptsQuery.data?.data.length ? (
+              <TableContainer>
+                <Table variant="compact">
+                  <thead>
+                    <tr>
+                      <TableHead>Attempt #</TableHead>
+                      <TableHead>Driver</TableHead>
+                      <TableHead>Result</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Next Action</TableHead>
+                      <TableHead>Next Attempt</TableHead>
+                      <TableHead>Created</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attemptsQuery.data.data.map((attempt) => (
+                      <tr key={attempt.id}>
+                        <TableCell>{attempt.attempt_number}</TableCell>
+                        <TableCell>{attempt.driver_name ?? '-'}</TableCell>
+                        <TableCell>{attempt.result}</TableCell>
+                        <TableCell>{attempt.reason}</TableCell>
+                        <TableCell>
+                          {attempt.next_action ?? '-'}
+                          {attempt.notes ? <p className="table-meta">{attempt.notes}</p> : null}
+                        </TableCell>
+                        <TableCell>{attempt.next_attempt_date ? formatDate(attempt.next_attempt_date) : '-'}</TableCell>
+                        <TableCell>{formatDate(attempt.created_at)}</TableCell>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </TableContainer>
+            ) : null}
+          </CardContent>
+        </Card>
+      </Can>
+
+      <Card className="table-card">
+        <CardHeader className="section-title-row">
+          <div>
+            <CardTitle>Complete Delivery</CardTitle>
+            <CardDescription>Item-level delivery results and returned/damaged warehouse handling.</CardDescription>
+          </div>
+          <Can permission={PERMISSIONS.SHIPMENTS_UPDATE_STATUS}>
+            <ApprovalActionButtons
+              complete={{
+                label: 'Complete Delivery',
+                onClick: () => setCompleteDeliveryOpen(true),
+                disabled: !canCompleteDelivery || !orderItems.length,
+              }}
+            />
+          </Can>
+        </CardHeader>
+        <CardContent>
+          {orderQuery.isLoading ? (
+            <LoadingState
+              title="Loading order items"
+              description="Fetching the linked order items for item-level delivery completion."
+            />
+          ) : null}
+          {orderQuery.isError ? (
+            <ErrorState
+              title="Unable to load linked order items"
+              message={getApiErrorMessage(orderQuery.error)}
+              onRetry={() => void orderQuery.refetch()}
+            />
+          ) : null}
+          {!orderQuery.isLoading && !orderQuery.isError && !orderItems.length ? (
+            <EmptyState
+              title="No order items available"
+              description="The linked order did not return items for item-level delivery completion."
+            />
+          ) : null}
+          {shipment.item_results?.length ? (
+            <TableContainer>
+              <Table variant="compact">
+                <thead>
+                  <tr>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Result</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>Return Condition</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead>Created</TableHead>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shipment.item_results.map((result) => (
+                    <tr key={result.id}>
+                      <TableCell>{result.product_name}</TableCell>
+                      <TableCell>{result.result_status}</TableCell>
+                      <TableCell>{result.quantity}</TableCell>
+                      <TableCell>{result.return_condition ?? '-'}</TableCell>
+                      <TableCell>{result.notes ?? '-'}</TableCell>
+                      <TableCell>{formatDate(result.created_at)}</TableCell>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableContainer>
+          ) : (
+            !orderQuery.isLoading && !orderQuery.isError ? (
+              <EmptyState
+                title="No item-level delivery results"
+                description="No complete-delivery item results have been recorded for this shipment yet."
+              />
+            ) : null
+          )}
+        </CardContent>
+      </Card>
+
+      <Can permission={PERMISSIONS.AUDIT_LOGS_TIMELINE}>
+        {timelineQuery.isLoading ? <LoadingState title="Loading activity timeline" /> : null}
+        {timelineQuery.isError ? (
+          <ErrorState
+            title="Unable to load shipment activity timeline"
+            message={getApiErrorMessage(timelineQuery.error)}
+            onRetry={() => void timelineQuery.refetch()}
+          />
+        ) : null}
+        {!timelineQuery.isLoading && !timelineQuery.isError ? (
+          <Timeline
+            title="Activity Timeline"
+            items={timelineItems}
+            emptyDescription="No shipment activity timeline entries were returned."
+          />
+        ) : null}
+      </Can>
+
+      <Can permission={PERMISSIONS.ATTACHMENTS_VIEW}>
+        <Attachments attachableType="shipments" attachableId={shipment.id} />
+      </Can>
+
+      {printData ? (
+        <PrintView title="Shipment Manifest">
+          <Card>
+            <CardHeader>
+              <CardTitle>Shipment Print View</CardTitle>
+              <CardDescription>Rendered from the documented shipment print-list response for the selected print date.</CardDescription>
+            </CardHeader>
+            <CardContent className="page-stack">
+              <div className="stats-grid">
+                <StatTile label="Generated At" value={formatDate(printData.generated_at)} />
+                <StatTile label="Print Date" value={printData.filters.date} />
+                <StatTile label="Total Shipments" value={printData.summary.total_shipments} />
+                <StatTile label="Total COD" value={<MoneyDisplay value={printData.summary.total_cod_amount} />} />
+                <StatTile label="Total Shipping Fee" value={<MoneyDisplay value={printData.summary.total_shipping_fee} />} />
+              </div>
+              <TableContainer>
+                <Table variant="compact">
+                  <thead>
+                    <tr>
+                      <TableHead>Shipment</TableHead>
+                      <TableHead>Merchant</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Governorate</TableHead>
+                      <TableHead>Area</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>Driver</TableHead>
+                      <TableHead>Merchant Phone</TableHead>
+                      <TableHead>COD</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {printData.shipments.map((item, index) => (
+                      <tr key={`${item.shipment_number}-${index}`}>
+                        <TableCell>{item.shipment_number}</TableCell>
+                        <TableCell>{item.merchant_name}</TableCell>
+                        <TableCell>{item.customer_name}</TableCell>
+                        <TableCell>{item.customer_phone}</TableCell>
+                        <TableCell>{item.delivery_governorate_name}</TableCell>
+                        <TableCell>{item.delivery_area_name ?? '-'}</TableCell>
+                        <TableCell>{item.delivery_address}</TableCell>
+                        <TableCell>{item.driver_name ?? '-'}</TableCell>
+                        <TableCell>{item.merchant_phone ?? '-'}</TableCell>
+                        <TableCell><MoneyDisplay value={item.cod_amount} /></TableCell>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+        </PrintView>
+      ) : null}
+
+      <UpdateStatusDialog
+        error={statusMutation.error}
+        isSubmitting={statusMutation.isPending}
+        onClose={() => setStatusOpen(false)}
+        onSubmit={(values) => statusMutation.mutate(values)}
+        open={statusOpen}
+        currentStatus={shipment.status}
+      />
+      <AssignDriverDialog
+        currentDriverId={shipment.assigned_driver_id}
+        error={assignMutation.error}
+        isSubmitting={assignMutation.isPending}
+        onClose={() => setAssignOpen(false)}
+        onSubmit={(values) => assignMutation.mutate(values)}
+        open={assignOpen}
+      />
+      <DeliveryAttemptDialog
+        error={deliveryAttemptMutation.error}
+        isSubmitting={deliveryAttemptMutation.isPending}
+        onClose={() => setDeliveryAttemptOpen(false)}
+        onSubmit={(values) => deliveryAttemptMutation.mutate(values)}
+        open={deliveryAttemptOpen}
+      />
+      <ShipmentPrintDialog
+        error={printMutation.error}
+        initialDate={defaultPrintDate}
+        initialStatus={shipment.status}
+        isSubmitting={printMutation.isPending}
+        onClose={() => setPrintOpen(false)}
+        onSubmit={(values) => {
+          printMutation.mutate({
+            date: values.date,
+            ...(values.status ? { status: values.status } : {}),
+            ...(shipment.assigned_driver_id ? { assigned_driver_id: shipment.assigned_driver_id } : {}),
+            ...(shipment.delivery_governorate_id ? { delivery_governorate_id: shipment.delivery_governorate_id } : {}),
+            ...(shipment.delivery_area_id ? { delivery_area_id: shipment.delivery_area_id } : {}),
+          })
+          setPrintOpen(false)
+        }}
+        open={printOpen}
+      />
+      <CompleteDeliveryDialog
+        error={completeDeliveryMutation.error}
+        fulfillmentType={shipment.fulfillment_type}
+        isSubmitting={completeDeliveryMutation.isPending}
+        merchantId={shipment.merchant_id}
+        onClose={() => setCompleteDeliveryOpen(false)}
+        onSubmit={(values) => completeDeliveryMutation.mutate(values)}
+        open={completeDeliveryOpen}
+        orderItems={orderItems}
+      />
+    </section>
+  )
+}
+
+function StatTile({ label, value }: { label: string; value: string | number | ReactNode }) {
+  return (
+    <Card variant="stat" className="stat-card stat-card--neutral">
+      <CardHeader className="stat-card__header">
+        <span className="eyebrow">{label}</span>
+      </CardHeader>
+      <CardContent className="stat-card__content">
+        <CardTitle className="stat-card__value">{value}</CardTitle>
+      </CardContent>
+    </Card>
+  )
+}
