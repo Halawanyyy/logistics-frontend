@@ -118,7 +118,7 @@ export function FinanceReportsPage() {
   })
 
   return (
-    <section className="page-section">
+    <section className="page-section report-surface" dir="auto">
       <PageHeader
         title={t('Finance Reports', { defaultValue: 'Finance Reports' })}
         description={t('Reconciliation, treasury, merchant ledger, warehouse revenue, and profit reports.', {
@@ -376,7 +376,11 @@ function DailyCashReportView({ report }: { report: FinanceDailyCashReport }) {
                 <tr key={account.id}>
                   <TableCell>{account.name}</TableCell>
                   <TableCell>{account.code}</TableCell>
-                  <TableCell>{pickDisplayLabel(account.type, account.type_label)}</TableCell>
+                  <TableCell>
+                    <StatusBadge value={account.type}>
+                      {pickDisplayLabel(account.type, account.type_label)}
+                    </StatusBadge>
+                  </TableCell>
                   <TableCell><MoneyDisplay value={account.current_balance} /></TableCell>
                 </tr>
               ))}
@@ -427,8 +431,16 @@ function MerchantLedgerReportView({ report }: { report: FinanceMerchantLedgerRep
                 <tr key={item.id}>
                   <TableCell>{item.merchant_name}</TableCell>
                   <TableCell>{item.transaction_number}</TableCell>
-                  <TableCell>{pickDisplayLabel(item.transaction_type, item.transaction_type_label)}</TableCell>
-                  <TableCell>{pickDisplayLabel(item.direction, item.direction_label)}</TableCell>
+                  <TableCell>
+                    <StatusBadge value={item.transaction_type}>
+                      {pickDisplayLabel(item.transaction_type, item.transaction_type_label)}
+                    </StatusBadge>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge value={item.direction}>
+                      {pickDisplayLabel(item.direction, item.direction_label)}
+                    </StatusBadge>
+                  </TableCell>
                   <TableCell><MoneyDisplay value={item.amount} /></TableCell>
                   <TableCell><MoneyDisplay value={item.balance_after} /></TableCell>
                   <TableCell>
@@ -436,7 +448,11 @@ function MerchantLedgerReportView({ report }: { report: FinanceMerchantLedgerRep
                       {pickDisplayLabel(item.status, item.status_label)}
                     </StatusBadge>
                   </TableCell>
-                  <TableCell>{pickDisplayLabel(item.source_type ?? '-', item.source_type_label)}</TableCell>
+                  <TableCell>
+                    <StatusBadge value={item.source_type}>
+                      {pickDisplayLabel(item.source_type ?? '-', item.source_type_label)}
+                    </StatusBadge>
+                  </TableCell>
                   <TableCell>{item.reference_number ?? '-'}</TableCell>
                   <TableCell>{formatDate(item.created_at)}</TableCell>
                 </tr>
@@ -534,7 +550,11 @@ function WarehouseRevenueReportView({ report }: { report: FinanceWarehouseRevenu
                   <tbody>
                     {report.by_type.map((item) => (
                       <tr key={item.transaction_type}>
-                        <TableCell>{pickDisplayLabel(item.transaction_type, item.transaction_type_label)}</TableCell>
+                        <TableCell>
+                          <StatusBadge value={item.transaction_type}>
+                            {pickDisplayLabel(item.transaction_type, item.transaction_type_label)}
+                          </StatusBadge>
+                        </TableCell>
                         <TableCell><MoneyDisplay value={item.amount} /></TableCell>
                       </tr>
                     ))}

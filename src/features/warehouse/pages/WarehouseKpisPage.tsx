@@ -15,6 +15,7 @@ import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { Button } from '../../../shared/components/ui/Button'
 import { adminPath } from '../../../shared/routing/paths'
 import { LowStockQuickCard } from '../components/LowStockQuickCard'
+import { useTranslation } from 'react-i18next'
 
 type KpiFiltersState = {
   warehouse_id: string
@@ -31,6 +32,7 @@ const initialFilters: KpiFiltersState = {
 }
 
 export function WarehouseKpisPage() {
+  const { t } = useTranslation()
   const [filters, setFilters] = useState<KpiFiltersState>(initialFilters)
   const params: WarehouseFilters = useMemo(
     () => ({
@@ -69,14 +71,14 @@ export function WarehouseKpisPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Warehouse KPIs"
-        description="Inventory, operations, returns, and warehouse billing summaries."
+        title={t('Warehouse KPIs')}
+        description={t('Inventory, operations, returns, and warehouse billing summaries.')}
       />
 
       <Card variant="flat" className="dashboard-filter-card">
         <CardContent className="dashboard-filters">
           <label className="field">
-            <span>Warehouse</span>
+            <span>{t('Warehouse')}</span>
             <WarehouseSelector
               value={filters.warehouse_id}
               includeAllOption
@@ -84,7 +86,7 @@ export function WarehouseKpisPage() {
             />
           </label>
           <label className="field">
-            <span>Merchant</span>
+            <span>{t('Merchant')}</span>
             <MerchantSelector
               value={filters.merchant_id}
               includeAllOption
@@ -101,37 +103,37 @@ export function WarehouseKpisPage() {
 
       <div className="stats-grid">
         <LowStockQuickCard
-          title="Low-Stock Inventory"
-          description="Count returned from the backend low-stock inventory endpoint for the selected merchant and warehouse."
-          countLabel="Inventory records"
+          title={t('Low-Stock Inventory')}
+          description={t('Count returned from the backend low-stock inventory endpoint for the selected merchant and warehouse.')}
+          countLabel={t('Inventory records')}
           count={lowStockInventoryQuery.data?.data.length ?? 0}
           loading={lowStockInventoryQuery.isLoading}
           error={lowStockInventoryQuery.isError ? getApiErrorMessage(lowStockInventoryQuery.error) : null}
           actions={(
             <Link className="ui-link-reset" to={`${adminPath('/inventory-stocks')}?${lowStockSearch}`}>
-              <Button type="button" variant="secondary">View low-stock inventory</Button>
+              <Button type="button" variant="secondary">{t('View low-stock inventory')}</Button>
             </Link>
           )}
         />
         <LowStockQuickCard
-          title="Low-Stock Products"
-          description="Count returned from the backend low-stock products endpoint for the selected merchant and warehouse."
-          countLabel="Product records"
+          title={t('Low-Stock Products')}
+          description={t('Count returned from the backend low-stock products endpoint for the selected merchant and warehouse.')}
+          countLabel={t('Product records')}
           count={lowStockProductsQuery.data?.data.length ?? 0}
           loading={lowStockProductsQuery.isLoading}
           error={lowStockProductsQuery.isError ? getApiErrorMessage(lowStockProductsQuery.error) : null}
           actions={(
             <Link className="ui-link-reset" to={`${adminPath('/warehouse-products')}?${lowStockSearch}`}>
-              <Button type="button" variant="secondary">View low-stock products</Button>
+              <Button type="button" variant="secondary">{t('View low-stock products')}</Button>
             </Link>
           )}
         />
       </div>
 
-      {kpisQuery.isLoading ? <LoadingState title="Loading warehouse KPIs" /> : null}
+      {kpisQuery.isLoading ? <LoadingState title={t('Loading warehouse KPIs')} /> : null}
       {kpisQuery.isError ? (
         <ErrorState
-          title="Unable to load warehouse KPIs"
+          title={t('Unable to load warehouse KPIs')}
           message={getApiErrorMessage(kpisQuery.error)}
           onRetry={() => void kpisQuery.refetch()}
         />
@@ -139,38 +141,38 @@ export function WarehouseKpisPage() {
       {kpisQuery.data ? (
         <div className="page-stack">
           <SectionCards
-            title="Inventory"
+            title={t('Inventory')}
             items={[
-              ['Total Available', kpisQuery.data.data.inventory.total_available],
-              ['Total Reserved', kpisQuery.data.data.inventory.total_reserved],
-              ['Total Damaged', kpisQuery.data.data.inventory.total_damaged],
-              ['Total SKUs', kpisQuery.data.data.inventory.total_skus],
+              [t('Total Available'), kpisQuery.data.data.inventory.total_available],
+              [t('Total Reserved'), kpisQuery.data.data.inventory.total_reserved],
+              [t('Total Damaged'), kpisQuery.data.data.inventory.total_damaged],
+              [t('Total SKUs'), kpisQuery.data.data.inventory.total_skus],
             ]}
           />
           <SectionCards
-            title="Operations"
+            title={t('Operations')}
             items={[
-              ['Picking Lists Total', kpisQuery.data.data.operations.picking_lists_total],
-              ['Picking Lists Completed', kpisQuery.data.data.operations.picking_lists_completed],
-              ['Packing Tasks Total', kpisQuery.data.data.operations.packing_tasks_total],
-              ['Packing Tasks Packed', kpisQuery.data.data.operations.packing_tasks_packed],
+              [t('Picking Lists Total'), kpisQuery.data.data.operations.picking_lists_total],
+              [t('Picking Lists Completed'), kpisQuery.data.data.operations.picking_lists_completed],
+              [t('Packing Tasks Total'), kpisQuery.data.data.operations.packing_tasks_total],
+              [t('Packing Tasks Packed'), kpisQuery.data.data.operations.packing_tasks_packed],
             ]}
           />
           <SectionCards
-            title="Returns"
+            title={t('Returns')}
             items={[
-              ['Total Returns', kpisQuery.data.data.returns.total_returns],
-              ['Sellable Returns', kpisQuery.data.data.returns.sellable_returns],
-              ['Damaged Returns', kpisQuery.data.data.returns.damaged_returns],
-              ['Disposed Returns', kpisQuery.data.data.returns.disposed_returns],
+              [t('Total Returns'), kpisQuery.data.data.returns.total_returns],
+              [t('Sellable Returns'), kpisQuery.data.data.returns.sellable_returns],
+              [t('Damaged Returns'), kpisQuery.data.data.returns.damaged_returns],
+              [t('Disposed Returns'), kpisQuery.data.data.returns.disposed_returns],
             ]}
           />
           <SectionCards
-            title="Billing"
+            title={t('Billing')}
             items={[
-              ['Storage Charges', <MoneyDisplay value={kpisQuery.data.data.billing.storage_charges} />],
-              ['Packaging Charges', <MoneyDisplay value={kpisQuery.data.data.billing.packaging_charges} />],
-              ['Fulfillment Charges', <MoneyDisplay value={kpisQuery.data.data.billing.fulfillment_charges} />],
+              [t('Storage Charges'), <MoneyDisplay value={kpisQuery.data.data.billing.storage_charges} />],
+              [t('Packaging Charges'), <MoneyDisplay value={kpisQuery.data.data.billing.packaging_charges} />],
+              [t('Fulfillment Charges'), <MoneyDisplay value={kpisQuery.data.data.billing.fulfillment_charges} />],
             ]}
           />
         </div>
@@ -186,11 +188,12 @@ function SectionCards({
   title: string
   items: Array<[string, ReactNode]>
 }) {
+  const { t } = useTranslation()
   return (
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
-        <CardDescription>{title} values returned directly from warehouse KPIs.</CardDescription>
+        <CardDescription>{t('{{title}} values returned directly from warehouse KPIs.', { title })}</CardDescription>
       </CardHeader>
       <CardContent className="stats-grid">
         {items.map(([label, value]) => (

@@ -30,6 +30,7 @@ import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { formatDate } from '../../../shared/utils/formatters'
+import { useTranslation } from 'react-i18next'
 
 type RuleFiltersState = {
   merchant_id: string
@@ -73,6 +74,7 @@ function CreateStorageFeeRuleDialog({
   onSubmit: (values: StorageFeeRuleFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const pricingPlansQuery = useQuery({
     queryKey: ['pricing-plans', 'storage-rule'],
     queryFn: () => listPricingPlans(),
@@ -100,15 +102,15 @@ function CreateStorageFeeRuleDialog({
   const { formError, getFieldError } = useFormApiErrors(error)
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Create Storage Fee Rule</CardTitle>}>
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Create Storage Fee Rule')}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Name</span>
-          <Input {...register('name', { required: 'Name is required.' })} />
+          <span>{t('Name')}</span>
+          <Input {...register('name', { required: t('Name is required.') })} />
           <FieldError error={errors.name?.message ?? getFieldError('name')} />
         </label>
         <label className="field">
-          <span>Merchant</span>
+          <span>{t('Merchant')}</span>
           <MerchantSelector
             value={watch('merchant_id')}
             includeAllOption
@@ -116,18 +118,18 @@ function CreateStorageFeeRuleDialog({
           />
         </label>
         <label className="field">
-          <span>Pricing Plan</span>
+          <span>{t('Pricing Plan')}</span>
           <Controller
             control={control}
             name="pricing_plan_id"
             render={({ field }) => (
               <SearchableSelect
                 value={field.value}
-                placeholder="Optional pricing plan"
-                searchPlaceholder="Search pricing plans..."
+                placeholder={t('Optional pricing plan')}
+                searchPlaceholder={t('Search pricing plans...')}
                 onChange={field.onChange}
                 options={[
-                  { label: 'Optional pricing plan', value: '' },
+                  { label: t('Optional pricing plan'), value: '' },
                   ...((pricingPlansQuery.data?.data ?? []).map((plan: PricingPlan) => ({
                     label: plan.name,
                     value: String(plan.id),
@@ -139,39 +141,39 @@ function CreateStorageFeeRuleDialog({
           />
         </label>
         <label className="field">
-          <span>Calculation Type</span>
-          <Select {...register('calculation_type', { required: 'Calculation type is required.' })}>
-            <option value="per_item_per_month">per_item_per_month</option>
-            <option value="per_sku_per_month">per_sku_per_month</option>
+          <span>{t('Calculation Type')}</span>
+          <Select {...register('calculation_type', { required: t('Calculation type is required.') })}>
+            <option value="per_item_per_month">{t('per_item_per_month')}</option>
+            <option value="per_sku_per_month">{t('per_sku_per_month')}</option>
           </Select>
           <FieldError error={errors.calculation_type?.message ?? getFieldError('calculation_type')} />
         </label>
         <label className="field">
-          <span>Unit Price</span>
+          <span>{t('Unit Price')}</span>
           <Input type="number" min="0" step="0.01" {...register('unit_price', { valueAsNumber: true, min: 0 })} />
           <FieldError error={errors.unit_price?.message ?? getFieldError('unit_price')} />
         </label>
         <label className="field">
-          <span>Free Units</span>
+          <span>{t('Free Units')}</span>
           <Input type="number" min="0" {...register('free_units', { valueAsNumber: true, min: 0 })} />
           <FieldError error={errors.free_units?.message ?? getFieldError('free_units')} />
         </label>
         <label className="field">
-          <span>Status</span>
+          <span>{t('Status')}</span>
           <Select {...register('status')}>
-            <option value="active">active</option>
-            <option value="inactive">inactive</option>
+            <option value="active">{t('active')}</option>
+            <option value="inactive">{t('inactive')}</option>
           </Select>
         </label>
         <label className="field">
-          <span>Notes</span>
+          <span>{t('Notes')}</span>
           <Input {...register('notes')} />
         </label>
-        <p className="table-meta">Rule can be merchant-specific, pricing-plan-specific, both, or global depending on backend configuration.</p>
+        <p className="table-meta">{t('Rule can be merchant-specific, pricing-plan-specific, both, or global depending on backend configuration.')}</p>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={isSubmitting}>Create Rule</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="submit" loading={isSubmitting}>{t('Create Rule')}</Button>
         </div>
       </form>
     </Dialog>
@@ -191,6 +193,7 @@ function GenerateStorageFeesDialog({
   onSubmit: (values: GenerateStorageFeesFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const {
     register,
     setValue,
@@ -207,10 +210,10 @@ function GenerateStorageFeesDialog({
   const { formError, getFieldError } = useFormApiErrors(error)
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Generate Storage Fees</CardTitle>} variant="small">
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Generate Storage Fees')}</CardTitle>} variant="small">
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Merchant</span>
+          <span>{t('Merchant')}</span>
           <MerchantSelector
             value={watch('merchant_id')}
             onChange={(merchant_id) => setValue('merchant_id', merchant_id)}
@@ -218,19 +221,19 @@ function GenerateStorageFeesDialog({
           <FieldError error={errors.merchant_id?.message ?? getFieldError('merchant_id')} />
         </label>
         <label className="field">
-          <span>Period Start</span>
-          <Input type="date" {...register('period_start', { required: 'Period start is required.' })} />
+          <span>{t('Period Start')}</span>
+          <Input type="date" {...register('period_start', { required: t('Period start is required.') })} />
           <FieldError error={errors.period_start?.message ?? getFieldError('period_start')} />
         </label>
         <label className="field">
-          <span>Period End</span>
-          <Input type="date" {...register('period_end', { required: 'Period end is required.' })} />
+          <span>{t('Period End')}</span>
+          <Input type="date" {...register('period_end', { required: t('Period end is required.') })} />
           <FieldError error={errors.period_end?.message ?? getFieldError('period_end')} />
         </label>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={isSubmitting}>Generate Fees</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="submit" loading={isSubmitting}>{t('Generate Fees')}</Button>
         </div>
       </form>
     </Dialog>
@@ -238,6 +241,7 @@ function GenerateStorageFeesDialog({
 }
 
 export function StorageFeeRulesPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<RuleFiltersState>(initialFilters)
   const [createOpen, setCreateOpen] = useState(false)
@@ -296,15 +300,15 @@ export function StorageFeeRulesPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Storage Fee Rules"
-        description="Merchant and pricing-plan storage billing rules plus storage fee generation."
+        title={t('Storage Fee Rules')}
+        description={t('Merchant and pricing-plan storage billing rules plus storage fee generation.')}
         actions={(
           <div className="page-header__button-row">
             <Can permission={PERMISSIONS.STORAGE_FEE_RULES_CREATE}>
-              <Button type="button" onClick={() => setCreateOpen(true)}>Create Rule</Button>
+              <Button type="button" onClick={() => setCreateOpen(true)}>{t('Create Rule')}</Button>
             </Can>
             <Can permission={PERMISSIONS.STORAGE_FEES_GENERATE}>
-              <Button type="button" variant="secondary" onClick={() => setGenerateOpen(true)}>Generate Fees</Button>
+              <Button type="button" variant="secondary" onClick={() => setGenerateOpen(true)}>{t('Generate Fees')}</Button>
             </Can>
           </div>
         )}
@@ -313,7 +317,7 @@ export function StorageFeeRulesPage() {
       <Card variant="flat" className="dashboard-filter-card">
         <CardContent className="dashboard-filters">
           <label className="field">
-            <span>Merchant</span>
+            <span>{t('Merchant')}</span>
             <MerchantSelector
               value={filters.merchant_id}
               includeAllOption
@@ -321,14 +325,14 @@ export function StorageFeeRulesPage() {
             />
           </label>
           <label className="field">
-            <span>Pricing Plan</span>
+            <span>{t('Pricing Plan')}</span>
             <SearchableSelect
               value={filters.pricing_plan_id}
-              placeholder="All pricing plans"
-              searchPlaceholder="Search pricing plans..."
+              placeholder={t('All pricing plans')}
+              searchPlaceholder={t('Search pricing plans...')}
               onChange={(pricing_plan_id) => setFilters((current) => ({ ...current, pricing_plan_id }))}
               options={[
-                { label: 'All pricing plans', value: '' },
+                { label: t('All pricing plans'), value: '' },
                 ...((pricingPlansQuery.data?.data ?? []).map((plan: PricingPlan) => ({
                   label: plan.name,
                   value: String(plan.id),
@@ -338,14 +342,14 @@ export function StorageFeeRulesPage() {
             />
           </label>
           <label className="field">
-            <span>Status</span>
+            <span>{t('Status')}</span>
             <Select
               value={filters.status}
               onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
             >
-              <option value="">All statuses</option>
-              <option value="active">active</option>
-              <option value="inactive">inactive</option>
+              <option value="">{t('All statuses')}</option>
+              <option value="active">{t('active')}</option>
+              <option value="inactive">{t('inactive')}</option>
             </Select>
           </label>
         </CardContent>
@@ -353,34 +357,34 @@ export function StorageFeeRulesPage() {
 
       <Card className="table-card">
         <CardHeader>
-          <CardTitle>Storage Fee Rules</CardTitle>
-          <CardDescription>Rule values used by backend-side storage fee generation.</CardDescription>
+          <CardTitle>{t('Storage Fee Rules')}</CardTitle>
+          <CardDescription>{t('Rule values used by backend-side storage fee generation.')}</CardDescription>
         </CardHeader>
         <CardContent>
-          {rulesQuery.isLoading ? <LoadingState title="Loading storage fee rules" /> : null}
+          {rulesQuery.isLoading ? <LoadingState title={t('Loading storage fee rules')} /> : null}
           {rulesQuery.isError ? (
             <ErrorState
-              title="Unable to load storage fee rules"
+              title={t('Unable to load storage fee rules')}
               message={getApiErrorMessage(rulesQuery.error)}
               onRetry={() => void rulesQuery.refetch()}
             />
           ) : null}
           {!rulesQuery.isLoading && !rulesQuery.isError && !rules.length ? (
-            <EmptyState title="No storage fee rules" description="No storage fee rules matched the selected filters." />
+            <EmptyState title={t('No storage fee rules')} description={t('No storage fee rules matched the selected filters.')} />
           ) : null}
           {rules.length ? (
             <TableContainer>
               <Table variant="compact">
                 <thead>
                   <tr>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Merchant</TableHead>
-                    <TableHead>Pricing Plan</TableHead>
-                    <TableHead>Calculation Type</TableHead>
-                    <TableHead>Unit Price</TableHead>
-                    <TableHead>Free Units</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead>{t('Name')}</TableHead>
+                    <TableHead>{t('Merchant')}</TableHead>
+                    <TableHead>{t('Pricing Plan')}</TableHead>
+                    <TableHead>{t('Calculation Type')}</TableHead>
+                    <TableHead>{t('Unit Price')}</TableHead>
+                    <TableHead>{t('Free Units')}</TableHead>
+                    <TableHead>{t('Status')}</TableHead>
+                    <TableHead>{t('Created')}</TableHead>
                   </tr>
                 </thead>
                 <tbody>
@@ -389,7 +393,7 @@ export function StorageFeeRulesPage() {
                       <TableCell>{rule.name}</TableCell>
                       <TableCell>{rule.merchant_name ?? '-'}</TableCell>
                       <TableCell>{rule.pricing_plan_name ?? '-'}</TableCell>
-                      <TableCell>{rule.calculation_type ?? rule.fee_type ?? '-'}</TableCell>
+                      <TableCell>{rule.calculation_type || rule.fee_type ? t((rule.calculation_type ?? rule.fee_type) as string) : '-'}</TableCell>
                       <TableCell>{rule.unit_price ?? rule.rate ?? '-'}</TableCell>
                       <TableCell>{rule.free_units ?? '-'}</TableCell>
                       <TableCell><StatusBadge value={rule.status} /></TableCell>

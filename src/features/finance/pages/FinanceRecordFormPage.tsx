@@ -1,14 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Wallet } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { generateDriverCashClosure, getDriverCashExpected, listDrivers } from '../../drivers/api/drivers.api'
 import { listMerchants } from '../../merchants/api/merchants.api'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
+import { FormPageLayout } from '../../../shared/components/forms/FormPageLayout'
 import { ErrorState } from '../../../shared/components/feedback/ErrorState'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
 import { Button } from '../../../shared/components/ui/Button'
-import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
-import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import {
   createDriverCashClosure,
   createExpense,
@@ -70,6 +71,7 @@ const config = {
 } as const
 
 export function FinanceRecordFormPage({ kind, mode }: { kind: FinanceKind; mode: 'create' | 'edit' }) {
+  const { t } = useTranslation()
   const { recordId } = useParams()
   const entry = config[kind]
   const isEdit = mode === 'edit'
@@ -107,44 +109,100 @@ export function FinanceRecordFormPage({ kind, mode }: { kind: FinanceKind; mode:
   const loading = recordQuery.isLoading || merchantsQuery.isLoading || driversQuery.isLoading
   const error = recordQuery.error ?? merchantsQuery.error ?? driversQuery.error ?? expectedQuery.error
 
-  if (loading) return <LoadingState title={`Loading ${entry.title.toLowerCase()}`} />
+  if (loading) return <LoadingState title={t('Loading {{title}}', {
+    title: t(entry.title, { defaultValue: entry.title }).toLowerCase(),
+    defaultValue: `Loading ${entry.title.toLowerCase()}`,
+  })} />
   if (error) return <ErrorState message={getApiErrorMessage(error)} />
 
   const common = {
     defaultValues: recordQuery.data?.data as any,
     error: mutation.error,
     isSubmitting: mutation.isPending,
-    submitLabel: isEdit ? `Save ${entry.title}` : `Create ${entry.title}`,
+    submitLabel: isEdit
+      ? t('Save {{title}}', { title: t(entry.title, { defaultValue: entry.title }), defaultValue: `Save ${entry.title}` })
+      : t('Create {{title}}', { title: t(entry.title, { defaultValue: entry.title }), defaultValue: `Create ${entry.title}` }),
     onSubmit: (values: any) => mutation.mutate(values),
   }
 
   return (
-    <section className="page-section">
-      <PageHeader
-        title={isEdit ? `Edit ${entry.title}` : `Create ${entry.title}`}
-        description="Submit data to the documented finance API."
-        actions={<Link className="ui-link-reset" to={entry.back}><Button variant="secondary">Back</Button></Link>}
-      />
-      <Card>
-        <CardHeader><CardTitle>{entry.title} Details</CardTitle></CardHeader>
-        <CardContent>
-          {kind === 'payouts' ? <MerchantPayoutForm {...common} merchants={merchantsQuery.data?.data ?? []} /> : null}
-          {kind === 'cash-closures' && isEdit ? <DriverCashClosureForm {...common} drivers={driversQuery.data?.data ?? []} /> : null}
-          {kind === 'cash-closures' && !isEdit ? (
-            <GenerateDriverCashClosureForm
-              drivers={driversQuery.data?.data ?? []}
-              error={generateMutation.error}
-              expectedAmount={Number(expectedQuery.data?.data.expected_amount ?? 0)}
-              isSubmitting={generateMutation.isPending}
-              onDriverChange={setSelectedDriverId}
-              onSubmit={(driverId, values) => generateMutation.mutate({ driverId, values })}
-              submitLabel="Generate Driver Cash Closure"
-            />
-          ) : null}
-          {kind === 'expenses' ? <ExpenseForm {...common} /> : null}
-          {kind === 'invoices' ? <MerchantInvoiceForm {...common} merchants={merchantsQuery.data?.data ?? []} /> : null}
-        </CardContent>
-      </Card>
-    </section>
+    <FormPageLayout
+      backTo={entry.back}
+      description={t('Review the finance fields carefully and submit them through the existing finance workflow.', {
+        defaultValue: 'Review the finance fields carefully and submit them through the existing finance workflow.',
+      })}
+      eyebrow={t('Finance', { defaultValue: 'Finance' })}
+      sectionIcon={<Wallet size={18} />}
+      sectionDescription={t('Complete the required finance details, confirm the operational values, and save when everything is ready.', {
+        defaultValue: 'Complete the required finance details, confirm the operational values, and save when everything is ready.',
+      })}
+      sectionTitle={t('{{title}} Details', {
+        title: t(entry.title, { defaultValue: entry.title }),
+        defaultValue: `${entry.title} Details`,
+      })}
+      title={isEdit
+        ? t('Edit {{title}}', { title: t(entry.title, { defaultValue: entry.title }), defaultValue: `Edit ${entry.title}` })
+        : t('Create {{title}}', { title: t(entry.title, { defaultValue: entry.title }), defaultValue: `Create ${entry.title}` })}
+    >
+      {kind === 'payouts' ? (
+        <MerchantPayoutForm
+          {...common}
+          merchants={merchantsQuery.data?.data ?? []}
+          secondaryAction={(
+            <Link className="ui-link-reset" to={entry.back}>
+              <Button variant="secondary">{t('Cancel', { defaultValue: 'Cancel' })}</Button>
+            </Link>
+          )}
+        />
+      ) : null}
+      {kind === 'cash-closures' && isEdit ? (
+        <DriverCashClosureForm
+          {...common}
+          drivers={driversQuery.data?.data ?? []}
+          secondaryAction={(
+            <Link className="ui-link-reset" to={entry.back}>
+              <Button variant="secondary">{t('Cancel', { defaultValue: 'Cancel' })}</Button>
+            </Link>
+          )}
+        />
+      ) : null}
+      {kind === 'cash-closures' && !isEdit ? (
+        <GenerateDriverCashClosureForm
+          drivers={driversQuery.data?.data ?? []}
+          error={generateMutation.error}
+          expectedAmount={Number(expectedQuery.data?.data.expected_amount ?? 0)}
+          isSubmitting={generateMutation.isPending}
+          onDriverChange={setSelectedDriverId}
+          onSubmit={(driverId, values) => generateMutation.mutate({ driverId, values })}
+          secondaryAction={(
+            <Link className="ui-link-reset" to={entry.back}>
+              <Button variant="secondary">{t('Cancel', { defaultValue: 'Cancel' })}</Button>
+            </Link>
+          )}
+          submitLabel={t('Generate Driver Cash Closure', { defaultValue: 'Generate Driver Cash Closure' })}
+        />
+      ) : null}
+      {kind === 'expenses' ? (
+        <ExpenseForm
+          {...common}
+          secondaryAction={(
+            <Link className="ui-link-reset" to={entry.back}>
+              <Button variant="secondary">{t('Cancel', { defaultValue: 'Cancel' })}</Button>
+            </Link>
+          )}
+        />
+      ) : null}
+      {kind === 'invoices' ? (
+        <MerchantInvoiceForm
+          {...common}
+          merchants={merchantsQuery.data?.data ?? []}
+          secondaryAction={(
+            <Link className="ui-link-reset" to={entry.back}>
+              <Button variant="secondary">{t('Cancel', { defaultValue: 'Cancel' })}</Button>
+            </Link>
+          )}
+        />
+      ) : null}
+    </FormPageLayout>
   )
 }

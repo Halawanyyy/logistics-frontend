@@ -11,6 +11,19 @@ Status legend:
 - `Wrong`: present but mismatched with docs
 - `Not Required Now`: future/plugin-facing only
 
+## Admin Form + Actions Stabilization Pass
+
+Implemented in this pass:
+- Shared form primitives now support icon-ready submit actions and a cleaner create/edit section header treatment without changing API contracts.
+- Merchant, order, user, location/pricing, finance, warehouse, driver, and treasury create/edit wrappers now use the shared form shell more consistently and pass page-specific section icons.
+- `OrderForm` was restructured from one squeezed generic grid into grouped sections for order context, customer details, delivery, commercial details, operational notes, and item management.
+- Shipment detail dialogs were cleaned up so key labels and action text are localized instead of staying hardcoded English.
+- Row action menus across orders, shipments, users, merchants, governorates, areas, and shipping rates now use direct click handlers instead of nested links inside dropdown items.
+
+Honest status summary:
+- `OK`: shared form-shell polish, order form rewrite, dropdown click stabilization, and shipment dialog localization cleanup.
+- `Partial`: some older non-form list/detail screens still contain residual English copy outside the scope of this pass.
+
 ## Latest Backend Sync Pass
 
 Implemented in this pass:
@@ -29,6 +42,33 @@ Honest status summary:
 - `OK`: Warehouse Receipts, Warehouse Transfers, Warehouse Order Workflow gate/actions, Warehouse Return Lifecycle, Orders/Shipments final filter/lifecycle sync, Merchant Portal scope decision, Merchant inbound stock request admin review, build verification.
 - `Partial`: Label Printing breadth, Localization label adoption breadth, low-stock UX polish.
 - `Not Required Now`: Merchant-facing `/merchant` route namespace and merchant app screens, because this frontend still only implements the admin application.
+
+## Driver Manifest Print Document Pass
+
+Implemented in this pass:
+- Driver Manifest printing no longer relies on rendering the live admin page inside `PrintView` and then calling `window.print()` on that UI shell.
+- A dedicated frontend-owned printable manifest document now exists under `src/features/driver-manifests/utils/driverManifestPrint.ts`, built from backend manifest data and wrapped with the shared UTF-8, locale-aware, Arabic-safe print document helper.
+- The new print flow is used from both `DriverManifestsPage` and `DriverManifestDetailsPage` through one page-owned `DriverManifestPrintDialog`, so the visible print output is no longer a screenshot-like copy of dashboard chrome, filters, or cards.
+- Printed manifests now render a clean metadata header, selected-filters summary block, totals cards, and a table-first shipment report with strong borders and print-safe styling.
+- Driver Manifest print intentionally contains no barcode and keeps shipment numbers as plain text because this document is a report/manifest, not a label.
+
+Honest driver-manifest-print status summary:
+- `OK`: Dedicated frontend-owned Driver Manifest print document, shared print wrapper reuse, filter-summary block, no-barcode report layout, list/details flow wiring, and build verification.
+- `Partial`: Driver Manifest print remains a report-specific print path rather than joining the shared label-family builder, which is intentional and not a blocker.
+
+## Responsive Layout + Table Reduction Pass
+
+Implemented in this pass:
+- Orders list no longer renders the Customer, COD, or Shipping Fee columns in the main table, while keeping the underlying API data/types and detail-page access intact.
+- Shipments list no longer renders the Order Number, Customer, COD, or Shipping Fee columns in the main table, reducing width while preserving list filters, actions, and detail flows.
+- Shared admin layout CSS was tightened so content wrappers, cards, page headers, actions, and table containers handle smaller widths and RTL better without forcing page-level horizontal overflow.
+- Shared detail grids no longer stretch cards to equal heights as aggressively, and the generic detail-list layout now packs content more evenly to reduce large blank card areas on detail pages.
+- Shared form-page styling was introduced for the touched create/edit wrappers so cards use a more compact max width and responsive form grids instead of large empty desktop whitespace.
+- Settings layout was adjusted through shared grid/content rules so the branding/settings overview and settings form grid collapse more safely and do not push cards partially off-screen as easily.
+
+Honest responsive-pass status summary:
+- `OK`: Orders/Shipments list column reduction, central responsive CSS pass, compact form-shell treatment on touched wrappers, detail-card spacing improvement, settings layout visibility improvement, and build verification.
+- `Partial`: This is still an incremental frontend polish pass. It improves shared layout behavior broadly, but it is not a claim that every untouched legacy page has received full manual device-by-device QA.
 
 ## Optional UX Polish Pass
 
@@ -68,6 +108,76 @@ Implemented in this pass:
 Honest focused-pass status summary:
 - `OK`: Chart tooltip clarity/build verification, status badge distinction, and sidebar dropdown behavior are implemented and compile cleanly.
 - `Partial`: Localization coverage on the targeted older pages is materially better, but some legacy warehouse/admin dialogs and additional older finance/detail surfaces still remain outside this pass.
+
+## Follow-up Localization + Navigation Polish Pass
+
+Implemented in this pass:
+- Shared `StatusBadge` mapping was refined again for logistics-heavy operational states so `unassigned`, `assigned`, `pending_pickup`, `pending_return`, `review_required`, `failed_delivery`, `returned_to_hub`, and `returned_to_warehouse` no longer collapse into ambiguous tones.
+- The sidebar information architecture was tightened by grouping Orders and Shipments under one localized `Orders & Shipments` dropdown while preserving permission-gated children, active-child auto-open behavior, and persisted open state.
+- Report and print surfaces now use an Arabic-capable font stack through shared CSS and the print wrapper so shipment/manifest/report views render mixed Arabic and Latin text more safely without any package changes.
+- Export history download feedback is now row-scoped: only the clicked download button enters a loading state while the file request is in flight.
+- Localization coverage was extended again across shipment details and print surfaces, export history/filter/dialog copy, and the main driver-manifest list page plus its generate/close/print dialogs.
+- Arabic resource entries were updated for the new sidebar label, print action copy, driver-manifest list strings, shipment-detail strings, and export-history helper text used in this pass.
+
+Honest follow-up-pass status summary:
+- `OK`: Status-badge distinction, sidebar regrouping, Arabic-safe report/print font fallback, export row-loading behavior, and build verification are all implemented and compile cleanly.
+- `Partial`: Localization breadth is materially improved again, but some older finance, warehouse, and admin dialogs still remain outside this pass.
+
+## Full Localization Audit Pass
+
+Implemented in this pass:
+- A dedicated page-by-page localization audit file now exists at `docs/FRONTEND_LOCALIZATION_PAGE_CHECKLIST.md`, covering admin routes/pages plus shared layout/component surfaces with explicit `OK` / `Partial` / `Missing` status.
+- Route discovery was reconciled against `src/app/router.tsx`, feature page files under `src/features`, layouts, and shared UI so old routes that are no longer prominent in the sidebar are still tracked in the checklist.
+- Additional localization was implemented across the location/pricing module wrappers and details, public tracking, order create/edit wrappers, and several finance wrapper/list/detail/form surfaces.
+- Arabic translation entries were added for the newly localized wrapper/page strings introduced in this pass.
+- The checklist now documents exact remaining untranslated file paths and examples instead of leaving the remaining gaps implicit.
+
+Honest full-localization-pass status summary:
+- `OK`: Checklist creation, route/page inventorying, additional location/pricing localization, additional finance wrapper localization, public tracking localization, and build verification.
+- `Partial`: Full app-wide localization is still in progress. The checklist explicitly records remaining warehouse-heavy pages plus a few older merchant, finance-report, order-form, and driver-manifest detail surfaces that still contain English strings.
+
+## Localization Closure Continuation Pass
+
+Implemented in this pass:
+- Driver manifest details now localize the main detail header/cards, print surface, close-manifest modal, shipment snapshot labels, and timeline fallback copy.
+- Shared warehouse record details now localize the wrapper actions, delete/confirm flows, loading/not-found states, return lifecycle card, and timeline fallback copy across warehouse/product/stock-movement/return/charge detail routes.
+- Warehouse products, stock movements, warehouse returns, and warehouse charges list pages now localize their page copy, filters, headers, and row actions while preserving backend enum values and route behavior.
+- Arabic translation entries were added for the newly localized warehouse and manifest strings introduced in this continuation pass.
+- `npm run build` passed after the continuation pass.
+
+Honest continuation-pass status summary:
+- `OK`: `WarehouseProductsPage`, `StockMovementsPage`, `WarehouseReturnsPage`, and `WarehouseChargesPage` now have localized immediate list-page UI.
+- `Partial`: `DriverManifestDetailsPage` and the shared `WarehouseRecordDetailsPage` wrapper are materially improved, but residual validation/helper copy and generated raw field-label fallbacks still remain.
+
+## Localization Checklist Continuation Pass
+
+Implemented in this pass:
+- Warehouse bin details now localize the overview labels, edit dialog, delete confirmation, barcode copy feedback, and label-print trigger/title.
+- Warehouse receipt details now localize the header, overview card, receipt-items table, confirmation modal, and empty/loading/not-found states.
+- Warehouse transfer details now localize the header, lifecycle action labels, overview card, item table, confirmation modal, and empty/loading/not-found states.
+- Storage fee rules now localize the list surface, filters, create-rule dialog, generate-fees dialog, helper text, and table labels while preserving backend enum values.
+- Arabic translation entries were added for the newly localized warehouse strings introduced in this pass.
+- `npm run build` passed after this continuation pass.
+
+Honest checklist-continuation status summary:
+- `OK`: `WarehouseBinDetailsPage`, `WarehouseReceiptDetailsPage`, `WarehouseTransferDetailsPage`, and `StorageFeeRulesPage` now have localized immediate static UI and no longer remain `Missing`.
+- `Partial`: The broader warehouse cluster still has remaining `Missing` pages, especially locations, receipts list, transfers list, picking/packing detail surfaces, KPI surfaces, pick-pack fees, and inbound requests.
+
+## Remaining Missing Warehouse Closure Pass
+
+Implemented in this pass:
+- Warehouse receipts now localize the list surface, create/edit dialog, item-row helper copy, filters, success messages, and confirm/cancel flows.
+- Warehouse transfers now localize the list surface, create/edit dialog, source/destination filters, success messages, and lifecycle action confirmations.
+- Pick and pack fee rules now localize the list surface, create/generate dialogs, fee-field labels, helper text, and table headers.
+- Warehouse KPIs now localize the page header, low-stock helper cards, KPI section titles, stat labels, and loading/error states.
+- Shared warehouse record details now use a safer field-label translation map for common backend keys before falling back to humanized raw names.
+- Arabic translation entries were added for the newly localized warehouse strings introduced in this pass.
+- `npm run build` passed after this pass.
+
+Honest missing-closure-pass status summary:
+- `OK`: `WarehouseReceiptsPage`, `WarehouseTransfersPage`, `PickPackFeeRulesPage`, and `WarehouseKpisPage` now have localized immediate static UI and no longer remain `Missing`.
+- `Partial`: `WarehouseRecordDetailsPage` is improved again with a common field-label map, but uncommon unmapped backend field names can still fall back to English.
+- `Missing`: The remaining warehouse-heavy gaps are now concentrated in `WarehouseLocationsPage`, `PickingListDetailsPage`, `PackingTasksPage`, `PackingTaskDetailsPage`, and `MerchantInboundStockRequestsPage`.
 
 ## Current Summary
 
@@ -231,6 +341,11 @@ Latest polish validation result:
 - `npm run build` passed after the optional UX polish and `react-i18next` localization pass.
 - `npm run build` also passed after the focused dashboard/settings/status cleanup pass that tightened the dashboard grid, replaced the finance widget treatment, corrected status badge tones, and refined Company Settings helper text/layout.
 - `npm run build` also passed after the topbar behavior pass that fixed hamburger/sidebar state handling and added functional global search using existing routes and API list flows.
+- `npm run build` also passed after the follow-up localization/navigation pass that regrouped Orders + Shipments, diversified logistics status badges further, added Arabic-safe print/report font fallbacks, and fixed export row-specific download loading.
+- `npm run build` also passed after the full localization audit pass that created `docs/FRONTEND_LOCALIZATION_PAGE_CHECKLIST.md` and localized additional location/pricing, finance, order-wrapper, and public-tracking surfaces.
+- `npm run build` also passed after the localization continuation pass that moved warehouse products, stock movements, warehouse returns, and warehouse charges list pages to localized `OK`, while advancing manifest details and shared warehouse record details to `Partial`.
+- `npm run build` also passed after the next localization checklist continuation pass that moved warehouse bin details, warehouse receipt details, warehouse transfer details, and storage fee rules to localized `OK`.
+- `npm run build` also passed after the next warehouse missing-closure pass that moved warehouse receipts, warehouse transfers, pick and pack fee rules, and warehouse KPIs to localized `OK`, while improving shared warehouse detail field-label fallback.
 - Export history now includes a dedicated View Details action and `/admin/exports/:exportLogId` page backed by `GET /api/exports/{exportLog}`, with download preserved from both history and details surfaces.
 - Warehouse CRUD route/action visibility is now verified on the admin frontend: the Warehouse sidebar link lands on the list page, the list page exposes a clear Create Warehouse action, and view/edit/delete actions are visible from the list when permissions allow.
 - Warehouse CRUD discoverability is now restored in the grouped sidebar itself: `Warehouses` is again visible as the first child under the Warehouse section because the implemented `/admin/warehouses` route is now included in the permission-filtered dashboard navigation list.
@@ -244,15 +359,32 @@ Latest polish validation result:
 - Searchable dropdown coverage now also includes the role-permissions picker as a grouped searchable multi-select and replaces the remaining long treasury-account select in expense mark-paid flow.
 - Dashboard and settings localization coverage was extended again for the newly touched shell, finance snapshot, branding, and helper-copy surfaces, but this remains a targeted pass rather than full app-wide translation completion.
 - Touched list screens now honor incoming `?search=` URL params so topbar Enter navigation can land on an existing results/list page without inventing a separate backend-powered global search endpoint.
+- Single-shipment label preview/print no longer writes raw backend HTML directly into a new window or iframe. The shared label dialog now wraps HTML output with UTF-8 meta, locale-driven `lang`/`dir`, and an Arabic-safe font stack, which is the most likely frontend-side fix for the observed Arabic print corruption when backend bytes are otherwise valid.
+- Shipment label HTML now renders through a frontend-owned layout with a barcode-first header and structured shipment/order/customer/payment table. If the backend label HTML already includes SVG/IMG barcode markup, the frontend reuses it; otherwise it falls back to readable shipment-code text. A real frontend-generated barcode still requires a manual `npm install jsbarcode`, which was intentionally not auto-installed in this pass.
+- `npm run build` passed after the shipment label printing follow-up. Vite still reports a non-blocking large-chunk warning.
+- Follow-up tracing confirmed the actual shipment label buttons already flowed from `ShipmentsListPage` / `ShipmentDetailsPage` into `LabelDocumentDialog` and then into `/api/shipments/{id}/label`; the visible leak was inside the shipment HTML helper, which was still willing to reuse the first backend SVG it found. That path is now tightened so single-shipment HTML labels force the frontend-owned layout and only reuse backend markup when it is clearly barcode-specific.
+- Final follow-up tightened the behavior further for corrupted backend shipment-label HTML: single-shipment HTML preview no longer depends on backend HTML as display source at all, a temporary visible marker `FRONTEND_LABEL_LAYOUT_V2` is embedded in the generated label, and development-only tracing now logs the actual click/build/iframe path plus whether the final HTML contains the marker, `<svg`, and `<table`.
+- Bulk shipment labels previously still flowed through `/api/shipments/labels/bulk` HTML and could render as the old narrow backend layout. The list-page bulk action now uses the same frontend shipment-label builder as single labels for HTML output, composing one wrapped label per shipment with explicit page breaks. PDF selection is still passed through to the backend bulk-label endpoint because the frontend does not generate binary PDFs.
+- The shared dropdown menu used by shipment row actions was also refactored away from overflow-prone in-table absolute positioning to a fixed portal-style menu, improving RTL visibility/clickability for Actions menus and the label trigger path.
+- Final shipment-label follow-up removes the broken backend PDF dependency from shipment label UI: selecting PDF now keeps the frontend-owned label document and uses the browser print dialog as the no-package Save-as-PDF path. Shipment row actions were also tightened so View navigates explicitly from the dropdown, and the shared shipment label builder now inspects more payment/order fields before falling back.
+- Shipment label dialog state is now owned by the shipment pages instead of the row dropdown lifecycle, so clicking `Label` no longer opens and instantly closes the dialog. The shared label dialog also disables backdrop auto-close for this flow, uses one shared frontend print helper for both HTML Print and Print / Save PDF, and applies the entered width/height values to the shipment preview plus the generated single/bulk HTML documents and `@page` size when both dimensions are set.
+- The shipment label implementation has now been generalized into a shared frontend entity-label builder in `src/shared/utils/entityLabel.ts`. Orders, warehouse products, bulk warehouse products, and warehouse bins now use the same frontend-owned label family as shipments: UTF-8 wrapped HTML, Arabic-safe fonts, Code 128 barcode generation with `jsbarcode`, code text under the barcode, structured detail tables, width/height-aware preview, and browser print/save-as-PDF for both HTML and PDF selections.
+- Real admin label actions now stop relying on backend raw HTML as the primary visible preview for the migrated flows. `GET /api/orders/{id}/label`, `GET /api/warehouse-products/{id}/label`, `POST /api/warehouse-products/labels/bulk`, and `GET /api/warehouse-bins/{id}/label` remain as live backend data/document endpoints, but the frontend uses the current loaded entity data to build the visible HTML/PDF label when that is safely available.
+- Order list label behavior now matches the shipment fix: the selected order and `LabelDocumentDialog` open state are owned by the page instead of a dropdown item subtree, so label preview no longer depends on dropdown teardown timing and the same frontend print/save-PDF flow is reused consistently.
+- Remaining non-migrated print surfaces are intentionally separate from the new label family: shipment waybills still use their own document path, driver manifest print now uses a dedicated frontend-owned report document rather than a label, settings preview/test utilities still expose backend-managed generic label tools, and the older warehouse barcode-label compatibility endpoints are not shown through the standard migrated label UI.
+- Shared badge rendering was tightened again in this pass: `StatusBadge` now uses the raw backend state/category value for color logic even when the displayed text comes from `status_label` or other `*_label` fields, preventing localized labels from accidentally changing the tone. The mapping now covers a broader set of positive, in-progress, warning, danger, and neutral logistics/warehouse/finance/account states, and more pages were moved from plain text to badges for fulfillment type, payment type, direction, transaction type, source type, provider, and return condition displays.
+- High-traffic admin surfaces updated in this pass include Orders list/details, Shipments list/details, merchant profile order/wallet/token/warehouse panels, treasury transactions/details, finance reports, finance record details, treasury accounts, warehouse return list/details, and merchant overview status cards. Remaining partials are mostly lower-traffic category displays outside shared detail formatters, such as some barcode result cards, public tracking history rows, and merchant portal role text.
 - `npm run lint` still fails because of broad pre-existing repo issues in `.figma-ref`, fast-refresh-only-export rules, `any` usage, and older hook/compiler warnings outside the scope of this frontend-only polish pass.
 
 Remaining honest localization partials:
 - `src/features/dashboard/pages/DashboardPage.tsx` and adjacent dashboard detail cards are substantially improved, but some deeper operational table/dialog text in older modules still remains English.
 - `src/features/settings/pages/SettingsPage.tsx` now covers the touched company-branding and helper-copy surfaces, but other settings groups still depend on backend-provided labels/descriptions and are not fully translated end-to-end.
-- `src/features/finance/pages/FinanceReportsPage.tsx` still contains substantial untranslated static copy for report sections, metric labels, and error/loading text.
-- `src/features/merchants/pages/MerchantDetailsPage.tsx` and `src/features/merchants/components/MerchantProfilePanels.tsx` still contain significant English UI across tabs, wallet flows, and merchant-scoped tables/dialogs.
-- `src/features/orders/pages/OrderDetailsPage.tsx` still contains substantial English static UI across action buttons, section titles, review states, and stock-reservation copy.
-- Some warehouse/admin filter labels and older detail dialogs still use English strings even where the surrounding page chrome is now translated.
+- `src/features/finance/pages/FinanceReportsPage.tsx` is improved and now uses the report-surface Arabic-safe font wrapper, but still contains remaining untranslated static copy for report sections, metric labels, and some error/loading text.
+- `src/features/merchants/pages/MerchantDetailsPage.tsx` and `src/features/merchants/components/MerchantProfilePanels.tsx` are improved on touched panels, but still contain meaningful English UI across some tabs, wallet flows, and merchant-scoped tables/dialogs.
+- `src/features/orders/pages/OrderDetailsPage.tsx` and `src/features/shipments/pages/ShipmentDetailsPage.tsx` are materially more localized now, but some residual English strings may still remain in less-traveled actions/dialog states.
+- `src/features/driver-manifests/pages/DriverManifestDetailsPage.tsx` is mostly localized now, but some validation/helper text still needs cleanup.
+- `src/features/warehouse/pages/WarehouseRecordDetailsPage.tsx` is materially improved, and common backend field labels now map through translations, but uncommon unmapped backend field names can still fall back to English.
+- Several warehouse-heavy pages still remain outside the latest pass, especially locations, picking/packing details, and inbound requests.
 
 Performance note:
 - TODO: Consider route-level dynamic imports/code splitting later to reduce Vite chunk warnings.
@@ -265,6 +397,11 @@ Implemented in this pass:
 - Shared dialog behavior now respects viewport width and height more reliably, with internal body scrolling for larger forms and selection tables so admin modals no longer depend on browser zoom-out.
 - Searchable dropdowns now back the shared merchant, driver, warehouse, treasury account, and governorate/area selectors, plus high-traffic admin selectors such as settings groups, user role assignment, pricing-plan filters/forms, reserve-stock warehouse/product selection, picking-list generation assignee/warehouse selection, and other long-list warehouse/finance flows. Small fixed enum selects intentionally remain native where search would add noise rather than value.
 - Public Settings is now clearly positioned as a read-only reflection of `/api/public/settings`, with explicit guidance to manage company name, logo, and support details through editable admin settings groups and an inline logo preview where applicable.
+- The next visual/layout pass pushed the admin surface closer to the supplied reference direction without changing data flow: shared page headers now separate title/description from action clusters inside a dedicated card-like header shell, form pages reuse the cleaner responsive card-shell layout, detail/table cards align to content more naturally, and Settings was reorganized into clearer company, tools, and live public-information sections with friendlier copy.
+- Arabic readability and shell polish were also improved in that pass through locale-aware font sizing/line-height/weight tuning plus stronger sidebar contrast for inactive, hover, and active states. Shared mobile header/action wrapping, settings tool cards, and long-value wrapping were tightened further as part of the same responsive cleanup.
+- `npm run build` passed after the UI enhancement pass. Vite still reports the same non-blocking chunk-size warning.
+- The follow-up create/edit form migration now applies the attached form-reference direction across the main standalone admin form pages. `FormPageLayout` provides a centered page-level shell with a separated back action, while `FormActionsBar` standardizes cancel/save alignment and responsive stacking inside the form itself. The migration intentionally avoids backend, validation, and payload changes.
+- Coverage for that pass includes merchants, users, drivers, orders, governorates, areas, shipping rates, pricing plans, pricing plan rates, finance record forms, treasury accounts, warehouse record forms, and roles. Remaining non-migrated inputs are mostly embedded list-page or modal dialogs such as warehouse location/receipt/transfer/picking/packing inline flows rather than standalone create/edit pages.
 
 ## Logistics Redesign Pass
 

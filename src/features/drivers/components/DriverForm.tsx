@@ -1,8 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { getApiErrorMessage, getApiValidationErrors } from '../../../shared/api/api-error'
-import { Button } from '../../../shared/components/ui/Button'
+import { FormActionsBar } from '../../../shared/components/forms/FormActionsBar'
 import { Input } from '../../../shared/components/ui/Input'
 import { Select } from '../../../shared/components/ui/Select'
 import type { Driver } from '../types/driver.types'
@@ -23,6 +25,7 @@ type DriverFormProps = {
   defaultValues?: Driver
   error?: unknown
   isSubmitting?: boolean
+  secondaryAction?: ReactNode
   submitLabel: string
   onSubmit: (values: DriverFormValues) => void
 }
@@ -31,9 +34,11 @@ export function DriverForm({
   defaultValues,
   error,
   isSubmitting = false,
+  secondaryAction,
   onSubmit,
   submitLabel,
 }: DriverFormProps) {
+  const { t } = useTranslation()
   const validationErrors = getApiValidationErrors(error)
   const {
     register,
@@ -58,17 +63,19 @@ export function DriverForm({
 
   return (
     <form className="form-grid" onSubmit={handleSubmit((values) => onSubmit({ ...values, notes: values.notes || undefined }))}>
-      <div className="form-grid form-grid--two">
-        <label className="field"><span>Name</span><Input {...register('name')} />{fieldError('name') ? <small>{fieldError('name')}</small> : null}</label>
-        <label className="field"><span>Phone</span><Input {...register('phone')} />{fieldError('phone') ? <small>{fieldError('phone')}</small> : null}</label>
-        <label className="field"><span>National ID</span><Input {...register('national_id')} />{fieldError('national_id') ? <small>{fieldError('national_id')}</small> : null}</label>
-        <label className="field"><span>Vehicle Type</span><Input {...register('vehicle_type')} />{fieldError('vehicle_type') ? <small>{fieldError('vehicle_type')}</small> : null}</label>
-        <label className="field"><span>Vehicle Plate</span><Input {...register('vehicle_plate')} />{fieldError('vehicle_plate') ? <small>{fieldError('vehicle_plate')}</small> : null}</label>
-        <label className="field"><span>Status</span><Select {...register('status')}><option value="active">active</option><option value="inactive">inactive</option></Select></label>
-      </div>
-      <label className="field"><span>Notes</span><Input {...register('notes')} /></label>
+      <label className="field"><span>{t('Name')}</span><Input {...register('name')} />{fieldError('name') ? <small>{fieldError('name')}</small> : null}</label>
+      <label className="field"><span>{t('Phone')}</span><Input {...register('phone')} />{fieldError('phone') ? <small>{fieldError('phone')}</small> : null}</label>
+      <label className="field"><span>{t('National ID', { defaultValue: 'National ID' })}</span><Input {...register('national_id')} />{fieldError('national_id') ? <small>{fieldError('national_id')}</small> : null}</label>
+      <label className="field"><span>{t('Vehicle Type', { defaultValue: 'Vehicle Type' })}</span><Input {...register('vehicle_type')} />{fieldError('vehicle_type') ? <small>{fieldError('vehicle_type')}</small> : null}</label>
+      <label className="field"><span>{t('Vehicle Plate', { defaultValue: 'Vehicle Plate' })}</span><Input {...register('vehicle_plate')} />{fieldError('vehicle_plate') ? <small>{fieldError('vehicle_plate')}</small> : null}</label>
+      <label className="field"><span>{t('Status')}</span><Select {...register('status')}><option value="active">{t('active', { defaultValue: 'active' })}</option><option value="inactive">{t('inactive', { defaultValue: 'inactive' })}</option></Select></label>
+      <label className="field"><span>{t('Notes')}</span><Input {...register('notes')} /></label>
       {error ? <div className="form-error">{getApiErrorMessage(error)}</div> : null}
-      <div className="form-actions"><Button type="submit" loading={isSubmitting}>{submitLabel}</Button></div>
+      <FormActionsBar
+        isSubmitting={isSubmitting}
+        secondaryAction={secondaryAction}
+        submitLabel={submitLabel}
+      />
     </form>
   )
 }

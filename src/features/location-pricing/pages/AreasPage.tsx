@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { deleteArea, listAreas } from '../api/location-pricing.api'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
@@ -21,6 +21,7 @@ import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 
 export function AreasPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [queryText, setQueryText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const queryClient = useQueryClient()
@@ -48,8 +49,8 @@ export function AreasPage() {
   if (!query.data.data.length) {
     return (
       <section className="page-section">
-        <PageHeader title="Areas" description="Areas grouped under their governorates." actions={<Can permission={PERMISSIONS.LOCATION_PRICING_CREATE}><Link className="ui-link-reset" to="/areas/create"><Button>Create Area</Button></Link></Can>} />
-        <EmptyState title="No areas found" description="The API returned an empty areas list." />
+        <PageHeader title={t('Areas', { defaultValue: 'Areas' })} description={t('Areas grouped under their governorates.', { defaultValue: 'Areas grouped under their governorates.' })} actions={<Can permission={PERMISSIONS.LOCATION_PRICING_CREATE}><Link className="ui-link-reset" to="/areas/create"><Button>{t('Create Area', { defaultValue: 'Create Area' })}</Button></Link></Can>} />
+        <EmptyState title={t('No areas found', { defaultValue: 'No areas found' })} description={t('The API returned an empty areas list.', { defaultValue: 'The API returned an empty areas list.' })} />
       </section>
     )
   }
@@ -65,11 +66,11 @@ export function AreasPage() {
 
   return (
     <section className="page-section">
-      <PageHeader title="Areas" description="All areas with the related governorate name." actions={<Can permission={PERMISSIONS.LOCATION_PRICING_CREATE}><Link className="ui-link-reset" to="/areas/create"><Button>Create Area</Button></Link></Can>} />
+      <PageHeader title={t('Areas', { defaultValue: 'Areas' })} description={t('All areas with the related governorate name.', { defaultValue: 'All areas with the related governorate name.' })} actions={<Can permission={PERMISSIONS.LOCATION_PRICING_CREATE}><Link className="ui-link-reset" to="/areas/create"><Button>{t('Create Area', { defaultValue: 'Create Area' })}</Button></Link></Can>} />
       <Card className="table-card">
         <CardHeader className="table-card__header">
-          <CardTitle>Areas</CardTitle>
-          <CardDescription>Delivery areas grouped beneath governorates.</CardDescription>
+          <CardTitle>{t('Areas', { defaultValue: 'Areas' })}</CardTitle>
+          <CardDescription>{t('Delivery areas grouped beneath governorates.', { defaultValue: 'Delivery areas grouped beneath governorates.' })}</CardDescription>
         </CardHeader>
         <CardContent>
           {deleteMutation.error ? <div className="form-error">{getApiErrorMessage(deleteMutation.error)}</div> : null}
@@ -85,11 +86,11 @@ export function AreasPage() {
         <Table>
           <thead>
             <tr>
-              <TableHead>{t('Name')}</TableHead>
-              <TableHead>{t('Governorate')}</TableHead>
-              <TableHead>{t('Status')}</TableHead>
-              <TableHead>{t('Created At')}</TableHead>
-              <TableHead>{t('Actions')}</TableHead>
+              <TableHead>{t('Name', { defaultValue: 'Name' })}</TableHead>
+              <TableHead>{t('Governorate', { defaultValue: 'Governorate' })}</TableHead>
+              <TableHead>{t('Status', { defaultValue: 'Status' })}</TableHead>
+              <TableHead>{t('Created At', { defaultValue: 'Created At' })}</TableHead>
+              <TableHead>{t('Actions', { defaultValue: 'Actions' })}</TableHead>
             </tr>
           </thead>
           <tbody>
@@ -110,8 +111,9 @@ export function AreasPage() {
                     <DropdownMenu>
                       <DropdownTrigger>...</DropdownTrigger>
                       <DropdownContent>
+                        <DropdownItem onClick={() => navigate(`/areas/${area.id}`)}>{t('View')}</DropdownItem>
                         <Can permission={PERMISSIONS.LOCATION_PRICING_UPDATE}>
-                          <DropdownItem><Link className="table-link" to={`/areas/${area.id}/edit`}>{t('Edit')}</Link></DropdownItem>
+                          <DropdownItem onClick={() => navigate(`/areas/${area.id}/edit`)}>{t('Edit')}</DropdownItem>
                         </Can>
                         <Can permission={PERMISSIONS.LOCATION_PRICING_DELETE}>
                           <DropdownItem destructive onClick={() => {

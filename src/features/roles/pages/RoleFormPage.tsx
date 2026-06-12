@@ -10,11 +10,10 @@ import {
 } from '../api/roles.api'
 import { RoleForm } from '../components/RoleForm'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
+import { FormPageLayout } from '../../../shared/components/forms/FormPageLayout'
 import { ErrorState } from '../../../shared/components/feedback/ErrorState'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
 import { Button } from '../../../shared/components/ui/Button'
-import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
-import { PageHeader } from '../../../shared/components/ui/PageHeader'
 
 type RoleFormPageProps = {
   mode: 'create' | 'edit'
@@ -74,32 +73,34 @@ export function RoleFormPage({ mode }: RoleFormPageProps) {
   }
 
   return (
-    <section className="page-section">
-      <PageHeader
-        title={mode === 'create' ? 'Create Role' : 'Edit Role'}
-        description={mode === 'create' ? 'Create a custom role.' : roleQuery.data?.data.name ?? ''}
-        actions={
+    <FormPageLayout
+      backTo={mode === 'create' ? '/admin/roles' : `/admin/roles/${roleId}`}
+      description={mode === 'create'
+        ? t('Create a custom role with the right grouped permissions for your team.', {
+          defaultValue: 'Create a custom role with the right grouped permissions for your team.',
+        })
+        : roleQuery.data?.data.name ?? ''}
+      eyebrow={t('Roles', { defaultValue: 'Roles' })}
+      sectionDescription={t('Define the role identity first, then assign permissions through the grouped permission picker below.', {
+        defaultValue: 'Define the role identity first, then assign permissions through the grouped permission picker below.',
+      })}
+      sectionTitle={t('Role Details')}
+      title={mode === 'create' ? 'Create Role' : 'Edit Role'}
+    >
+      <RoleForm
+        defaultValues={roleQuery.data?.data}
+        error={mutation.error}
+        groupedPermissions={groupedPermissionsQuery.data?.data ?? []}
+        isEdit={mode === 'edit'}
+        isSubmitting={mutation.isPending}
+        secondaryAction={(
           <Link className="ui-link-reset" to={mode === 'create' ? '/admin/roles' : `/admin/roles/${roleId}`}>
-            <Button variant="secondary">{t('Back')}</Button>
+            <Button variant="secondary">{t('Cancel', { defaultValue: 'Cancel' })}</Button>
           </Link>
-        }
+        )}
+        submitLabel={mode === 'create' ? 'Create Role' : 'Save Role'}
+        onSubmit={(values) => mutation.mutate(values)}
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('Role Details')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <RoleForm
-            defaultValues={roleQuery.data?.data}
-            error={mutation.error}
-            groupedPermissions={groupedPermissionsQuery.data?.data ?? []}
-            isEdit={mode === 'edit'}
-            isSubmitting={mutation.isPending}
-            submitLabel={mode === 'create' ? 'Create Role' : 'Save Role'}
-            onSubmit={(values) => mutation.mutate(values)}
-          />
-        </CardContent>
-      </Card>
-    </section>
+    </FormPageLayout>
   )
 }

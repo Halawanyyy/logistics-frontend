@@ -37,6 +37,7 @@ import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
+import { useTranslation } from 'react-i18next'
 
 type WarehouseReceiptFilters = {
   merchant_id: string
@@ -100,6 +101,7 @@ function WarehouseReceiptFormDialog({
   onSubmit: (values: WarehouseReceiptFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const { formError, getFieldError } = useFormApiErrors(error)
   const {
     control,
@@ -132,11 +134,11 @@ function WarehouseReceiptFormDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title={<CardTitle>{currentReceipt ? `Edit ${currentReceipt.receipt_number ?? 'Receipt'}` : 'Create Receipt'}</CardTitle>}
+      title={<CardTitle>{currentReceipt ? t('Edit {{name}}', { name: currentReceipt.receipt_number ?? t('Receipt') }) : t('Create Receipt')}</CardTitle>}
     >
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Merchant</span>
+          <span>{t('Merchant')}</span>
           <Controller
             name="merchant_id"
             control={control}
@@ -151,7 +153,7 @@ function WarehouseReceiptFormDialog({
         </label>
 
         <label className="field">
-          <span>Warehouse</span>
+          <span>{t('Warehouse')}</span>
           <Controller
             name="warehouse_id"
             control={control}
@@ -166,7 +168,7 @@ function WarehouseReceiptFormDialog({
         </label>
 
         <label className="field">
-          <span>Notes</span>
+          <span>{t('Notes')}</span>
           <Input {...register('notes')} />
           <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
         </label>
@@ -174,8 +176,8 @@ function WarehouseReceiptFormDialog({
         <div className="page-stack">
           <div className="section-title-row">
             <div>
-              <CardTitle>Items</CardTitle>
-              <CardDescription>Accepted quantities increase stock after confirmation.</CardDescription>
+              <CardTitle>{t('Items')}</CardTitle>
+              <CardDescription>{t('Accepted quantities increase stock after confirmation.')}</CardDescription>
             </div>
             <Button
               type="button"
@@ -189,7 +191,7 @@ function WarehouseReceiptFormDialog({
                 notes: '',
               })}
             >
-              Add Item
+              {t('Add Item')}
             </Button>
           </div>
 
@@ -197,18 +199,18 @@ function WarehouseReceiptFormDialog({
             <Card key={field.id} variant="flat">
               <CardContent className="form-grid">
                 <label className="field">
-                  <span>Product</span>
+                  <span>{t('Product')}</span>
                   <Controller
                     name={`items.${index}.warehouse_product_id`}
                     control={control}
                     render={({ field: controllerField }) => (
                       <SearchableSelect
                         value={controllerField.value > 0 ? String(controllerField.value) : ''}
-                        placeholder="Select product"
-                        searchPlaceholder="Search products..."
+                        placeholder={t('Select product')}
+                        searchPlaceholder={t('Search products...')}
                         onChange={(value) => controllerField.onChange(value ? Number(value) : 0)}
                         options={[
-                          { label: 'Select product', value: '' },
+                          { label: t('Select product'), value: '' },
                           ...((productsQuery.data?.data ?? []).map((product) => ({
                             label: `${product.name} (${product.sku})`,
                             value: String(product.id),
@@ -222,31 +224,31 @@ function WarehouseReceiptFormDialog({
                 </label>
 
                 <label className="field">
-                  <span>Quantity</span>
+                  <span>{t('Quantity')}</span>
                   <Input type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true })} />
                   <FieldError error={errors.items?.[index]?.quantity?.message ?? getFieldError(`items.${index}.quantity`)} />
                 </label>
 
                 <label className="field">
-                  <span>Accepted</span>
+                  <span>{t('Accepted')}</span>
                   <Input type="number" {...register(`items.${index}.accepted_quantity`, { valueAsNumber: true })} />
                   <FieldError error={errors.items?.[index]?.accepted_quantity?.message ?? getFieldError(`items.${index}.accepted_quantity`)} />
                 </label>
 
                 <label className="field">
-                  <span>Rejected</span>
+                  <span>{t('Rejected')}</span>
                   <Input type="number" {...register(`items.${index}.rejected_quantity`, { valueAsNumber: true })} />
                   <FieldError error={errors.items?.[index]?.rejected_quantity?.message ?? getFieldError(`items.${index}.rejected_quantity`)} />
                 </label>
 
                 <label className="field">
-                  <span>Condition</span>
+                  <span>{t('Condition')}</span>
                   <Input {...register(`items.${index}.condition`)} />
                   <FieldError error={errors.items?.[index]?.condition?.message ?? getFieldError(`items.${index}.condition`)} />
                 </label>
 
                 <label className="field">
-                  <span>Notes</span>
+                  <span>{t('Notes')}</span>
                   <Input {...register(`items.${index}.notes`)} />
                   <FieldError error={errors.items?.[index]?.notes?.message ?? getFieldError(`items.${index}.notes`)} />
                 </label>
@@ -254,7 +256,7 @@ function WarehouseReceiptFormDialog({
                 {fields.length > 1 ? (
                   <div className="form-actions">
                     <Button type="button" variant="danger" onClick={() => remove(index)}>
-                      Remove Item
+                      {t('Remove Item')}
                     </Button>
                   </div>
                 ) : null}
@@ -266,10 +268,10 @@ function WarehouseReceiptFormDialog({
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            {currentReceipt ? 'Save Receipt' : 'Create Receipt'}
+            {currentReceipt ? t('Save Receipt') : t('Create Receipt')}
           </Button>
         </div>
       </form>
@@ -278,6 +280,7 @@ function WarehouseReceiptFormDialog({
 }
 
 export function WarehouseReceiptsPage() {
+  const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const [successMessage, setSuccessMessage] = useState('')
   const [receiptInForm, setReceiptInForm] = useState<WarehouseReceipt | null>(null)
@@ -299,7 +302,7 @@ export function WarehouseReceiptsPage() {
     mutationFn: createWarehouseReceipt,
     onSuccess: async () => {
       setReceiptInForm(null)
-      setSuccessMessage('Warehouse receipt saved successfully.')
+      setSuccessMessage(t('Warehouse receipt saved successfully.'))
       await queryClient.invalidateQueries({ queryKey: ['warehouse-receipts'] })
     },
   })
@@ -308,7 +311,7 @@ export function WarehouseReceiptsPage() {
       updateWarehouseReceipt(receiptId, payload),
     onSuccess: async () => {
       setReceiptInForm(null)
-      setSuccessMessage('Warehouse receipt updated successfully.')
+      setSuccessMessage(t('Warehouse receipt updated successfully.'))
       await queryClient.invalidateQueries({ queryKey: ['warehouse-receipts'] })
     },
   })
@@ -322,8 +325,8 @@ export function WarehouseReceiptsPage() {
       setPendingAction(null)
       setSuccessMessage(
         variables.kind === 'confirm'
-          ? 'Warehouse receipt confirmed successfully.'
-          : 'Warehouse receipt cancelled successfully.',
+          ? t('Warehouse receipt confirmed successfully.')
+          : t('Warehouse receipt cancelled successfully.'),
       )
       await queryClient.invalidateQueries({ queryKey: ['warehouse-receipts'] })
     },
@@ -335,23 +338,23 @@ export function WarehouseReceiptsPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Warehouse Receipts"
-        description="Inbound merchant receipts, draft review, and stock-in confirmation."
+        title={t('Warehouse Receipts')}
+        description={t('Inbound merchant receipts, draft review, and stock-in confirmation.')}
         actions={
           <Button type="button" onClick={() => setReceiptInForm({} as WarehouseReceipt)}>
-            Create Receipt
+            {t('Create Receipt')}
           </Button>
         }
       />
 
       <Card variant="flat" className="dashboard-filter-card">
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Backend receipt filters for merchant, warehouse, status, number, and date range.</CardDescription>
+          <CardTitle>{t('Filters')}</CardTitle>
+          <CardDescription>{t('Backend receipt filters for merchant, warehouse, status, number, and date range.')}</CardDescription>
         </CardHeader>
         <CardContent className="dashboard-filters">
           <label className="field">
-            <span>Merchant</span>
+            <span>{t('Merchant')}</span>
             <MerchantSelector
               value={filters.merchant_id}
               includeAllOption
@@ -359,7 +362,7 @@ export function WarehouseReceiptsPage() {
             />
           </label>
           <label className="field">
-            <span>Warehouse</span>
+            <span>{t('Warehouse')}</span>
             <WarehouseSelector
               value={filters.warehouse_id}
               includeAllOption
@@ -367,16 +370,16 @@ export function WarehouseReceiptsPage() {
             />
           </label>
           <label className="field">
-            <span>Status</span>
+            <span>{t('Status')}</span>
             <Select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
-              <option value="">All statuses</option>
-              <option value="draft">draft</option>
-              <option value="confirmed">confirmed</option>
-              <option value="cancelled">cancelled</option>
+              <option value="">{t('All statuses')}</option>
+              <option value="draft">{t('draft')}</option>
+              <option value="confirmed">{t('confirmed')}</option>
+              <option value="cancelled">{t('cancelled')}</option>
             </Select>
           </label>
           <label className="field">
-            <span>Receipt Number</span>
+            <span>{t('Receipt Number')}</span>
             <Input value={filters.receipt_number} onChange={(event) => setFilters((current) => ({ ...current, receipt_number: event.target.value }))} />
           </label>
           <DateRangeFilter
@@ -388,7 +391,7 @@ export function WarehouseReceiptsPage() {
         <CardContent>
           <div className="form-actions">
             <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
-              Reset
+              {t('Reset')}
             </Button>
           </div>
         </CardContent>
@@ -396,32 +399,32 @@ export function WarehouseReceiptsPage() {
 
       <Card className="table-card">
         <CardHeader className="table-card__header">
-          <CardTitle>Receipts</CardTitle>
-          <CardDescription>Draft receipts can be edited, confirmed, or cancelled.</CardDescription>
+          <CardTitle>{t('Receipts')}</CardTitle>
+          <CardDescription>{t('Draft receipts can be edited, confirmed, or cancelled.')}</CardDescription>
         </CardHeader>
         <CardContent>
           {successMessage ? <div className="form-success">{successMessage}</div> : null}
           {formMutation.error ? <div className="form-error">{getApiErrorMessage(formMutation.error)}</div> : null}
           {actionMutation.error ? <div className="form-error">{getApiErrorMessage(actionMutation.error)}</div> : null}
-          {query.isLoading ? <LoadingState title="Loading warehouse receipts" /> : null}
+          {query.isLoading ? <LoadingState title={t('Loading warehouse receipts')} /> : null}
           {query.isError ? (
-            <ErrorState title="Unable to load warehouse receipts" message={getApiErrorMessage(query.error)} onRetry={() => void query.refetch()} />
+            <ErrorState title={t('Unable to load warehouse receipts')} message={getApiErrorMessage(query.error)} onRetry={() => void query.refetch()} />
           ) : null}
           {!query.isLoading && !query.isError && !receipts.length ? (
-            <EmptyState title="No warehouse receipts" description="No receipts match the selected filters." />
+            <EmptyState title={t('No warehouse receipts')} description={t('No receipts match the selected filters.')} />
           ) : null}
           {receipts.length ? (
             <TableContainer>
               <Table variant="striped">
                 <thead>
                   <tr>
-                    <TableHead>Receipt</TableHead>
-                    <TableHead>Merchant</TableHead>
-                    <TableHead>Warehouse</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('Receipt')}</TableHead>
+                    <TableHead>{t('Merchant')}</TableHead>
+                    <TableHead>{t('Warehouse')}</TableHead>
+                    <TableHead>{t('Items')}</TableHead>
+                    <TableHead>{t('Status')}</TableHead>
+                    <TableHead>{t('Created')}</TableHead>
+                    <TableHead>{t('Actions')}</TableHead>
                   </tr>
                 </thead>
                 <tbody>
@@ -445,17 +448,17 @@ export function WarehouseReceiptsPage() {
                         <div className="page-header__button-row">
                           {receipt.status === 'draft' ? (
                             <Button type="button" variant="secondary" onClick={() => setReceiptInForm(receipt)}>
-                              Edit
+                              {t('Edit')}
                             </Button>
                           ) : null}
                           {receipt.status === 'draft' ? (
                             <Button type="button" variant="secondary" onClick={() => setPendingAction({ kind: 'confirm', receipt })}>
-                              Confirm
+                              {t('Confirm')}
                             </Button>
                           ) : null}
                           {receipt.status === 'draft' ? (
                             <Button type="button" variant="danger" onClick={() => setPendingAction({ kind: 'cancel', receipt })}>
-                              Cancel
+                              {t('Cancel')}
                             </Button>
                           ) : null}
                         </div>
@@ -487,9 +490,12 @@ export function WarehouseReceiptsPage() {
 
       <ConfirmActionModal
         open={Boolean(pendingAction)}
-        title={pendingAction?.kind === 'confirm' ? 'Confirm receipt' : 'Cancel receipt'}
-        description={pendingAction ? `${pendingAction.kind === 'confirm' ? 'Confirm' : 'Cancel'} ${pendingAction.receipt.receipt_number ?? `receipt #${pendingAction.receipt.id}`}?` : ''}
-        confirmLabel={pendingAction?.kind === 'confirm' ? 'Confirm receipt' : 'Cancel receipt'}
+        title={pendingAction?.kind === 'confirm' ? t('Confirm receipt') : t('Cancel receipt')}
+        description={pendingAction ? t('{{action}} {{name}}?', {
+          action: pendingAction.kind === 'confirm' ? t('Confirm') : t('Cancel'),
+          name: pendingAction.receipt.receipt_number ?? `receipt #${pendingAction.receipt.id}`,
+        }) : ''}
+        confirmLabel={pendingAction?.kind === 'confirm' ? t('Confirm receipt') : t('Cancel receipt')}
         variant={pendingAction?.kind === 'confirm' ? 'default' : 'danger'}
         loading={actionMutation.isPending}
         onCancel={() => setPendingAction(null)}

@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { ReactNode } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
+import { FormActionsBar } from '../../../shared/components/forms/FormActionsBar'
 import { SearchableSelect } from '../../../shared/components/ui/SearchableSelect'
-import { Button } from '../../../shared/components/ui/Button'
 import { Input } from '../../../shared/components/ui/Input'
 import { Select } from '../../../shared/components/ui/Select'
 import type { Driver } from '../../drivers/types/driver.types'
@@ -69,6 +70,7 @@ type CommonProps<T> = {
   defaultValues?: T
   error?: unknown
   isSubmitting?: boolean
+  secondaryAction?: ReactNode
   submitLabel: string
   onSubmit: (values: any) => void
 }
@@ -79,8 +81,10 @@ export function MerchantPayoutForm({
   isSubmitting,
   merchants,
   onSubmit,
+  secondaryAction,
   submitLabel,
 }: CommonProps<MerchantPayout> & { merchants: Merchant[] }) {
+  const { t } = useTranslation()
   const form = useForm<PayoutFormValues>({
     resolver: zodResolver(payoutSchema),
     defaultValues: {
@@ -100,12 +104,12 @@ export function MerchantPayoutForm({
         control={form.control}
         render={({ field }) => (
           <SearchField
-            label="Merchant"
+            label={t('Merchant')}
             value={field.value}
-            placeholder="Select merchant"
-            searchPlaceholder="Search merchants..."
+            placeholder={t('Select merchant', { defaultValue: 'Select merchant' })}
+            searchPlaceholder={t('Search merchants...', { defaultValue: 'Search merchants...' })}
             options={[
-              { label: 'Select merchant', value: '' },
+              { label: t('Select merchant', { defaultValue: 'Select merchant' }), value: '' },
               ...merchants.map((merchant) => ({
                 label: merchant.name,
                 value: String(merchant.id),
@@ -116,30 +120,30 @@ export function MerchantPayoutForm({
           />
         )}
       />
-      <Field label="Amount">
+      <Field label={t('Amount')}>
         <Input type="number" step="0.01" {...form.register('amount', { valueAsNumber: true })} />
       </Field>
-      <Field label="Status">
+      <Field label={t('Status')}>
         <Select {...form.register('status')}>
-          <option value="pending">pending</option>
-          <option value="completed">completed</option>
-          <option value="cancelled">cancelled</option>
+          <option value="pending">{t('pending', { defaultValue: 'pending' })}</option>
+          <option value="completed">{t('completed', { defaultValue: 'completed' })}</option>
+          <option value="cancelled">{t('cancelled', { defaultValue: 'cancelled' })}</option>
         </Select>
       </Field>
-      <Field label="Payment Method">
+      <Field label={t('Payment Method', { defaultValue: 'Payment Method' })}>
         <Select {...form.register('payment_method')}>
-          <option value="cash">cash</option>
-          <option value="bank_transfer">bank_transfer</option>
-          <option value="wallet">wallet</option>
+          <option value="cash">{t('cash', { defaultValue: 'cash' })}</option>
+          <option value="bank_transfer">{t('bank_transfer', { defaultValue: 'bank_transfer' })}</option>
+          <option value="wallet">{t('wallet', { defaultValue: 'wallet' })}</option>
         </Select>
       </Field>
-      <Field label="Reference">
+      <Field label={t('Reference', { defaultValue: 'Reference' })}>
         <Input {...form.register('reference_number')} />
       </Field>
-      <Field label="Notes">
+      <Field label={t('Notes')}>
         <Input {...form.register('notes')} />
       </Field>
-      <Submit error={error} isSubmitting={isSubmitting} label={submitLabel} />
+      <Submit error={error} isSubmitting={isSubmitting} label={submitLabel} secondaryAction={secondaryAction} />
     </form>
   )
 }
@@ -150,8 +154,10 @@ export function DriverCashClosureForm({
   error,
   isSubmitting,
   onSubmit,
+  secondaryAction,
   submitLabel,
 }: CommonProps<DriverCashClosure> & { drivers: Driver[] }) {
+  const { t } = useTranslation()
   const form = useForm<CashClosureFormValues>({
     resolver: zodResolver(cashClosureSchema),
     defaultValues: {
@@ -170,12 +176,12 @@ export function DriverCashClosureForm({
         control={form.control}
         render={({ field }) => (
           <SearchField
-            label="Driver"
+            label={t('Driver', { defaultValue: 'Driver' })}
             value={field.value}
-            placeholder="Select driver"
-            searchPlaceholder="Search drivers..."
+            placeholder={t('Select driver', { defaultValue: 'Select driver' })}
+            searchPlaceholder={t('Search drivers...', { defaultValue: 'Search drivers...' })}
             options={[
-              { label: 'Select driver', value: '' },
+              { label: t('Select driver', { defaultValue: 'Select driver' }), value: '' },
               ...drivers.map((driver) => ({
                 label: driver.name,
                 value: String(driver.id),
@@ -186,23 +192,23 @@ export function DriverCashClosureForm({
           />
         )}
       />
-      <Field label="Expected Amount">
+      <Field label={t('Expected Amount', { defaultValue: 'Expected Amount' })}>
         <Input type="number" step="0.01" {...form.register('expected_amount', { valueAsNumber: true })} readOnly />
       </Field>
-      <Field label="Received Amount">
+      <Field label={t('Received Amount', { defaultValue: 'Received Amount' })}>
         <Input type="number" step="0.01" {...form.register('received_amount', { valueAsNumber: true })} />
       </Field>
-      <Field label="Status">
+      <Field label={t('Status')}>
         <Select {...form.register('status')}>
-          <option value="pending">pending</option>
-          <option value="verified">verified</option>
-          <option value="disputed">disputed</option>
+          <option value="pending">{t('pending', { defaultValue: 'pending' })}</option>
+          <option value="verified">{t('verified', { defaultValue: 'verified' })}</option>
+          <option value="disputed">{t('disputed', { defaultValue: 'disputed' })}</option>
         </Select>
       </Field>
-      <Field label="Notes">
+      <Field label={t('Notes')}>
         <Input {...form.register('notes')} />
       </Field>
-      <Submit error={error} isSubmitting={isSubmitting} label={submitLabel} />
+      <Submit error={error} isSubmitting={isSubmitting} label={submitLabel} secondaryAction={secondaryAction} />
     </form>
   )
 }
@@ -214,16 +220,19 @@ export function GenerateDriverCashClosureForm({
   isSubmitting,
   onDriverChange,
   onSubmit,
+  secondaryAction,
   submitLabel,
 }: {
   drivers: Driver[]
   error?: unknown
   expectedAmount?: number
   isSubmitting?: boolean
+  secondaryAction?: ReactNode
   submitLabel: string
   onSubmit: (driverId: number, values: GenerateDriverCashClosureRequest) => void
   onDriverChange?: (driverId: number) => void
 }) {
+  const { t } = useTranslation()
   const form = useForm<GenerateCashClosureFormValues>({
     resolver: zodResolver(generateCashClosureSchema),
     defaultValues: {
@@ -256,12 +265,12 @@ export function GenerateDriverCashClosureForm({
         control={form.control}
         render={({ field }) => (
           <SearchField
-            label="Driver"
+            label={t('Driver', { defaultValue: 'Driver' })}
             value={field.value}
-            placeholder="Select driver"
-            searchPlaceholder="Search drivers..."
+            placeholder={t('Select driver', { defaultValue: 'Select driver' })}
+            searchPlaceholder={t('Search drivers...', { defaultValue: 'Search drivers...' })}
             options={[
-              { label: 'Select driver', value: '' },
+              { label: t('Select driver', { defaultValue: 'Select driver' }), value: '' },
               ...drivers.map((driver) => ({
                 label: driver.name,
                 value: String(driver.id),
@@ -276,34 +285,42 @@ export function GenerateDriverCashClosureForm({
           />
         )}
       />
-      <Field label="Closure Date">
+      <Field label={t('Closure Date', { defaultValue: 'Closure Date' })}>
         <Input type="date" {...form.register('date')} />
       </Field>
-      <Field label="Expected Amount">
+      <Field label={t('Expected Amount', { defaultValue: 'Expected Amount' })}>
         <Input value={expected.toFixed(2)} readOnly />
       </Field>
-      <Field label="Received Amount">
+      <Field label={t('Received Amount', { defaultValue: 'Received Amount' })}>
         <Input type="number" step="0.01" {...form.register('received_amount', { valueAsNumber: true })} />
       </Field>
-      <Field label="Difference">
+      <Field label={t('Difference', { defaultValue: 'Difference' })}>
         <Input value={difference.toFixed(2)} readOnly />
       </Field>
-      <Field label="Status">
+      <Field label={t('Status')}>
         <Select {...form.register('status')}>
-          <option value="pending">pending</option>
-          <option value="verified">verified</option>
-          <option value="disputed">disputed</option>
+          <option value="pending">{t('pending', { defaultValue: 'pending' })}</option>
+          <option value="verified">{t('verified', { defaultValue: 'verified' })}</option>
+          <option value="disputed">{t('disputed', { defaultValue: 'disputed' })}</option>
         </Select>
       </Field>
-      <Field label="Notes">
+      <Field label={t('Notes')}>
         <Input {...form.register('notes')} />
       </Field>
-      <Submit error={error} isSubmitting={isSubmitting} label={submitLabel} />
+      <Submit error={error} isSubmitting={isSubmitting} label={submitLabel} secondaryAction={secondaryAction} />
     </form>
   )
 }
 
-export function ExpenseForm({ defaultValues, error, isSubmitting, onSubmit, submitLabel }: CommonProps<Expense>) {
+export function ExpenseForm({
+  defaultValues,
+  error,
+  isSubmitting,
+  onSubmit,
+  secondaryAction,
+  submitLabel,
+}: CommonProps<Expense>) {
+  const { t } = useTranslation()
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
@@ -318,29 +335,29 @@ export function ExpenseForm({ defaultValues, error, isSubmitting, onSubmit, subm
 
   return (
     <form className="form-grid" onSubmit={form.handleSubmit((values) => onSubmit(clean(values)))}>
-      <Field label="Category">
+      <Field label={t('Category', { defaultValue: 'Category' })}>
         <Input {...form.register('category')} />
       </Field>
-      <Field label="Amount">
+      <Field label={t('Amount')}>
         <Input type="number" step="0.01" {...form.register('amount', { valueAsNumber: true })} />
       </Field>
-      <Field label="Expense Date">
+      <Field label={t('Expense Date', { defaultValue: 'Expense Date' })}>
         <Input type="date" {...form.register('expense_date')} />
       </Field>
-      <Field label="Payment Method">
+      <Field label={t('Payment Method', { defaultValue: 'Payment Method' })}>
         <Select {...form.register('payment_method')}>
-          <option value="cash">cash</option>
-          <option value="bank_transfer">bank_transfer</option>
-          <option value="wallet">wallet</option>
+          <option value="cash">{t('cash', { defaultValue: 'cash' })}</option>
+          <option value="bank_transfer">{t('bank_transfer', { defaultValue: 'bank_transfer' })}</option>
+          <option value="wallet">{t('wallet', { defaultValue: 'wallet' })}</option>
         </Select>
       </Field>
-      <Field label="Reference">
+      <Field label={t('Reference', { defaultValue: 'Reference' })}>
         <Input {...form.register('reference_number')} />
       </Field>
-      <Field label="Notes">
+      <Field label={t('Notes')}>
         <Input {...form.register('notes')} />
       </Field>
-      <Submit error={error} isSubmitting={isSubmitting} label={submitLabel} />
+      <Submit error={error} isSubmitting={isSubmitting} label={submitLabel} secondaryAction={secondaryAction} />
     </form>
   )
 }
@@ -351,8 +368,10 @@ export function MerchantInvoiceForm({
   isSubmitting,
   merchants,
   onSubmit,
+  secondaryAction,
   submitLabel,
 }: CommonProps<MerchantInvoice> & { merchants: Merchant[] }) {
+  const { t } = useTranslation()
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
@@ -371,12 +390,12 @@ export function MerchantInvoiceForm({
         control={form.control}
         render={({ field }) => (
           <SearchField
-            label="Merchant"
+            label={t('Merchant')}
             value={field.value}
-            placeholder="Select merchant"
-            searchPlaceholder="Search merchants..."
+            placeholder={t('Select merchant', { defaultValue: 'Select merchant' })}
+            searchPlaceholder={t('Search merchants...', { defaultValue: 'Search merchants...' })}
             options={[
-              { label: 'Select merchant', value: '' },
+              { label: t('Select merchant', { defaultValue: 'Select merchant' }), value: '' },
               ...merchants.map((merchant) => ({
                 label: merchant.name,
                 value: String(merchant.id),
@@ -387,24 +406,24 @@ export function MerchantInvoiceForm({
           />
         )}
       />
-      <Field label="Period Start">
+      <Field label={t('Period Start', { defaultValue: 'Period Start' })}>
         <Input type="date" {...form.register('period_start')} />
       </Field>
-      <Field label="Period End">
+      <Field label={t('Period End', { defaultValue: 'Period End' })}>
         <Input type="date" {...form.register('period_end')} />
       </Field>
-      <Field label="Status">
+      <Field label={t('Status')}>
         <Select {...form.register('status')}>
-          <option value="draft">draft</option>
-          <option value="issued">issued</option>
-          <option value="paid">paid</option>
-          <option value="cancelled">cancelled</option>
+          <option value="draft">{t('draft', { defaultValue: 'draft' })}</option>
+          <option value="issued">{t('issued', { defaultValue: 'issued' })}</option>
+          <option value="paid">{t('paid', { defaultValue: 'paid' })}</option>
+          <option value="cancelled">{t('cancelled', { defaultValue: 'cancelled' })}</option>
         </Select>
       </Field>
-      <Field label="Notes">
+      <Field label={t('Notes')}>
         <Input {...form.register('notes')} />
       </Field>
-      <Submit error={error} isSubmitting={isSubmitting} label={submitLabel} />
+      <Submit error={error} isSubmitting={isSubmitting} label={submitLabel} secondaryAction={secondaryAction} />
     </form>
   )
 }
@@ -446,15 +465,25 @@ function Field({ children, label }: { children: ReactNode; label: string }) {
   )
 }
 
-function Submit({ error, isSubmitting, label }: { error?: unknown; isSubmitting?: boolean; label: string }) {
+function Submit({
+  error,
+  isSubmitting,
+  label,
+  secondaryAction,
+}: {
+  error?: unknown
+  isSubmitting?: boolean
+  label: string
+  secondaryAction?: ReactNode
+}) {
   return (
     <>
       {error ? <div className="form-error">{getApiErrorMessage(error)}</div> : null}
-      <div className="form-actions">
-        <Button type="submit" loading={isSubmitting}>
-          {label}
-        </Button>
-      </div>
+      <FormActionsBar
+        isSubmitting={isSubmitting}
+        secondaryAction={secondaryAction}
+        submitLabel={label}
+      />
     </>
   )
 }

@@ -32,6 +32,7 @@ import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { formatDate } from '../../../shared/utils/formatters'
+import { useTranslation } from 'react-i18next'
 
 type RuleFiltersState = {
   merchant_id: string
@@ -74,6 +75,7 @@ function CreatePickPackFeeRuleDialog({
   onSubmit: (values: PickPackFeeRuleFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const pricingPlansQuery = useQuery({
     queryKey: ['pricing-plans', 'pick-pack-rule'],
     queryFn: () => listPricingPlans(),
@@ -102,15 +104,15 @@ function CreatePickPackFeeRuleDialog({
   const { formError, getFieldError } = useFormApiErrors(error)
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Create Pick & Pack Fee Rule</CardTitle>}>
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Create Pick & Pack Fee Rule')}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Name</span>
-          <Input {...register('name', { required: 'Name is required.' })} />
+          <span>{t('Name')}</span>
+          <Input {...register('name', { required: t('Name is required.') })} />
           <FieldError error={errors.name?.message ?? getFieldError('name')} />
         </label>
         <label className="field">
-          <span>Merchant</span>
+          <span>{t('Merchant')}</span>
           <MerchantSelector
             value={watch('merchant_id')}
             includeAllOption
@@ -118,18 +120,18 @@ function CreatePickPackFeeRuleDialog({
           />
         </label>
         <label className="field">
-          <span>Pricing Plan</span>
+          <span>{t('Pricing Plan')}</span>
           <Controller
             control={control}
             name="pricing_plan_id"
             render={({ field }) => (
               <SearchableSelect
                 value={field.value}
-                placeholder="Optional pricing plan"
-                searchPlaceholder="Search pricing plans..."
+                placeholder={t('Optional pricing plan')}
+                searchPlaceholder={t('Search pricing plans...')}
                 onChange={field.onChange}
                 options={[
-                  { label: 'Optional pricing plan', value: '' },
+                  { label: t('Optional pricing plan'), value: '' },
                   ...((pricingPlansQuery.data?.data ?? []).map((plan: PricingPlan) => ({
                     label: plan.name,
                     value: String(plan.id),
@@ -141,41 +143,41 @@ function CreatePickPackFeeRuleDialog({
           />
         </label>
         <label className="field">
-          <span>First Item Fee</span>
+          <span>{t('First Item Fee')}</span>
           <Input type="number" min="0" step="0.01" {...register('pick_fee_first_item', { valueAsNumber: true, min: 0 })} />
           <FieldError error={errors.pick_fee_first_item?.message ?? getFieldError('pick_fee_first_item')} />
         </label>
         <label className="field">
-          <span>Additional Item Fee</span>
+          <span>{t('Additional Item Fee')}</span>
           <Input type="number" min="0" step="0.01" {...register('pick_fee_additional_item', { valueAsNumber: true, min: 0 })} />
           <FieldError error={errors.pick_fee_additional_item?.message ?? getFieldError('pick_fee_additional_item')} />
         </label>
         <label className="field">
-          <span>Packing Fee Base</span>
+          <span>{t('Packing Fee Base')}</span>
           <Input type="number" min="0" step="0.01" {...register('packing_fee_base', { valueAsNumber: true, min: 0 })} />
           <FieldError error={errors.packing_fee_base?.message ?? getFieldError('packing_fee_base')} />
         </label>
         <label className="field">
-          <span>Fragile Extra Fee</span>
+          <span>{t('Fragile Extra Fee')}</span>
           <Input type="number" min="0" step="0.01" {...register('fragile_extra_fee', { valueAsNumber: true, min: 0 })} />
           <FieldError error={errors.fragile_extra_fee?.message ?? getFieldError('fragile_extra_fee')} />
         </label>
         <label className="field">
-          <span>Status</span>
+          <span>{t('Status')}</span>
           <Select {...register('status')}>
-            <option value="active">active</option>
-            <option value="inactive">inactive</option>
+            <option value="active">{t('active')}</option>
+            <option value="inactive">{t('inactive')}</option>
           </Select>
         </label>
         <label className="field">
-          <span>Notes</span>
+          <span>{t('Notes')}</span>
           <Input {...register('notes')} />
         </label>
-        <p className="table-meta">Rule can be merchant-specific, pricing-plan-specific, both, or global depending on backend configuration.</p>
+        <p className="table-meta">{t('Rule can be merchant-specific, pricing-plan-specific, both, or global depending on backend configuration.')}</p>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={isSubmitting}>Create Rule</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="submit" loading={isSubmitting}>{t('Create Rule')}</Button>
         </div>
       </form>
     </Dialog>
@@ -195,6 +197,7 @@ function GeneratePickPackFeesDialog({
   onSubmit: (values: GeneratePickPackFeesFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const ordersQuery = useQuery({
     queryKey: ['orders', 'pick-pack-generate'],
     queryFn: () => listOrders(),
@@ -212,12 +215,12 @@ function GeneratePickPackFeesDialog({
   const { formError, getFieldError } = useFormApiErrors(error)
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Generate Pick & Pack Fees</CardTitle>} variant="small">
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Generate Pick & Pack Fees')}</CardTitle>} variant="small">
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Order</span>
+          <span>{t('Order')}</span>
           <Select {...register('order_id', { valueAsNumber: true })}>
-            <option value={0}>Select order</option>
+            <option value={0}>{t('Select order')}</option>
             {(ordersQuery.data?.data ?? []).map((order: Order) => (
               <option key={order.id} value={order.id}>{order.order_number}</option>
             ))}
@@ -226,8 +229,8 @@ function GeneratePickPackFeesDialog({
         </label>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={isSubmitting}>Generate Fees</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="submit" loading={isSubmitting}>{t('Generate Fees')}</Button>
         </div>
       </form>
     </Dialog>
@@ -235,6 +238,7 @@ function GeneratePickPackFeesDialog({
 }
 
 export function PickPackFeeRulesPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<RuleFiltersState>(initialFilters)
   const [createOpen, setCreateOpen] = useState(false)
@@ -292,15 +296,15 @@ export function PickPackFeeRulesPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Pick & Pack Fee Rules"
-        description="Backend fee rules and one-order pick/pack fee generation."
+        title={t('Pick & Pack Fee Rules')}
+        description={t('Backend fee rules and one-order pick/pack fee generation.')}
         actions={(
           <div className="page-header__button-row">
             <Can permission={PERMISSIONS.PICK_PACK_FEE_RULES_CREATE}>
-              <Button type="button" onClick={() => setCreateOpen(true)}>Create Rule</Button>
+              <Button type="button" onClick={() => setCreateOpen(true)}>{t('Create Rule')}</Button>
             </Can>
             <Can permission={PERMISSIONS.PICK_PACK_FEES_GENERATE}>
-              <Button type="button" variant="secondary" onClick={() => setGenerateOpen(true)}>Generate Fees</Button>
+              <Button type="button" variant="secondary" onClick={() => setGenerateOpen(true)}>{t('Generate Fees')}</Button>
             </Can>
           </div>
         )}
@@ -309,7 +313,7 @@ export function PickPackFeeRulesPage() {
       <Card variant="flat" className="dashboard-filter-card">
         <CardContent className="dashboard-filters">
           <label className="field">
-            <span>Merchant</span>
+            <span>{t('Merchant')}</span>
             <MerchantSelector
               value={filters.merchant_id}
               includeAllOption
@@ -317,14 +321,14 @@ export function PickPackFeeRulesPage() {
             />
           </label>
           <label className="field">
-            <span>Pricing Plan</span>
+            <span>{t('Pricing Plan')}</span>
             <SearchableSelect
               value={filters.pricing_plan_id}
-              placeholder="All pricing plans"
-              searchPlaceholder="Search pricing plans..."
+              placeholder={t('All pricing plans')}
+              searchPlaceholder={t('Search pricing plans...')}
               onChange={(pricing_plan_id) => setFilters((current) => ({ ...current, pricing_plan_id }))}
               options={[
-                { label: 'All pricing plans', value: '' },
+                { label: t('All pricing plans'), value: '' },
                 ...((pricingPlansQuery.data?.data ?? []).map((plan: PricingPlan) => ({
                   label: plan.name,
                   value: String(plan.id),
@@ -334,14 +338,14 @@ export function PickPackFeeRulesPage() {
             />
           </label>
           <label className="field">
-            <span>Status</span>
+            <span>{t('Status')}</span>
             <Select
               value={filters.status}
               onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
             >
-              <option value="">All statuses</option>
-              <option value="active">active</option>
-              <option value="inactive">inactive</option>
+              <option value="">{t('All statuses')}</option>
+              <option value="active">{t('active')}</option>
+              <option value="inactive">{t('inactive')}</option>
             </Select>
           </label>
         </CardContent>
@@ -349,35 +353,35 @@ export function PickPackFeeRulesPage() {
 
       <Card className="table-card">
         <CardHeader>
-          <CardTitle>Pick & Pack Fee Rules</CardTitle>
-          <CardDescription>Rates used by backend pick and pack charge generation.</CardDescription>
+          <CardTitle>{t('Pick & Pack Fee Rules')}</CardTitle>
+          <CardDescription>{t('Rates used by backend pick and pack charge generation.')}</CardDescription>
         </CardHeader>
         <CardContent>
-          {rulesQuery.isLoading ? <LoadingState title="Loading pick & pack fee rules" /> : null}
+          {rulesQuery.isLoading ? <LoadingState title={t('Loading pick & pack fee rules')} /> : null}
           {rulesQuery.isError ? (
             <ErrorState
-              title="Unable to load pick & pack fee rules"
+              title={t('Unable to load pick & pack fee rules')}
               message={getApiErrorMessage(rulesQuery.error)}
               onRetry={() => void rulesQuery.refetch()}
             />
           ) : null}
           {!rulesQuery.isLoading && !rulesQuery.isError && !rules.length ? (
-            <EmptyState title="No pick & pack fee rules" description="No rules matched the selected filters." />
+            <EmptyState title={t('No pick & pack fee rules')} description={t('No rules matched the selected filters.')} />
           ) : null}
           {rules.length ? (
             <TableContainer>
               <Table variant="compact">
                 <thead>
                   <tr>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Merchant</TableHead>
-                    <TableHead>Pricing Plan</TableHead>
-                    <TableHead>First Item Fee</TableHead>
-                    <TableHead>Additional Item Fee</TableHead>
-                    <TableHead>Packing Base</TableHead>
-                    <TableHead>Fragile Extra</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead>{t('Name')}</TableHead>
+                    <TableHead>{t('Merchant')}</TableHead>
+                    <TableHead>{t('Pricing Plan')}</TableHead>
+                    <TableHead>{t('First Item Fee')}</TableHead>
+                    <TableHead>{t('Additional Item Fee')}</TableHead>
+                    <TableHead>{t('Packing Base')}</TableHead>
+                    <TableHead>{t('Fragile Extra')}</TableHead>
+                    <TableHead>{t('Status')}</TableHead>
+                    <TableHead>{t('Created')}</TableHead>
                   </tr>
                 </thead>
                 <tbody>

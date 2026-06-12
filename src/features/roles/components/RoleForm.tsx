@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { getApiErrorMessage, getApiValidationErrors } from '../../../shared/api/api-error'
-import { Button } from '../../../shared/components/ui/Button'
+import { FormActionsBar } from '../../../shared/components/forms/FormActionsBar'
 import { Input } from '../../../shared/components/ui/Input'
 import { Select } from '../../../shared/components/ui/Select'
 import { PermissionMultiSelect } from './PermissionMultiSelect'
@@ -25,6 +26,7 @@ type RoleFormProps = {
   groupedPermissions: GroupedPermissionsEntry[]
   isEdit?: boolean
   isSubmitting?: boolean
+  secondaryAction?: ReactNode
   submitLabel: string
   onSubmit: (values: RoleFormValues) => void
 }
@@ -45,6 +47,7 @@ export function RoleForm({
   groupedPermissions,
   isEdit = false,
   isSubmitting = false,
+  secondaryAction,
   submitLabel,
   onSubmit,
 }: RoleFormProps) {
@@ -75,30 +78,28 @@ export function RoleForm({
 
   return (
     <form className="form-grid" onSubmit={handleSubmit((values) => onSubmit(values))}>
-      <div className="form-grid form-grid--two">
-        <label className="field">
-          <span>{t('Name')}</span>
-          <Input {...register('name')} />
-          {fieldError('name') ? <small>{fieldError('name')}</small> : null}
-        </label>
-        <label className="field">
-          <span>{t('Slug')}</span>
-          <Input {...register('slug')} disabled={isEdit && defaultValues?.is_system} />
-          {fieldError('slug') ? <small>{fieldError('slug')}</small> : null}
-        </label>
-        <label className="field">
-          <span>{t('Description')}</span>
-          <Input {...register('description')} />
-        </label>
-        <label className="field">
-          <span>{t('Status')}</span>
-          <Select {...register('status')} disabled={defaultValues?.slug === 'super_admin'}>
-            <option value="active">active</option>
-            <option value="inactive">inactive</option>
-          </Select>
-          {fieldError('status') ? <small>{fieldError('status')}</small> : null}
-        </label>
-      </div>
+      <label className="field">
+        <span>{t('Name')}</span>
+        <Input {...register('name')} />
+        {fieldError('name') ? <small>{fieldError('name')}</small> : null}
+      </label>
+      <label className="field">
+        <span>{t('Slug')}</span>
+        <Input {...register('slug')} disabled={isEdit && defaultValues?.is_system} />
+        {fieldError('slug') ? <small>{fieldError('slug')}</small> : null}
+      </label>
+      <label className="field">
+        <span>{t('Description')}</span>
+        <Input {...register('description')} />
+      </label>
+      <label className="field">
+        <span>{t('Status')}</span>
+        <Select {...register('status')} disabled={defaultValues?.slug === 'super_admin'}>
+          <option value="active">active</option>
+          <option value="inactive">inactive</option>
+        </Select>
+        {fieldError('status') ? <small>{fieldError('status')}</small> : null}
+      </label>
 
       <div className="form-section">
         <div className="section-title-row">
@@ -127,11 +128,11 @@ export function RoleForm({
 
       {error ? <div className="form-error">{getApiErrorMessage(error)}</div> : null}
 
-      <div className="form-actions">
-        <Button type="submit" loading={isSubmitting}>
-          {t(submitLabel, { defaultValue: submitLabel })}
-        </Button>
-      </div>
+      <FormActionsBar
+        isSubmitting={isSubmitting}
+        secondaryAction={secondaryAction}
+        submitLabel={submitLabel}
+      />
     </form>
   )
 }

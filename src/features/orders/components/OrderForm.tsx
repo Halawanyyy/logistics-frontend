@@ -1,12 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import type { ReactNode } from 'react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
+import { User, MapPin, CreditCard, Package, Info } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { listWarehouseProducts } from '../../warehouse/api/warehouse.api'
 import type { WarehouseProduct } from '../../warehouse/types/warehouse.types'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
+import { FormActionsBar } from '../../../shared/components/forms/FormActionsBar'
 import { FieldError } from '../../../shared/components/forms/FieldError'
 import { GovernorateAreaSelector } from '../../../shared/components/selectors/GovernorateAreaSelector'
 import { MerchantSelector } from '../../../shared/components/selectors/MerchantSelector'
@@ -106,6 +109,7 @@ type OrderFormProps = {
   error?: unknown
   isEdit?: boolean
   isSubmitting?: boolean
+  secondaryAction?: ReactNode
   submitLabel: string
   onSubmit: (values: OrderFormValues) => void
 }
@@ -134,6 +138,7 @@ export function OrderForm({
   error,
   isEdit = false,
   isSubmitting = false,
+  secondaryAction,
   onSubmit,
   submitLabel,
 }: OrderFormProps) {
@@ -267,180 +272,276 @@ export function OrderForm({
   const disableFulfillmentType = selectedOrderType === 'return'
 
   return (
-    <form className="form-grid" onSubmit={handleSubmit(handleValidSubmit)}>
-      <div className="form-grid form-grid--two">
-        <label className="field">
-          <span>Merchant</span>
-          <Controller
-            control={control}
-            name="merchant_id"
-            render={({ field }) => (
-              <MerchantSelector
-                value={field.value ? String(field.value) : ''}
-                disabled={isEdit}
-                onChange={(merchantId) => field.onChange(merchantId ? Number(merchantId) : 0)}
-              />
-            )}
-          />
-          <FieldError error={errors.merchant_id?.message ?? getFieldError('merchant_id')} />
-        </label>
-
-        <label className="field">
-          <span>Order Type</span>
-          <Select {...register('order_type')}>
-            <option value="delivery">delivery</option>
-            <option value="swap">swap</option>
-            <option value="return">return</option>
-          </Select>
-          <FieldError error={errors.order_type?.message ?? getFieldError('order_type')} />
-        </label>
-
-        {showSwapFields ? (
-          <>
-            <label className="field">
-              <span>Original Order ID</span>
-              <Input type="number" {...register('original_order_id', { valueAsNumber: true })} />
-              <FieldError error={errors.original_order_id?.message ?? getFieldError('original_order_id')} />
-            </label>
-            <label className="field">
-              <span>Swap Notes</span>
-              <Input {...register('swap_notes')} />
-              <FieldError error={errors.swap_notes?.message ?? getFieldError('swap_notes')} />
-            </label>
-          </>
-        ) : null}
-
-        <label className="field">
-          <span>Customer Name</span>
-          <Input {...register('customer_name')} />
-          <FieldError error={errors.customer_name?.message ?? getFieldError('customer_name')} />
-        </label>
-
-        <label className="field">
-          <span>Customer Phone</span>
-          <Input {...register('customer_phone')} />
-          <FieldError error={errors.customer_phone?.message ?? getFieldError('customer_phone')} />
-        </label>
-
-        <label className="field">
-          <span>Alt Phone</span>
-          <Input {...register('customer_phone_alt')} />
-          <FieldError error={errors.customer_phone_alt?.message ?? getFieldError('customer_phone_alt')} />
-        </label>
-
-        <Controller
-          control={control}
-          name="delivery_governorate_id"
-          render={({ field }) => (
-            <GovernorateAreaSelector
-              governorateId={field.value ? String(field.value) : ''}
-              areaId={selectedDeliveryAreaId ? String(selectedDeliveryAreaId) : ''}
-              onChange={({ governorate_id, area_id }) => {
-                field.onChange(governorate_id ? Number(governorate_id) : 0)
-                setValue('delivery_area_id', area_id ? Number(area_id) : undefined, {
-                  shouldValidate: true,
-                })
-              }}
-            />
-          )}
-        />
-        <div className="form-grid form-grid--two">
-          <FieldError error={errors.delivery_governorate_id?.message ?? getFieldError('delivery_governorate_id')} />
-          <FieldError error={errors.delivery_area_id?.message ?? getFieldError('delivery_area_id')} />
+    <form style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} onSubmit={handleSubmit(handleValidSubmit)}>
+      <div className="form-section form-section--panel">
+        <div className="form-section__header">
+          <div className="form-section__header-copy">
+            <h3 className="form-section__title">{t('Order Context', { defaultValue: 'Order Context' })}</h3>
+            <p className="form-section__description">
+              {t('Choose the merchant and order path first so the rest of the workflow stays consistent.', {
+                defaultValue: 'Choose the merchant and order path first so the rest of the workflow stays consistent.',
+              })}
+            </p>
+          </div>
+          <span className="form-section__icon" aria-hidden="true"><Info size={18} /></span>
         </div>
+        <div className="form-section__body form-grid">
+          <label className="field">
+            <span>{t('Merchant')}</span>
+            <Controller
+              control={control}
+              name="merchant_id"
+              render={({ field }) => (
+                <MerchantSelector
+                  value={field.value ? String(field.value) : ''}
+                  disabled={isEdit}
+                  onChange={(merchantId) => field.onChange(merchantId ? Number(merchantId) : 0)}
+                />
+              )}
+            />
+            <FieldError error={errors.merchant_id?.message ?? getFieldError('merchant_id')} />
+          </label>
 
-        <label className="field">
-          <span>Payment Type</span>
-          <Select {...register('payment_type')} disabled={disablePaymentType}>
-            <option value="cod">cod</option>
-            <option value="prepaid">prepaid</option>
-          </Select>
-          {selectedOrderType === 'return' ? (
-            <span className="table-meta">Return orders use prepaid logic and keep COD at 0.</span>
+          <label className="field">
+            <span>{t('Order Type', { defaultValue: 'Order Type' })}</span>
+            <Select {...register('order_type')}>
+              <option value="delivery">{t('delivery', { defaultValue: 'delivery' })}</option>
+              <option value="swap">{t('swap', { defaultValue: 'swap' })}</option>
+              <option value="return">{t('return', { defaultValue: 'return' })}</option>
+            </Select>
+            <FieldError error={errors.order_type?.message ?? getFieldError('order_type')} />
+          </label>
+
+          <label className="field">
+            <span>{t('Fulfillment Type', { defaultValue: 'Fulfillment Type' })}</span>
+            <Select {...register('fulfillment_type')} disabled={disableFulfillmentType}>
+              <option value="pickup_from_merchant">{t('pickup_from_merchant', { defaultValue: 'pickup_from_merchant' })}</option>
+              <option value="from_warehouse">{t('from_warehouse', { defaultValue: 'from_warehouse' })}</option>
+              <option value="pickup_from_customer">{t('pickup_from_customer', { defaultValue: 'pickup_from_customer' })}</option>
+            </Select>
+            <FieldError error={errors.fulfillment_type?.message ?? getFieldError('fulfillment_type')} />
+          </label>
+
+          {showSwapFields ? (
+            <>
+              <label className="field">
+                <span>{t('Original Order ID', { defaultValue: 'Original Order ID' })}</span>
+                <Input type="number" {...register('original_order_id', { valueAsNumber: true })} />
+                <FieldError error={errors.original_order_id?.message ?? getFieldError('original_order_id')} />
+              </label>
+              <label className="field field--full">
+                <span>{t('Swap Notes', { defaultValue: 'Swap Notes' })}</span>
+                <Input {...register('swap_notes')} />
+                <FieldError error={errors.swap_notes?.message ?? getFieldError('swap_notes')} />
+              </label>
+            </>
           ) : null}
-          <FieldError error={errors.payment_type?.message ?? getFieldError('payment_type')} />
-        </label>
+        </div>
+      </div>
 
-        <label className="field">
-          <span>COD Amount</span>
-          <Input
-            type="number"
-            step="0.01"
-            {...register('cod_amount', { valueAsNumber: true })}
-            disabled={selectedPaymentType === 'prepaid' || selectedOrderType === 'return'}
-          />
-          <FieldError error={errors.cod_amount?.message ?? getFieldError('cod_amount')} />
-        </label>
+      <div className="form-section form-section--panel">
+        <div className="form-section__header">
+          <div className="form-section__header-copy">
+            <h3 className="form-section__title">{t('Customer Details', { defaultValue: 'Customer Details' })}</h3>
+            <p className="form-section__description">
+              {t('Capture the customer identity and delivery contact numbers before dispatch.', {
+                defaultValue: 'Capture the customer identity and delivery contact numbers before dispatch.',
+              })}
+            </p>
+          </div>
+          <span className="form-section__icon" aria-hidden="true"><User size={18} /></span>
+        </div>
+        <div className="form-section__body form-grid">
+          <label className="field">
+            <span>{t('Customer Name', { defaultValue: 'Customer Name' })}</span>
+            <Input {...register('customer_name')} />
+            <FieldError error={errors.customer_name?.message ?? getFieldError('customer_name')} />
+          </label>
 
-        <label className="field">
-          <span>Fulfillment Type</span>
-          <Select {...register('fulfillment_type')} disabled={disableFulfillmentType}>
-            <option value="pickup_from_merchant">pickup_from_merchant</option>
-            <option value="from_warehouse">from_warehouse</option>
-            <option value="pickup_from_customer">pickup_from_customer</option>
-          </Select>
-          <FieldError error={errors.fulfillment_type?.message ?? getFieldError('fulfillment_type')} />
-        </label>
+          <label className="field">
+            <span>{t('Customer Phone', { defaultValue: 'Customer Phone' })}</span>
+            <Input {...register('customer_phone')} />
+            <FieldError error={errors.customer_phone?.message ?? getFieldError('customer_phone')} />
+          </label>
 
-        {isEdit ? (
-          <>
+          <label className="field">
+            <span>{t('Alt Phone', { defaultValue: 'Alt Phone' })}</span>
+            <Input {...register('customer_phone_alt')} />
+            <FieldError error={errors.customer_phone_alt?.message ?? getFieldError('customer_phone_alt')} />
+          </label>
+        </div>
+      </div>
+
+      <div className="form-section form-section--panel">
+        <div className="form-section__header">
+          <div className="form-section__header-copy">
+            <h3 className="form-section__title">{t('Delivery Details', { defaultValue: 'Delivery Details' })}</h3>
+            <p className="form-section__description">
+              {t('Set the delivery destination and address notes that operations needs for the route.', {
+                defaultValue: 'Set the delivery destination and address notes that operations needs for the route.',
+              })}
+            </p>
+          </div>
+          <span className="form-section__icon" aria-hidden="true"><MapPin size={18} /></span>
+        </div>
+        <div className="form-section__body">
+          <label className="field field--full">
+            <span>{t('Delivery Coverage', { defaultValue: 'Delivery Coverage' })}</span>
+            <Controller
+              control={control}
+              name="delivery_governorate_id"
+              render={({ field }) => (
+                <GovernorateAreaSelector
+                  governorateId={field.value ? String(field.value) : ''}
+                  areaId={selectedDeliveryAreaId ? String(selectedDeliveryAreaId) : ''}
+                  onChange={({ governorate_id, area_id }) => {
+                    field.onChange(governorate_id ? Number(governorate_id) : 0)
+                    setValue('delivery_area_id', area_id ? Number(area_id) : undefined, {
+                      shouldValidate: true,
+                    })
+                  }}
+                />
+              )}
+            />
+            <FieldError error={errors.delivery_governorate_id?.message ?? getFieldError('delivery_governorate_id')} />
+            <FieldError error={errors.delivery_area_id?.message ?? getFieldError('delivery_area_id')} />
+          </label>
+
+          <div className="form-grid form-grid--two">
             <label className="field">
-              <span>Shipping Fee</span>
+              <span>{t('Delivery Address', { defaultValue: 'Delivery Address' })}</span>
+              <Input {...register('delivery_address')} />
+              <FieldError error={errors.delivery_address?.message ?? getFieldError('delivery_address')} />
+            </label>
+
+            <label className="field">
+              <span>{t('Delivery Notes', { defaultValue: 'Delivery Notes' })}</span>
+              <Input {...register('delivery_notes')} />
+              <FieldError error={errors.delivery_notes?.message ?? getFieldError('delivery_notes')} />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="form-section form-section--panel">
+        <div className="form-section__header">
+          <div className="form-section__header-copy">
+            <h3 className="form-section__title">{t('Commercial Details', { defaultValue: 'Commercial Details' })}</h3>
+            <p className="form-section__description">
+              {t('Review the payment method, COD amount, and commercial controls before saving.', {
+                defaultValue: 'Review the payment method, COD amount, and commercial controls before saving.',
+              })}
+            </p>
+          </div>
+          <span className="form-section__icon" aria-hidden="true"><CreditCard size={18} /></span>
+        </div>
+        <div className="form-section__body form-grid">
+          <label className="field">
+            <span>{t('Payment Type', { defaultValue: 'Payment Type' })}</span>
+            <Select {...register('payment_type')} disabled={disablePaymentType}>
+              <option value="cod">{t('cod', { defaultValue: 'cod' })}</option>
+              <option value="prepaid">{t('prepaid', { defaultValue: 'prepaid' })}</option>
+            </Select>
+            {selectedOrderType === 'return' ? (
+              <span className="field-help">
+                {t('Return orders use prepaid logic and keep COD at 0.', {
+                  defaultValue: 'Return orders use prepaid logic and keep COD at 0.',
+                })}
+              </span>
+            ) : null}
+            <FieldError error={errors.payment_type?.message ?? getFieldError('payment_type')} />
+          </label>
+
+          <label className="field">
+            <span>{t('COD Amount', { defaultValue: 'COD Amount' })}</span>
+            <Input
+              type="number"
+              step="0.01"
+              {...register('cod_amount', { valueAsNumber: true })}
+              disabled={selectedPaymentType === 'prepaid' || selectedOrderType === 'return'}
+            />
+            <FieldError error={errors.cod_amount?.message ?? getFieldError('cod_amount')} />
+          </label>
+
+          {isEdit ? (
+            <label className="field">
+              <span>{t('Shipping Fee', { defaultValue: 'Shipping Fee' })}</span>
               <Input type="number" step="0.01" {...register('shipping_fee', { valueAsNumber: true })} />
               <FieldError error={errors.shipping_fee?.message ?? getFieldError('shipping_fee')} />
             </label>
+          ) : (
+            <div />
+          )}
+
+          {isEdit ? (
             <label className="field">
-              <span>Status</span>
+              <span>{t('Status')}</span>
               <Select {...register('status')}>
-                <option value="draft">draft</option>
-                <option value="pending_review">pending_review</option>
-                <option value="confirmed">confirmed</option>
-                <option value="cancelled">cancelled</option>
+                <option value="draft">{t('draft', { defaultValue: 'draft' })}</option>
+                <option value="pending_review">{t('pending_review', { defaultValue: 'pending_review' })}</option>
+                <option value="confirmed">{t('confirmed', { defaultValue: 'confirmed' })}</option>
+                <option value="cancelled">{t('cancelled', { defaultValue: 'cancelled' })}</option>
               </Select>
               <FieldError error={errors.status?.message ?? getFieldError('status')} />
             </label>
-          </>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
-      <label className="field">
-        <span>Delivery Address</span>
-        <Input {...register('delivery_address')} />
-        <FieldError error={errors.delivery_address?.message ?? getFieldError('delivery_address')} />
-      </label>
-
-      <label className="field">
-        <span>Delivery Notes</span>
-        <Input {...register('delivery_notes')} />
-        <FieldError error={errors.delivery_notes?.message ?? getFieldError('delivery_notes')} />
-      </label>
-
-      <label className="field">
-        <span>Notes</span>
-        <Input {...register('notes')} />
-        <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
-      </label>
-
-      <label className="field field--inline">
-        <input type="checkbox" {...register('allow_inspection')} />
-        <span>Allow inspection</span>
-      </label>
-
-      <div className="form-section">
-        <div className="section-title-row">
-          <div>
-            <h3>{showWarehouseItems ? 'Warehouse Products' : 'Items'}</h3>
-            {showWarehouseItems ? (
-              <p className="table-meta">Warehouse products are selected from merchant inventory.</p>
-            ) : null}
+      <div className="form-section form-section--panel">
+        <div className="form-section__header">
+          <div className="form-section__header-copy">
+            <h3 className="form-section__title">{t('Operational Notes', { defaultValue: 'Operational Notes' })}</h3>
+            <p className="form-section__description">
+              {t('Share extra instructions for handling, inspection, and internal follow-up.', {
+                defaultValue: 'Share extra instructions for handling, inspection, and internal follow-up.',
+              })}
+            </p>
           </div>
+          <span className="form-section__icon" aria-hidden="true"><Info size={18} /></span>
+        </div>
+        <div className="form-section__body form-grid form-grid--two">
+          <label className="field">
+            <span>{t('Notes')}</span>
+            <Input {...register('notes')} />
+            <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
+          </label>
+
+          <label className="field field--inline">
+            <input type="checkbox" {...register('allow_inspection')} />
+            <span>{t('Allow Inspection', { defaultValue: 'Allow Inspection' })}</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="form-section form-section--panel">
+        <div className="form-section__header">
+          <div className="form-section__header-copy">
+            <h3 className="form-section__title">
+              {showWarehouseItems
+                ? t('Warehouse Products', { defaultValue: 'Warehouse Products' })
+                : t('Items')}
+            </h3>
+            <p className="form-section__description">
+              {showWarehouseItems
+                ? t('Warehouse products are selected from the merchant inventory and priced here before fulfillment.', {
+                  defaultValue: 'Warehouse products are selected from the merchant inventory and priced here before fulfillment.',
+                })
+                : t('List the order items with SKU, quantity, price, and optional weight details.', {
+                  defaultValue: 'List the order items with SKU, quantity, price, and optional weight details.',
+                })}
+            </p>
+          </div>
+          <span className="form-section__icon" aria-hidden="true"><Package size={18} /></span>
+        </div>
+        <div className="form-section__body" style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
           {!showWarehouseItems ? (
             <Button
               type="button"
               variant="secondary"
               onClick={() => manualItems.append(emptyOrderItem())}
             >
-              Add item
+              {t('Add Item', { defaultValue: 'Add Item' })}
             </Button>
           ) : selectedMerchantId > 0 ? (
             <Button
@@ -449,122 +550,124 @@ export function OrderForm({
               disabled={warehouseProductsQuery.isLoading || !(warehouseProductsQuery.data?.data.length)}
               onClick={() => warehouseItems.append(emptyWarehouseItem())}
             >
-              Add product
+              {t('Add Product', { defaultValue: 'Add Product' })}
             </Button>
           ) : null}
         </div>
 
-        {showWarehouseItems ? (
-          <>
-            {!selectedMerchantId ? (
-              <div className="empty-state-inline">{t('Select a merchant first to load warehouse products.')}</div>
-            ) : null}
-            {selectedMerchantId > 0 && warehouseProductsQuery.isLoading ? (
-              <div className="empty-state-inline">{t('Loading warehouse products...')}</div>
-            ) : null}
-            {selectedMerchantId > 0 && !warehouseProductsQuery.isLoading && !(warehouseProductsQuery.data?.data.length) ? (
-              <div className="empty-state-inline">{t('No warehouse products found for this merchant.')}</div>
-            ) : null}
+        <div className="form-section__body">
+          {showWarehouseItems ? (
+            <>
+              {!selectedMerchantId ? (
+                <div className="empty-state-inline">{t('Select a merchant first to load warehouse products.', { defaultValue: 'Select a merchant first to load warehouse products.' })}</div>
+              ) : null}
+              {selectedMerchantId > 0 && warehouseProductsQuery.isLoading ? (
+                <div className="empty-state-inline">{t('Loading warehouse products...', { defaultValue: 'Loading warehouse products...' })}</div>
+              ) : null}
+              {selectedMerchantId > 0 && !warehouseProductsQuery.isLoading && !(warehouseProductsQuery.data?.data.length) ? (
+                <div className="empty-state-inline">{t('No warehouse products found for this merchant.', { defaultValue: 'No warehouse products found for this merchant.' })}</div>
+              ) : null}
+              <div className="order-items-list">
+                {warehouseItems.fields.map((field, index) => (
+                  <div className="order-item-row order-item-row--warehouse" key={field.id}>
+                    <label className="field">
+                      <span>{t('Warehouse Product', { defaultValue: 'Warehouse Product' })}</span>
+                      <Controller
+                        control={control}
+                        name={`warehouse_items.${index}.warehouse_product_id`}
+                        render={({ field: warehouseField }) => (
+                          <SearchableSelect
+                            value={warehouseField.value ? String(warehouseField.value) : '0'}
+                            placeholder={t('Select product', { defaultValue: 'Select product' })}
+                            searchPlaceholder={t('Search warehouse products...', { defaultValue: 'Search warehouse products...' })}
+                            onChange={(warehouse_product_id) => warehouseField.onChange(Number(warehouse_product_id || 0))}
+                            options={[
+                              { label: t('Select product', { defaultValue: 'Select product' }), value: '0' },
+                              ...((warehouseProductsQuery.data?.data ?? []).map((product) => ({
+                                label: productStockLabel(product),
+                                value: String(product.id),
+                                keywords: [product.name, product.sku, product.barcode ?? '', product.merchant_name ?? ''],
+                              }))),
+                            ]}
+                          />
+                        )}
+                      />
+                      <FieldError
+                        error={
+                          errors.warehouse_items?.[index]?.warehouse_product_id?.message
+                          ?? getFieldError(`warehouse_items.${index}.warehouse_product_id`)
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span>{t('Qty', { defaultValue: 'Qty' })}</span>
+                      <Input type="number" {...register(`warehouse_items.${index}.quantity`, { valueAsNumber: true })} />
+                      <FieldError
+                        error={
+                          errors.warehouse_items?.[index]?.quantity?.message
+                          ?? getFieldError(`warehouse_items.${index}.quantity`)
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span>{t('Unit Price', { defaultValue: 'Unit Price' })}</span>
+                      <Input type="number" step="0.01" {...register(`warehouse_items.${index}.unit_price`, { valueAsNumber: true })} />
+                      <FieldError
+                        error={
+                          errors.warehouse_items?.[index]?.unit_price?.message
+                          ?? getFieldError(`warehouse_items.${index}.unit_price`)
+                        }
+                      />
+                    </label>
+                    <Button type="button" variant="danger" onClick={() => warehouseItems.remove(index)}>
+                      {t('Remove', { defaultValue: 'Remove' })}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
             <div className="order-items-list">
-              {warehouseItems.fields.map((field, index) => (
+              {manualItems.fields.map((field, index) => (
                 <div className="order-item-row" key={field.id}>
                   <label className="field">
-                    <span>{t('Warehouse Product')}</span>
-                    <Controller
-                      control={control}
-                      name={`warehouse_items.${index}.warehouse_product_id`}
-                      render={({ field: warehouseField }) => (
-                        <SearchableSelect
-                          value={warehouseField.value ? String(warehouseField.value) : '0'}
-                          placeholder="Select product"
-                          searchPlaceholder="Search warehouse products..."
-                          onChange={(warehouse_product_id) => warehouseField.onChange(Number(warehouse_product_id || 0))}
-                          options={[
-                            { label: 'Select product', value: '0' },
-                            ...((warehouseProductsQuery.data?.data ?? []).map((product) => ({
-                              label: productStockLabel(product),
-                              value: String(product.id),
-                              keywords: [product.name, product.sku, product.barcode ?? '', product.merchant_name ?? ''],
-                            }))),
-                          ]}
-                        />
-                      )}
-                    />
-                    <FieldError
-                      error={
-                        errors.warehouse_items?.[index]?.warehouse_product_id?.message
-                        ?? getFieldError(`warehouse_items.${index}.warehouse_product_id`)
-                      }
-                    />
+                    <span>{t('Product')}</span>
+                    <Input {...register(`items.${index}.product_name`)} />
+                    <FieldError error={errors.items?.[index]?.product_name?.message ?? getFieldError(`items.${index}.product_name`)} />
                   </label>
                   <label className="field">
-                    <span>Qty</span>
-                    <Input type="number" {...register(`warehouse_items.${index}.quantity`, { valueAsNumber: true })} />
-                    <FieldError
-                      error={
-                        errors.warehouse_items?.[index]?.quantity?.message
-                        ?? getFieldError(`warehouse_items.${index}.quantity`)
-                      }
-                    />
+                    <span>{t('SKU', { defaultValue: 'SKU' })}</span>
+                    <Input {...register(`items.${index}.sku`)} />
+                    <FieldError error={errors.items?.[index]?.sku?.message ?? getFieldError(`items.${index}.sku`)} />
                   </label>
                   <label className="field">
-                    <span>Unit Price</span>
-                    <Input type="number" step="0.01" {...register(`warehouse_items.${index}.unit_price`, { valueAsNumber: true })} />
-                    <FieldError
-                      error={
-                        errors.warehouse_items?.[index]?.unit_price?.message
-                        ?? getFieldError(`warehouse_items.${index}.unit_price`)
-                      }
-                    />
+                    <span>{t('Qty', { defaultValue: 'Qty' })}</span>
+                    <Input type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true })} />
+                    <FieldError error={errors.items?.[index]?.quantity?.message ?? getFieldError(`items.${index}.quantity`)} />
                   </label>
-                  <Button type="button" variant="danger" onClick={() => warehouseItems.remove(index)}>
-                    Remove
+                  <label className="field">
+                    <span>{t('Unit Price', { defaultValue: 'Unit Price' })}</span>
+                    <Input type="number" step="0.01" {...register(`items.${index}.unit_price`, { valueAsNumber: true })} />
+                    <FieldError error={errors.items?.[index]?.unit_price?.message ?? getFieldError(`items.${index}.unit_price`)} />
+                  </label>
+                  <label className="field">
+                    <span>{t('Weight', { defaultValue: 'Weight' })}</span>
+                    <Input type="number" step="0.01" {...register(`items.${index}.weight`, { valueAsNumber: true })} />
+                    <FieldError error={errors.items?.[index]?.weight?.message ?? getFieldError(`items.${index}.weight`)} />
+                  </label>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={() => manualItems.remove(index)}
+                    disabled={manualItems.fields.length === 1}
+                  >
+                    {t('Remove', { defaultValue: 'Remove' })}
                   </Button>
                 </div>
               ))}
             </div>
-          </>
-        ) : (
-          <div className="order-items-list">
-            {manualItems.fields.map((field, index) => (
-              <div className="order-item-row" key={field.id}>
-                <label className="field">
-                  <span>Product</span>
-                  <Input {...register(`items.${index}.product_name`)} />
-                  <FieldError error={errors.items?.[index]?.product_name?.message ?? getFieldError(`items.${index}.product_name`)} />
-                </label>
-                <label className="field">
-                  <span>SKU</span>
-                  <Input {...register(`items.${index}.sku`)} />
-                  <FieldError error={errors.items?.[index]?.sku?.message ?? getFieldError(`items.${index}.sku`)} />
-                </label>
-                <label className="field">
-                  <span>Qty</span>
-                  <Input type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true })} />
-                  <FieldError error={errors.items?.[index]?.quantity?.message ?? getFieldError(`items.${index}.quantity`)} />
-                </label>
-                <label className="field">
-                  <span>Unit Price</span>
-                  <Input type="number" step="0.01" {...register(`items.${index}.unit_price`, { valueAsNumber: true })} />
-                  <FieldError error={errors.items?.[index]?.unit_price?.message ?? getFieldError(`items.${index}.unit_price`)} />
-                </label>
-                <label className="field">
-                  <span>Weight</span>
-                  <Input type="number" step="0.01" {...register(`items.${index}.weight`, { valueAsNumber: true })} />
-                  <FieldError error={errors.items?.[index]?.weight?.message ?? getFieldError(`items.${index}.weight`)} />
-                </label>
-                <Button
-                  type="button"
-                  variant="danger"
-                  onClick={() => manualItems.remove(index)}
-                  disabled={manualItems.fields.length === 1}
-                >
-                  Remove
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {errors.items?.message ? <div className="form-error">{errors.items.message}</div> : null}
@@ -572,11 +675,11 @@ export function OrderForm({
       {warehouseProductsQuery.error ? <div className="form-error">{getApiErrorMessage(warehouseProductsQuery.error)}</div> : null}
       {formError ? <div className="form-error">{formError}</div> : null}
 
-      <div className="form-actions">
-        <Button type="submit" loading={isSubmitting}>
-          {submitLabel}
-        </Button>
-      </div>
+      <FormActionsBar
+        isSubmitting={isSubmitting}
+        secondaryAction={secondaryAction}
+        submitLabel={submitLabel}
+      />
     </form>
   )
 }

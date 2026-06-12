@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -61,6 +62,7 @@ function InboundActionDialog({
   onSubmit: (values: ActionFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const { formError, getFieldError } = useFormApiErrors(error)
   const {
     register,
@@ -76,34 +78,34 @@ function InboundActionDialog({
   })
 
   return (
-    <Dialog open={open} onClose={() => { reset(); onClose() }} title={<CardTitle>{action === 'approve' ? 'Approve Request' : action === 'reject' ? 'Reject Request' : 'Link Receipt'}</CardTitle>}>
+    <Dialog open={open} onClose={() => { reset(); onClose() }} title={<CardTitle>{action === 'approve' ? t('Approve Request', { defaultValue: 'Approve Request' }) : action === 'reject' ? t('Reject Request', { defaultValue: 'Reject Request' }) : t('Link Receipt', { defaultValue: 'Link Receipt' })}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         {action === 'reject' ? (
           <label className="field">
-            <span>Rejection Reason</span>
+            <span>{t('Rejection Reason', { defaultValue: 'Rejection Reason' })}</span>
             <Input {...register('rejection_reason')} />
             <FieldError error={errors.rejection_reason?.message ?? getFieldError('rejection_reason')} />
           </label>
         ) : null}
         {action === 'link' ? (
           <label className="field">
-            <span>Warehouse Receipt ID</span>
+            <span>{t('Warehouse Receipt ID', { defaultValue: 'Warehouse Receipt ID' })}</span>
             <Input type="number" {...register('warehouse_receipt_id', { valueAsNumber: true })} />
             <FieldError error={errors.warehouse_receipt_id?.message ?? getFieldError('warehouse_receipt_id')} />
           </label>
         ) : null}
         <label className="field">
-          <span>Notes</span>
+          <span>{t('Notes')}</span>
           <Input {...register('notes')} />
           <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
         </label>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            {action === 'approve' ? 'Approve' : action === 'reject' ? 'Reject' : 'Link Receipt'}
+            {action === 'approve' ? t('Approve', { defaultValue: 'Approve' }) : action === 'reject' ? t('Reject', { defaultValue: 'Reject' }) : t('Link Receipt', { defaultValue: 'Link Receipt' })}
           </Button>
         </div>
       </form>
@@ -112,6 +114,7 @@ function InboundActionDialog({
 }
 
 export function MerchantInboundStockRequestsPage() {
+  const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null)
   const [pendingAction, setPendingAction] = useState<'approve' | 'reject' | 'link' | null>(null)
@@ -153,46 +156,46 @@ export function MerchantInboundStockRequestsPage() {
   return (
     <>
       <ResourceListPage<MerchantInboundStockRequest>
-        title="Inbound Stock Requests"
-        description="Admin review for merchant inbound stock requests before warehouse receipt confirmation."
+        title={t('Inbound Stock Requests', { defaultValue: 'Inbound Stock Requests' })}
+        description={t('Admin review for merchant inbound stock requests before warehouse receipt confirmation.', { defaultValue: 'Admin review for merchant inbound stock requests before warehouse receipt confirmation.' })}
         queryKey={['merchant-inbound-stock-requests', params]}
         queryFn={() => listMerchantInboundStockRequests(params)}
         filters={(
           <ApiFilterBar
             filters={filters}
             fields={[
-              { label: 'Merchant ID', name: 'merchant_id', type: 'number' },
-              { label: 'Warehouse ID', name: 'warehouse_id', type: 'number' },
-              { label: 'Status', name: 'status', type: 'select', options: [{ label: 'pending', value: 'pending' }, { label: 'approved', value: 'approved' }, { label: 'rejected', value: 'rejected' }, { label: 'received', value: 'received' }, { label: 'partially_received', value: 'partially_received' }] },
+              { label: t('Merchant ID', { defaultValue: 'Merchant ID' }), name: 'merchant_id', type: 'number' },
+              { label: t('Warehouse ID', { defaultValue: 'Warehouse ID' }), name: 'warehouse_id', type: 'number' },
+              { label: t('Status'), name: 'status', type: 'select', options: [{ label: t('pending', { defaultValue: 'pending' }), value: 'pending' }, { label: t('approved', { defaultValue: 'approved' }), value: 'approved' }, { label: t('rejected', { defaultValue: 'rejected' }), value: 'rejected' }, { label: t('received', { defaultValue: 'received' }), value: 'received' }, { label: t('partially_received', { defaultValue: 'partially_received' }), value: 'partially_received' }] },
             ]}
             onChange={(name, value) => setFilters((current) => ({ ...current, [name]: value }))}
             onReset={() => setFilters(initialFilters)}
           />
         )}
         columns={[
-          { header: 'Request', render: (request) => <Button variant="ghost" onClick={() => setSelectedRequestId(request.id)}>{request.request_number ?? `Request #${request.id}`}</Button> },
-          { header: 'Merchant', render: (request) => request.merchant_name ?? request.merchant_id },
-          { header: 'Warehouse', render: (request) => request.warehouse_name ?? '-' },
-          { header: 'Status', render: (request) => <StatusBadge value={request.status}>{pickDisplayLabel(request.status, request.status_label)}</StatusBadge> },
-          { header: 'Linked Receipt', render: (request) => request.linked_warehouse_receipt_number ?? '-' },
-          { header: 'Created', render: (request) => formatDate(request.created_at) },
+          { header: t('Request', { defaultValue: 'Request' }), render: (request) => <Button variant="ghost" onClick={() => setSelectedRequestId(request.id)}>{request.request_number ?? t('Request #{{id}}', { id: request.id, defaultValue: `Request #${request.id}` })}</Button> },
+          { header: t('Merchant'), render: (request) => request.merchant_name ?? request.merchant_id },
+          { header: t('Warehouse'), render: (request) => request.warehouse_name ?? '-' },
+          { header: t('Status'), render: (request) => <StatusBadge value={request.status}>{pickDisplayLabel(request.status, request.status_label)}</StatusBadge> },
+          { header: t('Linked Receipt', { defaultValue: 'Linked Receipt' }), render: (request) => request.linked_warehouse_receipt_number ?? '-' },
+          { header: t('Created'), render: (request) => formatDate(request.created_at) },
           {
-            header: 'Actions',
+            header: t('Actions'),
             render: (request) => (
               <div className="page-header__button-row">
                 <Can permission={PERMISSIONS.MERCHANT_INBOUND_REQUESTS_MANAGE}>
                   <Button type="button" variant="secondary" onClick={() => { setSelectedRequestId(request.id); setPendingAction('approve') }}>
-                    Approve
+                    {t('Approve', { defaultValue: 'Approve' })}
                   </Button>
                 </Can>
                 <Can permission={PERMISSIONS.MERCHANT_INBOUND_REQUESTS_MANAGE}>
                   <Button type="button" variant="danger" onClick={() => { setSelectedRequestId(request.id); setPendingAction('reject') }}>
-                    Reject
+                    {t('Reject', { defaultValue: 'Reject' })}
                   </Button>
                 </Can>
                 <Can permission={PERMISSIONS.MERCHANT_INBOUND_REQUESTS_MANAGE}>
                   <Button type="button" variant="secondary" onClick={() => { setSelectedRequestId(request.id); setPendingAction('link') }}>
-                    Link Receipt
+                    {t('Link Receipt', { defaultValue: 'Link Receipt' })}
                   </Button>
                 </Can>
               </div>
@@ -201,26 +204,26 @@ export function MerchantInboundStockRequestsPage() {
         ]}
       />
 
-      <Dialog open={Boolean(selectedRequestId)} onClose={() => setSelectedRequestId(null)} title={<CardTitle>Inbound Request Details</CardTitle>}>
-        {detailsQuery.isLoading ? <LoadingState title="Loading inbound request" /> : null}
+      <Dialog open={Boolean(selectedRequestId)} onClose={() => setSelectedRequestId(null)} title={<CardTitle>{t('Inbound Request Details', { defaultValue: 'Inbound Request Details' })}</CardTitle>}>
+        {detailsQuery.isLoading ? <LoadingState title={t('Loading inbound request', { defaultValue: 'Loading inbound request' })} /> : null}
         {detailsQuery.isError ? <ErrorState message={getApiErrorMessage(detailsQuery.error)} onRetry={() => void detailsQuery.refetch()} /> : null}
         {detailsQuery.data ? (
           <div className="page-stack">
             <Card>
               <CardHeader>
-                <CardTitle>{detailsQuery.data.data.request_number ?? `Request #${detailsQuery.data.data.id}`}</CardTitle>
+                <CardTitle>{detailsQuery.data.data.request_number ?? t('Request #{{id}}', { id: detailsQuery.data.data.id, defaultValue: `Request #${detailsQuery.data.data.id}` })}</CardTitle>
                 <CardDescription>
-                  Inbound request creation does not increase stock. Only confirmed warehouse receipts increase stock.
+                  {t('Inbound request creation does not increase stock. Only confirmed warehouse receipts increase stock.', { defaultValue: 'Inbound request creation does not increase stock. Only confirmed warehouse receipts increase stock.' })}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <dl className="detail-list">
-                  <div><dt>Merchant</dt><dd>{detailsQuery.data.data.merchant_name ?? detailsQuery.data.data.merchant_id}</dd></div>
-                  <div><dt>Warehouse</dt><dd>{detailsQuery.data.data.warehouse_name ?? '-'}</dd></div>
-                  <div><dt>Status</dt><dd><StatusBadge value={detailsQuery.data.data.status}>{pickDisplayLabel(detailsQuery.data.data.status, detailsQuery.data.data.status_label)}</StatusBadge></dd></div>
-                  <div><dt>Linked Receipt</dt><dd>{detailsQuery.data.data.linked_warehouse_receipt_number ?? '-'}</dd></div>
-                  <div><dt>Rejection Reason</dt><dd>{detailsQuery.data.data.rejection_reason ?? '-'}</dd></div>
-                  <div><dt>Notes</dt><dd>{detailsQuery.data.data.notes ?? '-'}</dd></div>
+                  <div><dt>{t('Merchant')}</dt><dd>{detailsQuery.data.data.merchant_name ?? detailsQuery.data.data.merchant_id}</dd></div>
+                  <div><dt>{t('Warehouse')}</dt><dd>{detailsQuery.data.data.warehouse_name ?? '-'}</dd></div>
+                  <div><dt>{t('Status')}</dt><dd><StatusBadge value={detailsQuery.data.data.status}>{pickDisplayLabel(detailsQuery.data.data.status, detailsQuery.data.data.status_label)}</StatusBadge></dd></div>
+                  <div><dt>{t('Linked Receipt', { defaultValue: 'Linked Receipt' })}</dt><dd>{detailsQuery.data.data.linked_warehouse_receipt_number ?? '-'}</dd></div>
+                  <div><dt>{t('Rejection Reason', { defaultValue: 'Rejection Reason' })}</dt><dd>{detailsQuery.data.data.rejection_reason ?? '-'}</dd></div>
+                  <div><dt>{t('Notes')}</dt><dd>{detailsQuery.data.data.notes ?? '-'}</dd></div>
                 </dl>
               </CardContent>
             </Card>
@@ -228,18 +231,18 @@ export function MerchantInboundStockRequestsPage() {
             {detailsQuery.data.data.items?.length ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>Request Items</CardTitle>
+                  <CardTitle>{t('Request Items', { defaultValue: 'Request Items' })}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <TableContainer>
                     <Table variant="compact">
                       <thead>
                         <tr>
-                          <TableHead>Product</TableHead>
-                          <TableHead>SKU</TableHead>
-                          <TableHead>Requested</TableHead>
-                          <TableHead>Approved</TableHead>
-                          <TableHead>Received</TableHead>
+                          <TableHead>{t('Product')}</TableHead>
+                          <TableHead>{t('SKU', { defaultValue: 'SKU' })}</TableHead>
+                          <TableHead>{t('Requested', { defaultValue: 'Requested' })}</TableHead>
+                          <TableHead>{t('Approved', { defaultValue: 'Approved' })}</TableHead>
+                          <TableHead>{t('Received', { defaultValue: 'Received' })}</TableHead>
                         </tr>
                       </thead>
                       <tbody>
@@ -258,7 +261,7 @@ export function MerchantInboundStockRequestsPage() {
                 </CardContent>
               </Card>
             ) : (
-              <EmptyState title="No inbound request items" description="The backend did not return any request items." />
+              <EmptyState title={t('No inbound request items', { defaultValue: 'No inbound request items' })} description={t('The backend did not return any request items.', { defaultValue: 'The backend did not return any request items.' })} />
             )}
           </div>
         ) : null}

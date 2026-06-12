@@ -13,6 +13,7 @@ type BadgeVariant =
   | 'cyan'
   | 'violet'
   | 'orange'
+  | 'rose'
 
 type BadgeProps = PropsWithChildren<
   HTMLAttributes<HTMLSpanElement> & {

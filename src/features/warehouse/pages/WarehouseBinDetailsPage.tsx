@@ -31,8 +31,11 @@ import { Select } from '../../../shared/components/ui/Select'
 import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
+import { useLocale } from '../../../shared/i18n/useLocale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
+import { useTranslation } from 'react-i18next'
+import { getBinPrintableLabelDocument } from '../utils/binLabel'
 
 type BinFormValues = {
   warehouse_id: number
@@ -73,6 +76,7 @@ function EditBinDialog({
   onSubmit: (values: BinFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const { formError, getFieldError } = useFormApiErrors(error)
   const {
     control,
@@ -132,14 +136,14 @@ function EditBinDialog({
   }, [bin, open, selectedZoneId, setValue])
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Edit Warehouse Bin</CardTitle>}>
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Edit Warehouse Bin')}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Warehouse</span>
+          <span>{t('Warehouse')}</span>
           <Controller
             name="warehouse_id"
             control={control}
-            rules={{ validate: (value) => value > 0 || 'Warehouse is required.' }}
+            rules={{ validate: (value) => value > 0 || t('Warehouse is required.') }}
             render={({ field }) => (
               <WarehouseSelector
                 value={field.value > 0 ? String(field.value) : ''}
@@ -150,18 +154,18 @@ function EditBinDialog({
           <FieldError error={errors.warehouse_id?.message ?? getFieldError('warehouse_id')} />
         </label>
         <label className="field">
-          <span>Zone</span>
+          <span>{t('Zone')}</span>
           <Controller
             name="warehouse_zone_id"
             control={control}
             render={({ field }) => (
               <SearchableSelect
                 value={field.value > 0 ? String(field.value) : ''}
-                placeholder="No zone"
-                searchPlaceholder="Search zones..."
+                placeholder={t('No zone')}
+                searchPlaceholder={t('Search zones...')}
                 onChange={(value) => field.onChange(value ? Number(value) : 0)}
                 options={[
-                  { label: 'No zone', value: '' },
+                  { label: t('No zone'), value: '' },
                   ...((zonesQuery.data?.data ?? []).map((zone) => ({
                     label: zone.name,
                     value: String(zone.id),
@@ -174,18 +178,18 @@ function EditBinDialog({
           <FieldError error={errors.warehouse_zone_id?.message ?? getFieldError('warehouse_zone_id')} />
         </label>
         <label className="field">
-          <span>Shelf</span>
+          <span>{t('Shelf')}</span>
           <Controller
             name="warehouse_shelf_id"
             control={control}
             render={({ field }) => (
               <SearchableSelect
                 value={field.value > 0 ? String(field.value) : ''}
-                placeholder="No shelf"
-                searchPlaceholder="Search shelves..."
+                placeholder={t('No shelf')}
+                searchPlaceholder={t('Search shelves...')}
                 onChange={(value) => field.onChange(value ? Number(value) : 0)}
                 options={[
-                  { label: 'No shelf', value: '' },
+                  { label: t('No shelf'), value: '' },
                   ...((shelvesQuery.data?.data ?? []).map((shelf) => ({
                     label: shelf.name,
                     value: String(shelf.id),
@@ -198,40 +202,40 @@ function EditBinDialog({
           <FieldError error={errors.warehouse_shelf_id?.message ?? getFieldError('warehouse_shelf_id')} />
         </label>
         <label className="field">
-          <span>Name</span>
-          <Input {...register('name', { required: 'Name is required.' })} />
+          <span>{t('Name')}</span>
+          <Input {...register('name', { required: t('Name is required.') })} />
           <FieldError error={errors.name?.message ?? getFieldError('name')} />
         </label>
         <label className="field">
-          <span>Code</span>
-          <Input {...register('code', { required: 'Code is required.' })} />
+          <span>{t('Code')}</span>
+          <Input {...register('code', { required: t('Code is required.') })} />
           <FieldError error={errors.code?.message ?? getFieldError('code')} />
         </label>
         <label className="field">
-          <span>Barcode</span>
+          <span>{t('Barcode')}</span>
           <Input {...register('barcode')} />
-          <p className="table-meta">Leave empty to auto-generate a barcode on save if the backend supports it.</p>
+          <p className="table-meta">{t('Leave empty to auto-generate a barcode on save if the backend supports it.')}</p>
           <FieldError error={errors.barcode?.message ?? getFieldError('barcode')} />
         </label>
         <label className="field">
-          <span>Status</span>
+          <span>{t('Status')}</span>
           <Select {...register('status')}>
-            <option value="active">active</option>
-            <option value="inactive">inactive</option>
+            <option value="active">{t('active')}</option>
+            <option value="inactive">{t('inactive')}</option>
           </Select>
         </label>
         <label className="field">
-          <span>Notes</span>
+          <span>{t('Notes')}</span>
           <Input {...register('notes')} />
           <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
         </label>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            Save Bin
+            {t('Save Bin')}
           </Button>
         </div>
       </form>
@@ -240,6 +244,8 @@ function EditBinDialog({
 }
 
 export function WarehouseBinDetailsPage() {
+  const { t } = useTranslation()
+  const { locale } = useLocale()
   const { warehouseBinId = '' } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -283,13 +289,13 @@ export function WarehouseBinDetailsPage() {
   }
 
   if (binQuery.isLoading) {
-    return <LoadingState title="Loading warehouse bin" />
+    return <LoadingState title={t('Loading warehouse bin')} />
   }
 
   if (binQuery.isError || !bin) {
     return (
       <ErrorState
-        title="Unable to load warehouse bin"
+        title={t('Unable to load warehouse bin')}
         message={getApiErrorMessage(binQuery.error)}
         onRetry={() => void binQuery.refetch()}
       />
@@ -300,29 +306,36 @@ export function WarehouseBinDetailsPage() {
     <section className="page-section">
       <PageHeader
         title={bin.name}
-        description="Warehouse bin details, barcode actions, and label printing."
+        description={t('Warehouse bin details, barcode actions, and label printing.')}
         actions={(
           <div className="page-header__button-row">
             <Link className="ui-link-reset" to={`${adminPath('/warehouse/locations')}?tab=bins`}>
-              <Button type="button" variant="secondary">Back to Bins</Button>
+              <Button type="button" variant="secondary">{t('Back to Bins')}</Button>
             </Link>
             {bin.barcode ? (
               <Button type="button" variant="secondary" onClick={() => void copyBarcode()}>
                 <Copy size={14} />
-                {copyState === 'copied' ? 'Copied' : 'Copy Barcode'}
+                {copyState === 'copied' ? t('Copied') : t('Copy Barcode')}
               </Button>
             ) : null}
             <LabelDocumentDialog
               defaultFormat="html"
-              fetchDocument={(options) => getWarehouseBinLabel(bin.id, options)}
-              title={`Bin Label - ${bin.name}`}
-              triggerLabel="Print Label"
+              fetchDocument={(options) => getBinPrintableLabelDocument({
+                bin,
+                fetchDocument: (requestOptions) => getWarehouseBinLabel(bin.id, requestOptions),
+                locale,
+                options,
+                t,
+              })}
+              formats={['html', 'pdf']}
+              title={t('Bin Label - {{name}}', { name: bin.name })}
+              triggerLabel={t('Print Label')}
             />
             <Can permission={PERMISSIONS.WAREHOUSE_LOCATIONS_CREATE}>
-              <Button type="button" onClick={() => setEditOpen(true)}>Edit Bin</Button>
+              <Button type="button" onClick={() => setEditOpen(true)}>{t('Edit Bin')}</Button>
             </Can>
             <Can permission={PERMISSIONS.WAREHOUSE_LOCATIONS_CREATE}>
-              <Button type="button" variant="danger" onClick={() => setDeleteOpen(true)}>Delete Bin</Button>
+              <Button type="button" variant="danger" onClick={() => setDeleteOpen(true)}>{t('Delete Bin')}</Button>
             </Can>
           </div>
         )}
@@ -330,28 +343,28 @@ export function WarehouseBinDetailsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Bin Overview</CardTitle>
-          <CardDescription>Storage placement, barcode reference, and lifecycle status.</CardDescription>
+          <CardTitle>{t('Bin Overview')}</CardTitle>
+          <CardDescription>{t('Storage placement, barcode reference, and lifecycle status.')}</CardDescription>
         </CardHeader>
         <CardContent className="page-stack">
           <dl className="detail-list">
-            <div><dt>Name</dt><dd>{bin.name}</dd></div>
-            <div><dt>Code</dt><dd>{bin.code}</dd></div>
-            <div><dt>Barcode</dt><dd>{bin.barcode ?? '-'}</dd></div>
-            <div><dt>Warehouse</dt><dd>{bin.warehouse_name ?? `#${bin.warehouse_id}`}</dd></div>
-            <div><dt>Zone</dt><dd>{bin.zone_name ?? '-'}</dd></div>
-            <div><dt>Shelf</dt><dd>{bin.shelf_name ?? '-'}</dd></div>
+            <div><dt>{t('Name')}</dt><dd>{bin.name}</dd></div>
+            <div><dt>{t('Code')}</dt><dd>{bin.code}</dd></div>
+            <div><dt>{t('Barcode')}</dt><dd>{bin.barcode ?? '-'}</dd></div>
+            <div><dt>{t('Warehouse')}</dt><dd>{bin.warehouse_name ?? `#${bin.warehouse_id}`}</dd></div>
+            <div><dt>{t('Zone')}</dt><dd>{bin.zone_name ?? '-'}</dd></div>
+            <div><dt>{t('Shelf')}</dt><dd>{bin.shelf_name ?? '-'}</dd></div>
             <div>
-              <dt>Status</dt>
+              <dt>{t('Status')}</dt>
               <dd>
                 <StatusBadge value={bin.status}>
                   {pickDisplayLabel(bin.status, bin.status_label)}
                 </StatusBadge>
               </dd>
             </div>
-            <div><dt>Notes</dt><dd>{bin.notes ?? '-'}</dd></div>
-            <div><dt>Created</dt><dd>{formatDate(bin.created_at)}</dd></div>
-            <div><dt>Updated</dt><dd>{bin.updated_at ? formatDate(bin.updated_at) : '-'}</dd></div>
+            <div><dt>{t('Notes')}</dt><dd>{bin.notes ?? '-'}</dd></div>
+            <div><dt>{t('Created')}</dt><dd>{formatDate(bin.created_at)}</dd></div>
+            <div><dt>{t('Updated')}</dt><dd>{bin.updated_at ? formatDate(bin.updated_at) : '-'}</dd></div>
           </dl>
         </CardContent>
       </Card>
@@ -379,9 +392,9 @@ export function WarehouseBinDetailsPage() {
 
       <ConfirmActionModal
         open={deleteOpen}
-        title="Delete warehouse bin"
-        description={`Delete ${bin.name}? This action cannot be undone.`}
-        confirmLabel="Delete bin"
+        title={t('Delete warehouse bin')}
+        description={t('Delete {{name}}? This action cannot be undone.', { name: bin.name })}
+        confirmLabel={t('Delete Bin')}
         variant="danger"
         loading={deleteMutation.isPending}
         onCancel={() => setDeleteOpen(false)}

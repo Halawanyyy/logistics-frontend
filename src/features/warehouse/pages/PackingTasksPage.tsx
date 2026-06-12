@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -55,6 +56,7 @@ function GeneratePackingTaskDialog({
   onSubmit: (values: GeneratePackingTaskFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const pickingListsQuery = useQuery({
     queryKey: ['picking-lists', 'packing-generate'],
     queryFn: () => listPickingLists(),
@@ -72,12 +74,12 @@ function GeneratePackingTaskDialog({
   const { formError, getFieldError } = useFormApiErrors(error)
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Generate Packing Tasks</CardTitle>} variant="small">
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Generate Packing Tasks', { defaultValue: 'Generate Packing Tasks' })}</CardTitle>} variant="small">
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Picking List</span>
+          <span>{t('Picking List', { defaultValue: 'Picking List' })}</span>
           <Select {...register('picking_list_id', { valueAsNumber: true })}>
-            <option value={0}>Select picking list</option>
+            <option value={0}>{t('Select picking list', { defaultValue: 'Select picking list' })}</option>
             {(pickingListsQuery.data?.data ?? []).map((pickingList: PickingList) => (
               <option key={pickingList.id} value={pickingList.id}>
                 {pickingList.picking_number ?? pickingList.picking_list_number ?? `#${pickingList.id}`}
@@ -88,8 +90,8 @@ function GeneratePackingTaskDialog({
         </label>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={isSubmitting}>Generate Tasks</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="submit" loading={isSubmitting}>{t('Generate Tasks', { defaultValue: 'Generate Tasks' })}</Button>
         </div>
       </form>
     </Dialog>
@@ -111,6 +113,7 @@ function CompletePackingTaskDialog({
   open: boolean
   task: PackingTask | null
 }) {
+  const { t } = useTranslation()
   const {
     register,
     handleSubmit,
@@ -140,42 +143,42 @@ function CompletePackingTaskDialog({
   }, [reset, task])
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Complete Packing Task</CardTitle>}>
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Complete Packing Task', { defaultValue: 'Complete Packing Task' })}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Package Weight</span>
+          <span>{t('Package Weight', { defaultValue: 'Package Weight' })}</span>
           <Input type="number" step="0.01" {...register('package_weight', { valueAsNumber: true })} />
           <FieldError error={errors.package_weight?.message ?? getFieldError('package_weight')} />
         </label>
         <label className="field">
-          <span>Package Length</span>
+          <span>{t('Package Length', { defaultValue: 'Package Length' })}</span>
           <Input type="number" step="0.01" {...register('package_length', { valueAsNumber: true })} />
           <FieldError error={errors.package_length?.message ?? getFieldError('package_length')} />
         </label>
         <label className="field">
-          <span>Package Width</span>
+          <span>{t('Package Width', { defaultValue: 'Package Width' })}</span>
           <Input type="number" step="0.01" {...register('package_width', { valueAsNumber: true })} />
           <FieldError error={errors.package_width?.message ?? getFieldError('package_width')} />
         </label>
         <label className="field">
-          <span>Package Height</span>
+          <span>{t('Package Height', { defaultValue: 'Package Height' })}</span>
           <Input type="number" step="0.01" {...register('package_height', { valueAsNumber: true })} />
           <FieldError error={errors.package_height?.message ?? getFieldError('package_height')} />
         </label>
         <label className="field">
-          <span>Packaging Fee</span>
+          <span>{t('Packaging Fee', { defaultValue: 'Packaging Fee' })}</span>
           <Input type="number" step="0.01" {...register('packaging_fee', { valueAsNumber: true })} />
           <FieldError error={errors.packaging_fee?.message ?? getFieldError('packaging_fee')} />
         </label>
         <label className="field">
-          <span>Notes</span>
+          <span>{t('Notes')}</span>
           <Input {...register('notes')} />
           <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
         </label>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={isSubmitting}>Complete Task</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="submit" loading={isSubmitting}>{t('Complete Task', { defaultValue: 'Complete Task' })}</Button>
         </div>
       </form>
     </Dialog>
@@ -183,6 +186,7 @@ function CompletePackingTaskDialog({
 }
 
 export function PackingTasksPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [generateOpen, setGenerateOpen] = useState(false)
   const [taskPendingComplete, setTaskPendingComplete] = useState<PackingTask | null>(null)
@@ -225,12 +229,12 @@ export function PackingTasksPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Packing Tasks"
-        description="Generate and complete packing tasks from warehouse picking lists."
+        title={t('Packing Tasks', { defaultValue: 'Packing Tasks' })}
+        description={t('Generate and complete packing tasks from warehouse picking lists.', { defaultValue: 'Generate and complete packing tasks from warehouse picking lists.' })}
         actions={(
           <Can permission={PERMISSIONS.PACKING_TASKS_CREATE}>
             <Button type="button" onClick={() => setGenerateOpen(true)}>
-              Generate Packing Tasks
+              {t('Generate Packing Tasks', { defaultValue: 'Generate Packing Tasks' })}
             </Button>
           </Can>
         )}
@@ -238,22 +242,22 @@ export function PackingTasksPage() {
 
       <Card className="table-card">
         <CardHeader>
-          <CardTitle>Packing Tasks</CardTitle>
-          <CardDescription>Packing tasks returned by the warehouse API.</CardDescription>
+          <CardTitle>{t('Packing Tasks', { defaultValue: 'Packing Tasks' })}</CardTitle>
+          <CardDescription>{t('Packing tasks returned by the warehouse API.', { defaultValue: 'Packing tasks returned by the warehouse API.' })}</CardDescription>
         </CardHeader>
         <CardContent>
-          {packingTasksQuery.isLoading ? <LoadingState title="Loading packing tasks" /> : null}
+          {packingTasksQuery.isLoading ? <LoadingState title={t('Loading packing tasks', { defaultValue: 'Loading packing tasks' })} /> : null}
           {packingTasksQuery.isError ? (
             <ErrorState
-              title="Unable to load packing tasks"
+              title={t('Unable to load packing tasks', { defaultValue: 'Unable to load packing tasks' })}
               message={getApiErrorMessage(packingTasksQuery.error)}
               onRetry={() => void packingTasksQuery.refetch()}
             />
           ) : null}
           {!packingTasksQuery.isLoading && !packingTasksQuery.isError && !tasks.length ? (
             <EmptyState
-              title="No packing tasks"
-              description="No packing tasks were returned by the warehouse API."
+              title={t('No packing tasks', { defaultValue: 'No packing tasks' })}
+              description={t('No packing tasks were returned by the warehouse API.', { defaultValue: 'No packing tasks were returned by the warehouse API.' })}
             />
           ) : null}
           {tasks.length ? (
@@ -261,14 +265,14 @@ export function PackingTasksPage() {
               <Table variant="compact">
                 <thead>
                   <tr>
-                    <TableHead>Task</TableHead>
-                    <TableHead>Picking List</TableHead>
-                    <TableHead>Order</TableHead>
-                    <TableHead>Merchant</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Packaging Fee</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('Task', { defaultValue: 'Task' })}</TableHead>
+                    <TableHead>{t('Picking List', { defaultValue: 'Picking List' })}</TableHead>
+                    <TableHead>{t('Order')}</TableHead>
+                    <TableHead>{t('Merchant')}</TableHead>
+                    <TableHead>{t('Status')}</TableHead>
+                    <TableHead>{t('Packaging Fee', { defaultValue: 'Packaging Fee' })}</TableHead>
+                    <TableHead>{t('Created')}</TableHead>
+                    <TableHead>{t('Actions')}</TableHead>
                   </tr>
                 </thead>
                 <tbody>
@@ -288,12 +292,12 @@ export function PackingTasksPage() {
                       <TableCell>
                         <div className="page-header__button-row">
                           <Link className="table-link" to={adminPath(`/warehouse/packing-tasks/${task.id}`)}>
-                            View
+                            {t('View')}
                           </Link>
                           <Can permission={PERMISSIONS.PACKING_TASKS_COMPLETE}>
                             {task.status !== 'packed' ? (
                               <Button type="button" variant="secondary" onClick={() => setTaskPendingComplete(task)}>
-                                Complete
+                                {t('Complete', { defaultValue: 'Complete' })}
                               </Button>
                             ) : null}
                           </Can>

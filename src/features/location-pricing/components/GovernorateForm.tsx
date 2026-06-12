@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { getApiErrorMessage, getApiValidationErrors } from '../../../shared/api/api-error'
-import { Button } from '../../../shared/components/ui/Button'
+import { FormActionsBar } from '../../../shared/components/forms/FormActionsBar'
 import { Input } from '../../../shared/components/ui/Input'
 import type { Governorate } from '../types/location-pricing.types'
 
@@ -18,6 +19,7 @@ type GovernorateFormProps = {
   defaultValues?: Governorate
   error?: unknown
   isSubmitting?: boolean
+  secondaryAction?: ReactNode
   submitLabel: string
   onSubmit: (values: GovernorateFormValues) => void
 }
@@ -26,6 +28,7 @@ export function GovernorateForm({
   defaultValues,
   error,
   isSubmitting = false,
+  secondaryAction,
   onSubmit,
   submitLabel,
 }: GovernorateFormProps) {
@@ -49,7 +52,7 @@ export function GovernorateForm({
         <span>{t('Name')}</span>
         <Input {...register('name')} />
         {errors.name?.message || validationErrors.name?.[0] ? (
-          <small>{errors.name?.message ?? validationErrors.name?.[0]}</small>
+          <small>{errors.name?.message ? t(errors.name.message) : validationErrors.name?.[0]}</small>
         ) : null}
       </label>
       <label className="field field--inline">
@@ -57,11 +60,11 @@ export function GovernorateForm({
         <span>{t('Active')}</span>
       </label>
       {error ? <div className="form-error">{getApiErrorMessage(error)}</div> : null}
-      <div className="form-actions">
-        <Button type="submit" loading={isSubmitting}>
-          {t(submitLabel, { defaultValue: submitLabel })}
-        </Button>
-      </div>
+      <FormActionsBar
+        isSubmitting={isSubmitting}
+        secondaryAction={secondaryAction}
+        submitLabel={submitLabel}
+      />
     </form>
   )
 }

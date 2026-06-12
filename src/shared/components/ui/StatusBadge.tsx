@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Badge } from './Badge'
 
 type StatusBadgeVariant =
@@ -12,22 +13,49 @@ type StatusBadgeVariant =
   | 'cyan'
   | 'violet'
   | 'orange'
+  | 'rose'
 
 type StatusBadgeProps = {
+  className?: string
+  label?: string | null
   value: boolean | null | string | undefined
-  children?: string
+  children?: ReactNode
 }
 
 const EXACT_VARIANT_MAP = new Map<string, StatusBadgeVariant>([
   ['active', 'success'],
-  ['inactive', 'slate'],
+  ['approved', 'success'],
+  ['available', 'success'],
+  ['closed', 'success'],
+  ['completed', 'success'],
+  ['confirmed', 'success'],
+  ['delivered', 'success'],
+  ['fulfilled', 'success'],
+  ['inspected', 'info'],
+  ['paid', 'success'],
+  ['received', 'success'],
+  ['restocked', 'success'],
+  ['inactive', 'danger'],
   ['disabled', 'slate'],
+  ['not_required', 'slate'],
+  ['archived', 'slate'],
+  ['unknown', 'slate'],
+  ['unassigned', 'slate'],
   ['pending', 'warning'],
+  ['waiting', 'warning'],
+  ['requested', 'warning'],
+  ['under_review', 'warning'],
   ['pending_review', 'warning'],
   ['pending_approval', 'warning'],
+  ['pending_reservation', 'warning'],
+  ['pending_pickup', 'orange'],
+  ['pending_return', 'orange'],
+  ['low_stock', 'warning'],
   ['draft', 'slate'],
-  ['confirmed', 'info'],
   ['processing', 'info'],
+  ['assigned', 'info'],
+  ['picked', 'cyan'],
+  ['review_required', 'rose'],
   ['shipment_created', 'accent'],
   ['issued', 'accent'],
   ['driver_assigned', 'accent'],
@@ -38,30 +66,32 @@ const EXACT_VARIANT_MAP = new Map<string, StatusBadgeVariant>([
   ['picking', 'cyan'],
   ['out_for_delivery', 'violet'],
   ['packed', 'violet'],
+  ['transferred', 'violet'],
+  ['dispatch', 'accent'],
+  ['dispatched', 'accent'],
   ['ready_for_dispatch', 'accent'],
   ['partially_delivered', 'teal'],
+  ['partially_fulfilled', 'warning'],
+  ['partially_paid', 'violet'],
   ['partially_received', 'teal'],
-  ['received', 'teal'],
   ['reserved', 'teal'],
-  ['restocked', 'success'],
-  ['fulfilled', 'success'],
-  ['delivered', 'success'],
-  ['completed', 'success'],
-  ['approved', 'success'],
-  ['paid', 'success'],
-  ['unpaid', 'warning'],
+  ['unpaid', 'orange'],
   ['packing', 'orange'],
-  ['damaged', 'orange'],
+  ['damaged', 'danger'],
   ['delivery_attempted', 'orange'],
+  ['overdue', 'danger'],
+  ['lost', 'danger'],
+  ['out_of_stock', 'danger'],
+  ['failed_delivery', 'danger'],
   ['rejected', 'danger'],
   ['failed', 'danger'],
   ['cancelled', 'danger'],
   ['canceled', 'danger'],
-  ['returned', 'danger'],
-  ['returned_to_hub', 'danger'],
-  ['returned_to_warehouse', 'danger'],
+  ['suspended', 'danger'],
+  ['returned', 'orange'],
+  ['returned_to_hub', 'orange'],
+  ['returned_to_warehouse', 'orange'],
   ['released', 'slate'],
-  ['closed', 'slate'],
   ['open', 'info'],
   ['credit', 'success'],
   ['debit', 'warning'],
@@ -69,6 +99,26 @@ const EXACT_VARIANT_MAP = new Map<string, StatusBadgeVariant>([
 
 function normalize(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, '_')
+}
+
+function humanizeValue(value: string) {
+  return value
+    .replaceAll(/[_-]+/g, ' ')
+    .replaceAll(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
+function normalizeValue(value: boolean | null | string | undefined) {
+  if (typeof value === 'boolean') {
+    return value ? 'active' : 'inactive'
+  }
+
+  if (typeof value !== 'string') {
+    return 'unknown'
+  }
+
+  return value
 }
 
 function getVariant(value: string): StatusBadgeVariant {
@@ -86,6 +136,9 @@ function getVariant(value: string): StatusBadgeVariant {
   if (
     normalized.includes('inactive')
     || normalized.includes('disabled')
+    || normalized.includes('archiv')
+    || normalized.includes('unknown')
+    || normalized.includes('not_required')
     || normalized.includes('draft')
     || normalized.includes('closed')
   ) {
@@ -94,23 +147,33 @@ function getVariant(value: string): StatusBadgeVariant {
 
   if (
     normalized.includes('pending')
-    || normalized.includes('review')
     || normalized.includes('approval')
+    || normalized.includes('wait')
+    || normalized.includes('request')
+    || normalized.includes('low_stock')
+    || normalized.includes('review')
     || normalized.includes('unpaid')
   ) {
     return 'warning'
   }
 
-  if (
-    normalized.includes('partially')
-    || normalized.includes('received')
-    || normalized.includes('reserved')
-    || normalized.includes('release')
-  ) {
+  if (normalized.includes('partially')) {
     return 'teal'
   }
 
+  if (normalized.includes('reserved') || normalized.includes('receive')) {
+    return 'teal'
+  }
+
+  if (normalized.includes('review_required')) {
+    return 'rose'
+  }
+
   if (normalized.includes('transit') || normalized.includes('picking')) {
+    return 'cyan'
+  }
+
+  if (normalized.includes('picked')) {
     return 'cyan'
   }
 
@@ -118,7 +181,7 @@ function getVariant(value: string): StatusBadgeVariant {
     return 'violet'
   }
 
-  if (normalized.includes('pack') || normalized.includes('attempt') || normalized.includes('damage')) {
+  if (normalized.includes('pack') || normalized.includes('attempt')) {
     return 'orange'
   }
 
@@ -129,6 +192,7 @@ function getVariant(value: string): StatusBadgeVariant {
     || normalized.includes('approve')
     || normalized.includes('paid')
     || normalized.includes('fulfill')
+    || normalized.includes('avail')
     || normalized.includes('restock')
   ) {
     return 'success'
@@ -146,29 +210,46 @@ function getVariant(value: string): StatusBadgeVariant {
 
   if (
     normalized.includes('create')
-    || normalized.includes('assign')
     || normalized.includes('dispatch')
     || normalized.includes('issue')
+    || normalized.includes('transfer')
   ) {
     return 'accent'
   }
 
+  if (normalized.includes('assign')) {
+    return 'info'
+  }
+
   if (
-    normalized.includes('reject')
+    normalized.includes('damage')
+    || normalized.includes('suspend')
+    || normalized.includes('lost')
+    || normalized.includes('overdue')
+    || normalized.includes('out_of_stock')
+    || normalized.includes('reject')
     || normalized.includes('fail')
     || normalized.includes('cancel')
-    || normalized.includes('return')
   ) {
     return 'danger'
+  }
+
+  if (normalized.includes('return')) {
+    return 'orange'
   }
 
   return 'neutral'
 }
 
-export function StatusBadge({ value, children }: StatusBadgeProps) {
-  const text =
-    children
-    ?? (typeof value === 'boolean' ? (value ? 'Active' : 'Inactive') : value ?? 'Unknown')
+export function StatusBadge({ className, label, value, children }: StatusBadgeProps) {
+  const rawValue = normalizeValue(value)
+  const displayText = children
+    ?? label
+    ?? humanizeValue(rawValue)
 
-  return <Badge variant={getVariant(String(text))}>{text}</Badge>
+  return (
+    <Badge className={className} variant={getVariant(rawValue)}>
+      {displayText}
+    </Badge>
+  )
 }

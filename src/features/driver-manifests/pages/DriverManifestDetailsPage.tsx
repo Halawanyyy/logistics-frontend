@@ -2,27 +2,21 @@ import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { getDriverManifestPrintDocument } from '../../../shared/api/labels.api'
+import { useTranslation } from 'react-i18next'
 import { listAuditTimeline } from '../../../shared/api/audit.api'
 import type { AuditLogItem } from '../../../shared/types/audit.types'
-import {
-  closeDriverManifest,
-  getDriverManifest,
-  getDriverManifestPrint,
-} from '../api/driver-manifests.api'
-import type { DriverManifest, PrintableDriverManifest } from '../types/driver-manifest.types'
+import { closeDriverManifest, getDriverManifest } from '../api/driver-manifests.api'
+import type { DriverManifest } from '../types/driver-manifest.types'
 import { getApiErrorMessage, isApiNotFound } from '../../../shared/api/api-error'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { Attachments } from '../../../shared/components/attachments/Attachments'
 import { FieldError } from '../../../shared/components/forms/FieldError'
-import { LabelDocumentDialog } from '../../../shared/components/labels/LabelDocumentDialog'
 import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../shared/components/states/LoadingState'
 import { NotFoundState } from '../../../shared/components/states/NotFoundState'
-import { PrintView } from '../../../shared/components/print/PrintView'
 import { Timeline } from '../../../shared/components/timeline/Timeline'
 import { Button } from '../../../shared/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
@@ -34,6 +28,7 @@ import { Table, TableCell, TableContainer, TableHead } from '../../../shared/com
 import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
+import { DriverManifestPrintDialog } from '../components/DriverManifestPrintDialog'
 
 type CloseManifestFormValues = {
   actual_received_amount: number
@@ -55,6 +50,7 @@ function CloseManifestDialog({
   onSubmit: (values: CloseManifestFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const {
     register,
     handleSubmit,
@@ -68,10 +64,15 @@ function CloseManifestDialog({
   const { formError, getFieldError } = useFormApiErrors(error)
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Close Manifest</CardTitle>} variant="small">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={<CardTitle>{t('Close Manifest', { defaultValue: 'Close Manifest' })}</CardTitle>}
+      variant="small"
+    >
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Actual Received Amount</span>
+          <span>{t('Actual Received Amount', { defaultValue: 'Actual Received Amount' })}</span>
           <Input
             type="number"
             step="0.01"
@@ -83,17 +84,17 @@ function CloseManifestDialog({
           <FieldError error={errors.actual_received_amount?.message ?? getFieldError('actual_received_amount')} />
         </label>
         <label className="field">
-          <span>Notes</span>
+          <span>{t('Notes')}</span>
           <Input {...register('notes')} />
           <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
         </label>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            Close Manifest
+            {t('Close Manifest', { defaultValue: 'Close Manifest' })}
           </Button>
         </div>
       </form>
@@ -101,72 +102,15 @@ function CloseManifestDialog({
   )
 }
 
-function ManifestPrintCard({ data }: { data: PrintableDriverManifest }) {
-  return (
-    <PrintView title="Driver Manifest">
-      <Card>
-        <CardHeader>
-          <CardTitle>{data.manifest.manifest_number}</CardTitle>
-          <CardDescription>
-            {data.manifest.driver_name} - {data.manifest.date}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="page-stack">
-          <div className="stats-grid">
-            <StatTile label="Total Shipments" value={data.summary.total_shipments} />
-            <StatTile label="Total COD" value={<MoneyDisplay value={data.summary.total_cod} />} />
-            <StatTile label="Delivered" value={data.summary.delivered_shipments} />
-            <StatTile label="Failed" value={data.summary.failed_shipments} />
-          </div>
-          <TableContainer>
-            <Table variant="compact">
-              <thead>
-                <tr>
-                  <TableHead>Shipment</TableHead>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>COD</TableHead>
-                  <TableHead>Shipping Fee</TableHead>
-                  <TableHead>Merchant</TableHead>
-                </tr>
-              </thead>
-              <tbody>
-                {data.shipments.map((item) => (
-                  <tr key={item.shipment_number}>
-                    <TableCell>{item.shipment_number}</TableCell>
-                    <TableCell>{item.order_number}</TableCell>
-                    <TableCell>
-                      {item.customer_name}
-                      <p className="table-meta">{item.customer_phone}</p>
-                    </TableCell>
-                    <TableCell>{item.delivery_address}</TableCell>
-                    <TableCell><MoneyDisplay value={item.cod_amount} /></TableCell>
-                    <TableCell><MoneyDisplay value={item.shipping_fee} /></TableCell>
-                    <TableCell>{item.merchant_name}</TableCell>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
-    </PrintView>
-  )
-}
-
 export function DriverManifestDetailsPage() {
+  const { t } = useTranslation()
   const { manifestId } = useParams()
   const queryClient = useQueryClient()
   const [closeOpen, setCloseOpen] = useState(false)
+  const [printOpen, setPrintOpen] = useState(false)
   const query = useQuery({
     queryKey: ['driver-manifests', manifestId],
     queryFn: () => getDriverManifest(manifestId!),
-    enabled: Boolean(manifestId),
-  })
-  const printQuery = useQuery({
-    queryKey: ['driver-manifests', manifestId, 'print'],
-    queryFn: () => getDriverManifestPrint(manifestId!),
     enabled: Boolean(manifestId),
   })
   const timelineQuery = useQuery({
@@ -187,14 +131,16 @@ export function DriverManifestDetailsPage() {
   })
 
   if (query.isLoading) {
-    return <LoadingState title="Loading driver manifest" />
+    return <LoadingState title={t('Loading driver manifest', { defaultValue: 'Loading driver manifest' })} />
   }
 
   if (query.isError && isApiNotFound(query.error)) {
     return (
       <NotFoundState
-        title="Driver manifest not found"
-        description="This driver manifest could not be found in the manifests API."
+        title={t('Driver manifest not found', { defaultValue: 'Driver manifest not found' })}
+        description={t('This driver manifest could not be found in the manifests API.', {
+          defaultValue: 'This driver manifest could not be found in the manifests API.',
+        })}
       />
     )
   }
@@ -209,35 +155,27 @@ export function DriverManifestDetailsPage() {
     <section className="page-section">
       <PageHeader
         title={manifest.manifest_number}
-        description={`Daily manifest for ${manifest.driver.name} on ${manifest.manifest_date}.`}
+        description={t('Daily manifest for {{name}} on {{date}}.', {
+          name: manifest.driver.name,
+          date: manifest.manifest_date,
+          defaultValue: `Daily manifest for ${manifest.driver.name} on ${manifest.manifest_date}.`,
+        })}
         actions={(
           <div className="page-header__button-row">
             <Can permission={PERMISSIONS.DRIVER_MANIFESTS_PRINT}>
-              <Button type="button" variant="secondary" onClick={() => void printQuery.refetch()}>
-                Refresh Print View
+              <Button type="button" variant="secondary" onClick={() => setPrintOpen(true)}>
+                {t('Print')}
               </Button>
-            </Can>
-            <Can permission={PERMISSIONS.DRIVER_MANIFESTS_PRINT}>
-              <LabelDocumentDialog
-                defaultFormat="html"
-                fetchDocument={(options) => getDriverManifestPrintDocument(manifest.id, {
-                  ...options,
-                  format: options.format === 'pdf' || options.format === 'json' ? options.format : 'html',
-                })}
-                formats={['html', 'pdf', 'json']}
-                title={`Driver Manifest Print - ${manifest.manifest_number}`}
-                triggerLabel="Formatted Print"
-              />
             </Can>
             <Can permission={PERMISSIONS.DRIVER_MANIFESTS_CLOSE}>
               {manifest.status === 'open' ? (
                 <Button type="button" variant="secondary" onClick={() => setCloseOpen(true)}>
-                  Close Manifest
+                  {t('Close Manifest', { defaultValue: 'Close Manifest' })}
                 </Button>
               ) : null}
             </Can>
             <Link className="ui-link-reset" to={adminPath('/driver-manifests')}>
-              <Button variant="secondary">Back to manifests</Button>
+              <Button variant="secondary">{t('Back to manifests', { defaultValue: 'Back to manifests' })}</Button>
             </Link>
           </div>
         )}
@@ -246,53 +184,59 @@ export function DriverManifestDetailsPage() {
       {closeMutation.error ? <div className="form-error">{getApiErrorMessage(closeMutation.error)}</div> : null}
 
       <div className="stats-grid">
-        <StatTile label="Status" value={<StatusBadge value={manifest.status} />} />
-        <StatTile label="Total Shipments" value={manifest.summary.total_shipments} />
-        <StatTile label="Expected COD" value={<MoneyDisplay value={manifest.summary.expected_cod_amount} />} />
-        <StatTile label="Actual Received" value={<MoneyDisplay value={manifest.summary.actual_received_amount} />} />
-        <StatTile label="Difference" value={<MoneyDisplay value={manifest.summary.difference_amount} />} />
+        <StatTile label={t('Status')} value={<StatusBadge value={manifest.status} />} />
+        <StatTile label={t('Total Shipments', { defaultValue: 'Total Shipments' })} value={manifest.summary.total_shipments} />
+        <StatTile label={t('Expected COD', { defaultValue: 'Expected COD' })} value={<MoneyDisplay value={manifest.summary.expected_cod_amount} />} />
+        <StatTile label={t('Actual Received', { defaultValue: 'Actual Received' })} value={<MoneyDisplay value={manifest.summary.actual_received_amount} />} />
+        <StatTile label={t('Difference', { defaultValue: 'Difference' })} value={<MoneyDisplay value={manifest.summary.difference_amount} />} />
       </div>
 
       <div className="details-grid">
         <Card className="detail-card">
           <CardHeader>
-            <CardTitle>Manifest Overview</CardTitle>
-            <CardDescription>Driver and daily loadout summary.</CardDescription>
+            <CardTitle>{t('Manifest Overview', { defaultValue: 'Manifest Overview' })}</CardTitle>
+            <CardDescription>{t('Driver and daily loadout summary.', {
+              defaultValue: 'Driver and daily loadout summary.',
+            })}</CardDescription>
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
-              <div><dt>Driver</dt><dd>{manifest.driver.name}</dd></div>
-              <div><dt>Phone</dt><dd>{manifest.driver.phone}</dd></div>
-              <div><dt>Vehicle</dt><dd>{manifest.driver.vehicle_type}</dd></div>
-              <div><dt>Plate</dt><dd>{manifest.driver.vehicle_plate}</dd></div>
-              <div><dt>Date</dt><dd>{manifest.manifest_date}</dd></div>
-              <div><dt>Status</dt><dd><StatusBadge value={manifest.status} /></dd></div>
-              <div><dt>Notes</dt><dd>{manifest.notes ?? '-'}</dd></div>
-              <div><dt>Created By</dt><dd>{manifest.created_by_name ?? '-'}</dd></div>
-              <div><dt>Created</dt><dd>{formatDate(manifest.created_at)}</dd></div>
+              <div><dt>{t('Driver', { defaultValue: 'Driver' })}</dt><dd>{manifest.driver.name}</dd></div>
+              <div><dt>{t('Phone')}</dt><dd>{manifest.driver.phone}</dd></div>
+              <div><dt>{t('Vehicle', { defaultValue: 'Vehicle' })}</dt><dd>{manifest.driver.vehicle_type}</dd></div>
+              <div><dt>{t('Plate', { defaultValue: 'Plate' })}</dt><dd>{manifest.driver.vehicle_plate}</dd></div>
+              <div><dt>{t('Date')}</dt><dd>{manifest.manifest_date}</dd></div>
+              <div><dt>{t('Status')}</dt><dd><StatusBadge value={manifest.status} /></dd></div>
+              <div><dt>{t('Notes')}</dt><dd>{manifest.notes ?? '-'}</dd></div>
+              <div><dt>{t('Created By')}</dt><dd>{manifest.created_by_name ?? '-'}</dd></div>
+              <div><dt>{t('Created')}</dt><dd>{formatDate(manifest.created_at)}</dd></div>
             </dl>
           </CardContent>
         </Card>
 
         <Card className="detail-card">
           <CardHeader>
-            <CardTitle>Cash Closure</CardTitle>
-            <CardDescription>COD expectation and discrepancy snapshot returned by backend.</CardDescription>
+            <CardTitle>{t('Cash Closure', { defaultValue: 'Cash Closure' })}</CardTitle>
+            <CardDescription>{t('COD expectation and discrepancy snapshot returned by backend.', {
+              defaultValue: 'COD expectation and discrepancy snapshot returned by backend.',
+            })}</CardDescription>
           </CardHeader>
           <CardContent>
             {manifest.cash_closure ? (
               <dl className="detail-list">
-                <div><dt>Closure Status</dt><dd><StatusBadge value={manifest.cash_closure.status} /></dd></div>
-                <div><dt>Expected Amount</dt><dd><MoneyDisplay value={manifest.cash_closure.expected_amount} /></dd></div>
-                <div><dt>Received Amount</dt><dd><MoneyDisplay value={manifest.cash_closure.received_amount} /></dd></div>
-                <div><dt>Difference</dt><dd><MoneyDisplay value={manifest.cash_closure.difference_amount} /></dd></div>
-                <div><dt>Closed By</dt><dd>{manifest.closed_by_name ?? '-'}</dd></div>
-                <div><dt>Closed At</dt><dd>{manifest.closed_at ? formatDate(manifest.closed_at) : '-'}</dd></div>
+                <div><dt>{t('Closure Status', { defaultValue: 'Closure Status' })}</dt><dd><StatusBadge value={manifest.cash_closure.status} /></dd></div>
+                <div><dt>{t('Expected Amount', { defaultValue: 'Expected Amount' })}</dt><dd><MoneyDisplay value={manifest.cash_closure.expected_amount} /></dd></div>
+                <div><dt>{t('Received Amount', { defaultValue: 'Received Amount' })}</dt><dd><MoneyDisplay value={manifest.cash_closure.received_amount} /></dd></div>
+                <div><dt>{t('Difference', { defaultValue: 'Difference' })}</dt><dd><MoneyDisplay value={manifest.cash_closure.difference_amount} /></dd></div>
+                <div><dt>{t('Closed By', { defaultValue: 'Closed By' })}</dt><dd>{manifest.closed_by_name ?? '-'}</dd></div>
+                <div><dt>{t('Closed At', { defaultValue: 'Closed At' })}</dt><dd>{manifest.closed_at ? formatDate(manifest.closed_at) : '-'}</dd></div>
               </dl>
             ) : (
               <EmptyState
-                title="Manifest still open"
-                description="Cash closure details will appear after the manifest is closed."
+                title={t('Manifest still open', { defaultValue: 'Manifest still open' })}
+                description={t('Cash closure details will appear after the manifest is closed.', {
+                  defaultValue: 'Cash closure details will appear after the manifest is closed.',
+                })}
               />
             )}
           </CardContent>
@@ -301,23 +245,25 @@ export function DriverManifestDetailsPage() {
 
       <Card className="table-card">
         <CardHeader>
-          <CardTitle>Shipment Snapshot</CardTitle>
-          <CardDescription>Shipment data frozen into the manifest when it was generated.</CardDescription>
+          <CardTitle>{t('Shipment Snapshot', { defaultValue: 'Shipment Snapshot' })}</CardTitle>
+          <CardDescription>{t('Shipment data frozen into the manifest when it was generated.', {
+            defaultValue: 'Shipment data frozen into the manifest when it was generated.',
+          })}</CardDescription>
         </CardHeader>
         <CardContent>
           <TableContainer>
             <Table variant="compact">
               <thead>
                 <tr>
-                  <TableHead>Shipment</TableHead>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Merchant</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Loadout Status</TableHead>
-                  <TableHead>Final Status</TableHead>
-                  <TableHead>COD</TableHead>
-                  <TableHead>Delivered COD</TableHead>
+                  <TableHead>{t('Shipment', { defaultValue: 'Shipment' })}</TableHead>
+                  <TableHead>{t('Order', { defaultValue: 'Order' })}</TableHead>
+                  <TableHead>{t('Merchant')}</TableHead>
+                  <TableHead>{t('Customer')}</TableHead>
+                  <TableHead>{t('Address')}</TableHead>
+                  <TableHead>{t('Loadout Status', { defaultValue: 'Loadout Status' })}</TableHead>
+                  <TableHead>{t('Final Status', { defaultValue: 'Final Status' })}</TableHead>
+                  <TableHead>{t('COD')}</TableHead>
+                  <TableHead>{t('Delivered COD', { defaultValue: 'Delivered COD' })}</TableHead>
                 </tr>
               </thead>
               <tbody>
@@ -351,38 +297,32 @@ export function DriverManifestDetailsPage() {
         </CardContent>
       </Card>
 
-      {printQuery.isLoading ? <LoadingState title="Loading print view" /> : null}
-      {printQuery.isError ? (
-        <ErrorState
-          title="Unable to load print view"
-          message={getApiErrorMessage(printQuery.error)}
-          onRetry={() => void printQuery.refetch()}
-        />
-      ) : null}
-      {printQuery.data ? <ManifestPrintCard data={printQuery.data.data} /> : null}
-
       <Attachments attachableType="driver_manifests" attachableId={manifest.id} />
 
       <Can permission={PERMISSIONS.AUDIT_LOGS_TIMELINE}>
-        {timelineQuery.isLoading ? <LoadingState title="Loading activity timeline" /> : null}
+        {timelineQuery.isLoading ? <LoadingState title={t('Loading activity timeline', { defaultValue: 'Loading activity timeline' })} /> : null}
         {timelineQuery.isError ? (
           <ErrorState
-            title="Unable to load activity timeline"
+            title={t('Unable to load activity timeline', { defaultValue: 'Unable to load activity timeline' })}
             message={getApiErrorMessage(timelineQuery.error)}
             onRetry={() => void timelineQuery.refetch()}
           />
         ) : null}
         {!timelineQuery.isLoading && !timelineQuery.isError ? (
           <Timeline
-            title="Activity Timeline"
+            title={t('Activity Timeline')}
             items={(timelineQuery.data?.data ?? []).map((item: AuditLogItem) => ({
               id: item.id,
               title: `${item.event_type} - ${item.action}`,
-              subtitle: item.user?.name ?? 'System',
-              description: item.notes ?? 'No notes were recorded for this event.',
+              subtitle: item.user?.name ?? t('System'),
+              description: item.notes ?? t('No notes were recorded for this event.', {
+                defaultValue: 'No notes were recorded for this event.',
+              }),
               timestamp: item.created_at,
             }))}
-            emptyDescription="No driver manifest activity timeline entries were returned."
+            emptyDescription={t('No driver manifest activity timeline entries were returned.', {
+              defaultValue: 'No driver manifest activity timeline entries were returned.',
+            })}
           />
         ) : null}
       </Can>
@@ -394,6 +334,16 @@ export function DriverManifestDetailsPage() {
         onClose={() => setCloseOpen(false)}
         onSubmit={(values) => closeMutation.mutate(values)}
         open={closeOpen}
+      />
+      <DriverManifestPrintDialog
+        filters={{
+          driverName: manifest.driver.name,
+          manifestDate: manifest.manifest_date,
+          status: manifest.status,
+        }}
+        manifest={manifest}
+        onOpenChange={setPrintOpen}
+        open={printOpen}
       />
     </section>
   )

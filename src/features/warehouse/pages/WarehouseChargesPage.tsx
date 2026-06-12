@@ -9,6 +9,7 @@ import { Button } from '../../../shared/components/ui/Button'
 import { ApiFilterBar, compactFilters } from '../../../shared/components/data/ApiFilterBar'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
+import { useTranslation } from 'react-i18next'
 
 const initialFilters = {
   warehouse_id: '',
@@ -20,37 +21,38 @@ const initialFilters = {
 }
 
 export function WarehouseChargesPage() {
+  const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const params = compactFilters(filters)
   return (
     <ResourceListPage<WarehouseCharge>
-      title="Warehouse Charges"
-      description="Warehouse-related merchant charges."
-      actions={<Can permission={PERMISSIONS.WAREHOUSE_CHARGES_CREATE}><Link className="ui-link-reset" to="/warehouse-charges/create"><Button>Create Charge</Button></Link></Can>}
+      title={t('Warehouse Charges')}
+      description={t('Warehouse-related merchant charges.')}
+      actions={<Can permission={PERMISSIONS.WAREHOUSE_CHARGES_CREATE}><Link className="ui-link-reset" to="/warehouse-charges/create"><Button>{t('Create Charge')}</Button></Link></Can>}
       queryKey={['warehouse-charges', params]}
       queryFn={() => listWarehouseCharges(params)}
       filters={
         <ApiFilterBar
           filters={filters}
           fields={[
-            { label: 'Warehouse ID', name: 'warehouse_id', type: 'number' },
-            { label: 'Merchant ID', name: 'merchant_id', type: 'number' },
-            { label: 'Type', name: 'type' },
-            { label: 'Status', name: 'status', type: 'select', options: [{ label: 'pending', value: 'pending' }, { label: 'completed', value: 'completed' }, { label: 'cancelled', value: 'cancelled' }] },
-            { label: 'Date From', name: 'date_from', type: 'date' },
-            { label: 'Date To', name: 'date_to', type: 'date' },
+            { label: t('Warehouse ID'), name: 'warehouse_id', type: 'number' },
+            { label: t('Merchant ID'), name: 'merchant_id', type: 'number' },
+            { label: t('Type'), name: 'type' },
+            { label: t('Status'), name: 'status', type: 'select', options: [{ label: t('pending'), value: 'pending' }, { label: t('completed'), value: 'completed' }, { label: t('cancelled'), value: 'cancelled' }] },
+            { label: t('Date From'), name: 'date_from', type: 'date' },
+            { label: t('Date To'), name: 'date_to', type: 'date' },
           ]}
           onChange={(name, value) => setFilters((current) => ({ ...current, [name]: value }))}
           onReset={() => setFilters(initialFilters)}
         />
       }
       columns={[
-        { header: 'Description', render: (charge) => <Link className="table-link" to={`/warehouse-charges/${charge.id}`}>{charge.description}</Link> },
-        { header: 'Merchant', render: (charge) => charge.merchant_name },
-        { header: 'Amount', render: (charge) => formatMoney(charge.amount) },
-        { header: 'Status', render: (charge) => <StatusBadge value={charge.status} /> },
-        { header: 'Charge Date', render: (charge) => formatDate(charge.charge_date) },
-        { header: 'Actions', render: (charge) => <Can permission={PERMISSIONS.WAREHOUSE_CHARGES_UPDATE}><Link className="table-link" to={`/warehouse-charges/${charge.id}/edit`}>Edit</Link></Can> },
+        { header: t('Description'), render: (charge) => <Link className="table-link" to={`/warehouse-charges/${charge.id}`}>{charge.description}</Link> },
+        { header: t('Merchant'), render: (charge) => charge.merchant_name },
+        { header: t('Amount'), render: (charge) => formatMoney(charge.amount) },
+        { header: t('Status'), render: (charge) => <StatusBadge value={charge.status} /> },
+        { header: t('Charge Date'), render: (charge) => formatDate(charge.charge_date) },
+        { header: t('Actions'), render: (charge) => <Can permission={PERMISSIONS.WAREHOUSE_CHARGES_UPDATE}><Link className="table-link" to={`/warehouse-charges/${charge.id}/edit`}>{t('Edit')}</Link></Can> },
       ]}
     />
   )

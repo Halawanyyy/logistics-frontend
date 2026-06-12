@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { deleteMerchant, listMerchants } from '../api/merchants.api'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
@@ -25,6 +25,7 @@ export function MerchantsListPage() {
   const searchText = searchParams.get('search') ?? ''
   const [queryText, setQueryText] = useState(searchText)
   const [statusFilter, setStatusFilter] = useState('all')
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: ['merchants'],
@@ -55,17 +56,20 @@ export function MerchantsListPage() {
     return (
       <section className="page-section">
         <PageHeader
-          title="Merchants"
-          description="Merchant records returned by `/api/merchants`."
+          title={t('Merchants')}
+          description={t('Merchant records returned by `/api/merchants`.', { defaultValue: 'Merchant records returned by `/api/merchants`.' })}
           actions={
             <Can permission={PERMISSIONS.MERCHANTS_CREATE}>
               <Link className="ui-link-reset" to="/merchants/create">
-                <Button>Create Merchant</Button>
+                <Button>{t('Create Merchant')}</Button>
               </Link>
             </Can>
           }
         />
-        <EmptyState title="No merchants found" description="The API returned an empty merchants list." />
+        <EmptyState
+          title={t('No merchants found', { defaultValue: 'No merchants found' })}
+          description={t('The API returned an empty merchants list.', { defaultValue: 'The API returned an empty merchants list.' })}
+        />
       </section>
     )
   }
@@ -81,19 +85,19 @@ export function MerchantsListPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Merchants"
-        description="Merchants ordered by newest first."
+        title={t('Merchants')}
+        description={t('Merchants ordered by newest first.', { defaultValue: 'Merchants ordered by newest first.' })}
         actions={
           <Can permission={PERMISSIONS.MERCHANTS_CREATE}>
             <Link className="ui-link-reset" to="/merchants/create">
-              <Button>Create Merchant</Button>
+              <Button>{t('Create Merchant')}</Button>
             </Link>
           </Can>
         }
       />
       <Card className="table-card">
         <CardHeader className="table-card__header">
-          <CardTitle>Merchant Accounts</CardTitle>
+          <CardTitle>{t('Merchant Accounts')}</CardTitle>
           <CardDescription>{t('Operational merchant records and current status.')}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -110,7 +114,7 @@ export function MerchantsListPage() {
         <Table variant="striped">
           <thead>
             <tr>
-              <TableHead>Name</TableHead>
+              <TableHead>{t('Name')}</TableHead>
               <TableHead>{t('Company')}</TableHead>
               <TableHead>{t('Phone')}</TableHead>
               <TableHead>{t('Status')}</TableHead>
@@ -137,11 +141,12 @@ export function MerchantsListPage() {
                     <DropdownMenu>
                       <DropdownTrigger>...</DropdownTrigger>
                       <DropdownContent>
+                        <DropdownItem onClick={() => navigate(`/merchants/${merchant.id}`)}>
+                          {t('View')}
+                        </DropdownItem>
                         <Can permission={PERMISSIONS.MERCHANTS_UPDATE}>
-                          <DropdownItem>
-                            <Link className="table-link" to={`/merchants/${merchant.id}/edit`}>
-                              {t('Edit')}
-                            </Link>
+                          <DropdownItem onClick={() => navigate(`/merchants/${merchant.id}/edit`)}>
+                            {t('Edit')}
                           </DropdownItem>
                         </Can>
                         <Can permission={PERMISSIONS.MERCHANTS_DELETE}>

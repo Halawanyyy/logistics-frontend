@@ -381,7 +381,7 @@ function MerchantWarehousePanel({
                   {charges.map((charge) => (
                     <tr key={charge.id}>
                       <TableCell>{charge.description}</TableCell>
-                      <TableCell>{charge.type}</TableCell>
+                      <TableCell><StatusBadge value={charge.type}>{charge.type}</StatusBadge></TableCell>
                       <TableCell><StatusBadge value={charge.status} /></TableCell>
                       <TableCell><MoneyDisplay value={charge.amount} /></TableCell>
                       <TableCell>{formatDate(charge.charge_date)}</TableCell>
@@ -546,7 +546,7 @@ export function MerchantDetailsPage() {
 
       <div className="stats-grid">
         <StatCard title={t('Pricing Plan', { defaultValue: 'Pricing Plan' })} value={merchant.pricing_plan_name ?? '-'} tone="neutral" />
-        <StatCard title={t('Status')} value={merchant.status} tone="info" />
+        <StatCard title={t('Status')} value={<StatusBadge value={merchant.status} />} tone="info" />
         {walletHeaderSummaryQuery.data?.data ? (
           <StatCard
             title={t('Wallet Available Balance', { defaultValue: 'Wallet Available Balance' })}

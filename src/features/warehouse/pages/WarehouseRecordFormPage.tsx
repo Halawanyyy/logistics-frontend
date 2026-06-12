@@ -1,4 +1,5 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Warehouse } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { listAreas, listGovernorates } from '../../location-pricing/api/location-pricing.api'
@@ -6,11 +7,10 @@ import { listMerchants } from '../../merchants/api/merchants.api'
 import { listOrders } from '../../orders/api/orders.api'
 import { listShipments } from '../../shipments/api/shipments.api'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
+import { FormPageLayout } from '../../../shared/components/forms/FormPageLayout'
 import { ErrorState } from '../../../shared/components/feedback/ErrorState'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
 import { Button } from '../../../shared/components/ui/Button'
-import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
-import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { adminPath } from '../../../shared/routing/paths'
 import {
   adjustInventoryStock,
@@ -79,37 +79,48 @@ export function WarehouseRecordFormPage({ kind, mode = 'create' }: { kind: Kind;
   if (error) return <ErrorState message={getApiErrorMessage(error)} />
 
   return (
-    <section className="page-section">
-      <PageHeader
-        title={t(isEdit ? 'Edit {{title}}' : 'Create {{title}}', {
+    <FormPageLayout
+      backTo={entry.back}
+      description={t('Manage warehouse records with the same real API flow while keeping the form centered, readable, and responsive.', {
+        defaultValue: 'Manage warehouse records with the same real API flow while keeping the form centered, readable, and responsive.',
+      })}
+      eyebrow={t('Warehouse', { defaultValue: 'Warehouse' })}
+      sectionIcon={<Warehouse size={18} />}
+      sectionDescription={t('Enter the warehouse-related details required for this record type, then review and save.', {
+        defaultValue: 'Enter the warehouse-related details required for this record type, then review and save.',
+      })}
+      sectionTitle={t('{{title}} Details', {
+        title: t(entry.title, { defaultValue: entry.title }),
+        defaultValue: `${entry.title} Details`,
+      })}
+      title={t(isEdit ? 'Edit {{title}}' : 'Create {{title}}', {
+        title: t(entry.title, { defaultValue: entry.title }),
+        defaultValue: `${isEdit ? 'Edit' : 'Create'} ${entry.title}`,
+      })}
+    >
+      <WarehouseForm
+        areas={areas.data?.data ?? []}
+        defaultValues={record}
+        error={mutation.error}
+        governorates={governorates.data?.data ?? []}
+        isSubmitting={mutation.isPending}
+        kind={kind}
+        merchants={merchants.data?.data ?? []}
+        orders={orders.data?.data ?? []}
+        products={products.data?.data ?? []}
+        secondaryAction={(
+          <Link className="ui-link-reset" to={entry.back}>
+            <Button variant="secondary">{t('Cancel', { defaultValue: 'Cancel' })}</Button>
+          </Link>
+        )}
+        shipments={shipments.data?.data ?? []}
+        submitLabel={t(isEdit ? 'Save {{title}}' : 'Create {{title}}', {
           title: t(entry.title, { defaultValue: entry.title }),
-          defaultValue: `${isEdit ? 'Edit' : 'Create'} ${entry.title}`,
+          defaultValue: `${isEdit ? 'Save' : 'Create'} ${entry.title}`,
         })}
-        description={t('Submit data to the warehouse API.', {
-          defaultValue: 'Submit data to the warehouse API.',
-        })}
-        actions={<Link className="ui-link-reset" to={entry.back}><Button variant="secondary">{t('Back')}</Button></Link>}
+        warehouses={warehouses.data?.data ?? []}
+        onSubmit={(values) => mutation.mutate(values)}
       />
-      <Card><CardHeader><CardTitle>{entry.title} Details</CardTitle></CardHeader><CardContent>
-        <WarehouseForm
-          areas={areas.data?.data ?? []}
-          defaultValues={record}
-          error={mutation.error}
-          governorates={governorates.data?.data ?? []}
-          isSubmitting={mutation.isPending}
-          kind={kind}
-          merchants={merchants.data?.data ?? []}
-          orders={orders.data?.data ?? []}
-          products={products.data?.data ?? []}
-          shipments={shipments.data?.data ?? []}
-          submitLabel={t(isEdit ? 'Save {{title}}' : 'Create {{title}}', {
-            title: t(entry.title, { defaultValue: entry.title }),
-            defaultValue: `${isEdit ? 'Save' : 'Create'} ${entry.title}`,
-          })}
-          warehouses={warehouses.data?.data ?? []}
-          onSubmit={(values) => mutation.mutate(values)}
-        />
-      </CardContent></Card>
-    </section>
+    </FormPageLayout>
   )
 }

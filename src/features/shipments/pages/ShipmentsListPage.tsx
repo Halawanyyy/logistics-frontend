@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { getShipmentsPrintList, listShipments } from '../api/shipments.api'
-import { getShipmentBulkLabels, getShipmentLabel } from '../../../shared/api/labels.api'
-import type { ShipmentPrintListResponse } from '../types/shipment.types'
+import { getShipmentLabel } from '../../../shared/api/labels.api'
+import type { Shipment, ShipmentPrintListResponse } from '../types/shipment.types'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
@@ -27,8 +27,18 @@ import { Select } from '../../../shared/components/ui/Select'
 import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
+import { useLocale } from '../../../shared/i18n/useLocale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
+import { buildBulkShipmentLabelDocument, getShipmentPrintableLabelDocument } from '../utils/shipmentLabel'
+
+function logShipmentLabelEntry(message: string, details?: Record<string, unknown>) {
+  if (!import.meta.env.DEV || typeof console === 'undefined') {
+    return
+  }
+
+  console.info('[shipment-label]', message, details ?? {})
+}
 
 type ShipmentsListFilters = {
   status: string
@@ -64,6 +74,8 @@ const initialFilters: ShipmentsListFilters = {
 
 export function ShipmentsListPage() {
   const { t } = useTranslation()
+  const { locale } = useLocale()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const searchText = searchParams.get('search') ?? ''
   const [filters, setFilters] = useState(() => ({
@@ -71,6 +83,8 @@ export function ShipmentsListPage() {
     search: searchText,
   }))
   const [selectedShipmentIds, setSelectedShipmentIds] = useState<number[]>([])
+  const [selectedShipmentForLabel, setSelectedShipmentForLabel] = useState<Shipment | null>(null)
+  const [isShipmentLabelDialogOpen, setIsShipmentLabelDialogOpen] = useState(false)
   const [printValidation, setPrintValidation] = useState('')
   const [printData, setPrintData] = useState<ShipmentPrintListResponse['data'] | null>(null)
   const params = useMemo(() => ({
@@ -116,6 +130,10 @@ export function ShipmentsListPage() {
   }
 
   const shipments = query.data?.data ?? []
+  const selectedShipments = useMemo(
+    () => shipments.filter((shipment) => selectedShipmentIds.includes(shipment.id)),
+    [selectedShipmentIds, shipments],
+  )
 
   useEffect(() => {
     setFilters((current) => (
@@ -267,8 +285,19 @@ export function ShipmentsListPage() {
             </Button>
             {selectedShipmentIds.length ? (
               <LabelDocumentDialog
-                defaultFormat="pdf"
-                fetchDocument={(options) => getShipmentBulkLabels(selectedShipmentIds, options)}
+                defaultFormat="html"
+                fetchDocument={(options) => {
+                  return buildBulkShipmentLabelDocument({
+                    dimensions: {
+                      heightMm: options.height_mm,
+                      widthMm: options.width_mm,
+                    },
+                    locale,
+                    shipments: selectedShipments,
+                    t,
+                  })
+                }}
+                formats={['html', 'pdf']}
                 title={t('Bulk Shipment Labels ({{count}})', {
                   count: selectedShipmentIds.length,
                   defaultValue: `Bulk Shipment Labels (${selectedShipmentIds.length})`,
@@ -327,13 +356,9 @@ export function ShipmentsListPage() {
                   <tr>
                     <TableHead>{t('Select', { defaultValue: 'Select' })}</TableHead>
                     <TableHead>{t('Shipment')}</TableHead>
-                    <TableHead>{t('Order')}</TableHead>
                     <TableHead>{t('Merchant')}</TableHead>
-                    <TableHead>{t('Customer')}</TableHead>
                     <TableHead>{t('Location', { defaultValue: 'Location' })}</TableHead>
                     <TableHead>{t('Assigned Driver')}</TableHead>
-                    <TableHead>{t('COD')}</TableHead>
-                    <TableHead>{t('Shipping Fee', { defaultValue: 'Shipping Fee' })}</TableHead>
                     <TableHead>{t('Status')}</TableHead>
                     <TableHead>{t('Created')}</TableHead>
                     <TableHead>{t('Actions')}</TableHead>
@@ -360,24 +385,23 @@ export function ShipmentsListPage() {
                           {shipment.shipment_number}
                         </Link>
                       </TableCell>
-                      <TableCell>{shipment.order_number ?? `#${shipment.order_id}`}</TableCell>
                       <TableCell>{shipment.merchant_name}</TableCell>
-                      <TableCell>
-                        {shipment.customer_name}
-                        <p className="table-meta">{shipment.customer_phone}</p>
-                      </TableCell>
                       <TableCell>
                         {shipment.delivery_governorate_name}
                         <p className="table-meta">{shipment.delivery_area_name ?? '-'}</p>
                       </TableCell>
                       <TableCell>{shipment.assigned_driver_name ?? '-'}</TableCell>
-                      <TableCell><MoneyDisplay value={shipment.cod_amount} /></TableCell>
-                      <TableCell><MoneyDisplay value={shipment.shipping_fee} /></TableCell>
                       <TableCell>
                         <StatusBadge value={shipment.status}>
                           {pickDisplayLabel(shipment.status, shipment.status_label)}
                         </StatusBadge>
-                        {shipment.payment_type_label ? <p className="table-meta">{shipment.payment_type_label}</p> : null}
+                        {(shipment.payment_type || shipment.payment_type_label) ? (
+                          <p className="table-meta">
+                            <StatusBadge value={shipment.payment_type}>
+                              {pickDisplayLabel(shipment.payment_type, shipment.payment_type_label)}
+                            </StatusBadge>
+                          </p>
+                        ) : null}
                       </TableCell>
                       <TableCell>{formatDate(shipment.created_at)}</TableCell>
                       <TableCell>
@@ -385,22 +409,29 @@ export function ShipmentsListPage() {
                           <DropdownMenu>
                             <DropdownTrigger>...</DropdownTrigger>
                             <DropdownContent>
-                              <DropdownItem>
-                                <Link className="table-link" to={adminPath(`/shipments/${shipment.id}`)}>
-                                  {t('View')}
-                                </Link>
-                              </DropdownItem>
-                              <DropdownItem>
-                                <LabelDocumentDialog
-                                  buttonVariant="ghost"
-                                  defaultFormat="html"
-                                  fetchDocument={(options) => getShipmentLabel(shipment.id, options)}
-                                  title={t('Shipment Label - {{shipmentNumber}}', {
+                              <DropdownItem
+                                onClick={(event) => {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  logShipmentLabelEntry('shipment-label label action clicked', {
+                                    shipmentId: shipment.id,
                                     shipmentNumber: shipment.shipment_number,
-                                    defaultValue: `Shipment Label - ${shipment.shipment_number}`,
-                                  })}
-                                  triggerLabel={t('Label', { defaultValue: 'Label' })}
-                                />
+                                  })
+                                  setSelectedShipmentForLabel(shipment)
+                                  setIsShipmentLabelDialogOpen(true)
+                                }}
+                              >
+                                {t('Label', { defaultValue: 'Label' })}
+                              </DropdownItem>
+                              <DropdownItem
+                                onClick={() => {
+                                  logShipmentLabelEntry('shipment-actions view clicked', {
+                                    shipmentId: shipment.id,
+                                  })
+                                  navigate(adminPath(`/shipments/${shipment.id}`))
+                                }}
+                              >
+                                {t('View')}
                               </DropdownItem>
                             </DropdownContent>
                           </DropdownMenu>
@@ -414,6 +445,44 @@ export function ShipmentsListPage() {
           ) : null}
         </CardContent>
       </Card>
+
+      <LabelDocumentDialog
+        defaultFormat="html"
+        fetchDocument={(options) => {
+          if (!selectedShipmentForLabel) {
+            throw new Error(t('No shipment selected for label.', { defaultValue: 'No shipment selected for label.' }))
+          }
+
+          logShipmentLabelEntry('ShipmentsListPage label action invoked', {
+            shipmentId: selectedShipmentForLabel.id,
+            shipmentNumber: selectedShipmentForLabel.shipment_number,
+          })
+
+          return getShipmentPrintableLabelDocument({
+            fetchDocument: (requestOptions) => getShipmentLabel(selectedShipmentForLabel.id, requestOptions),
+            locale,
+            options,
+            shipment: selectedShipmentForLabel,
+            t,
+          })
+        }}
+        formats={['html', 'pdf']}
+        hideTrigger
+        onOpenChange={(nextOpen) => {
+          setIsShipmentLabelDialogOpen(nextOpen)
+          if (!nextOpen) {
+            setSelectedShipmentForLabel(null)
+          }
+        }}
+        open={isShipmentLabelDialogOpen}
+        title={t('Shipment Label - {{shipmentNumber}}', {
+          shipmentNumber: selectedShipmentForLabel?.shipment_number ?? '',
+          defaultValue: selectedShipmentForLabel
+            ? `Shipment Label - ${selectedShipmentForLabel.shipment_number}`
+            : 'Shipment Label',
+        })}
+        triggerLabel={t('Label', { defaultValue: 'Label' })}
+      />
 
       {printData ? (
         <PrintView title={t('Shipments Manifest', { defaultValue: 'Shipments Manifest' })} className="print-manifest">

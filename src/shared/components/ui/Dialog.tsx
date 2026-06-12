@@ -5,6 +5,7 @@ import { cn } from '../../utils/cn'
 type DialogVariant = 'default' | 'small' | 'slideover'
 
 type DialogProps = PropsWithChildren<{
+  closeOnBackdropClick?: boolean
   open: boolean
   onClose: () => void
   title?: ReactNode
@@ -12,6 +13,7 @@ type DialogProps = PropsWithChildren<{
 }>
 
 export function Dialog({
+  closeOnBackdropClick = true,
   children,
   onClose,
   open,
@@ -23,7 +25,11 @@ export function Dialog({
   }
 
   return (
-    <div className="ui-dialog__backdrop" role="presentation" onClick={onClose}>
+    <div
+      className="ui-dialog__backdrop"
+      role="presentation"
+      onClick={closeOnBackdropClick ? onClose : undefined}
+    >
       <div
         aria-modal="true"
         className={cn('ui-dialog', `ui-dialog--${variant}`)}

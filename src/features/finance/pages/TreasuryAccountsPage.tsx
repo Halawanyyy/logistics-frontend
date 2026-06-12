@@ -64,7 +64,7 @@ export function TreasuryAccountsPage() {
             ),
           },
           { header: 'Code', render: (account) => account.code },
-          { header: 'Type', render: (account) => account.type },
+          { header: 'Type', render: (account) => <StatusBadge value={account.type}>{account.type}</StatusBadge> },
           { header: 'Opening Balance', render: (account) => <MoneyDisplay value={account.opening_balance} /> },
           { header: 'Current Balance', render: (account) => <MoneyDisplay value={account.current_balance ?? null} /> },
           { header: 'Status', render: (account) => <StatusBadge value={account.status} /> },

@@ -59,6 +59,7 @@ import { useForm } from 'react-hook-form'
 import { ApprovalActionButtons } from '../../../shared/components/actions/ApprovalActionButtons'
 import { ConfirmActionModal } from '../../../shared/components/modals/ConfirmActionModal'
 import { Timeline } from '../../../shared/components/timeline/Timeline'
+import { pickDisplayLabel } from '../../../shared/i18n/locale'
 
 type MerchantOrdersFilters = {
   date_from: string
@@ -335,8 +336,16 @@ export function MerchantOrdersPanel({ merchantId }: { merchantId: string }) {
                         <p className="table-meta">{order.customer_phone}</p>
                       </TableCell>
                       <TableCell>{order.order_type ?? '-'}</TableCell>
-                      <TableCell>{order.fulfillment_type}</TableCell>
-                      <TableCell>{order.payment_type ?? '-'}</TableCell>
+                      <TableCell>
+                        <StatusBadge value={order.fulfillment_type}>
+                          {pickDisplayLabel(order.fulfillment_type, order.fulfillment_type_label)}
+                        </StatusBadge>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge value={order.payment_type}>
+                          {pickDisplayLabel(order.payment_type ?? '-', order.payment_type_label)}
+                        </StatusBadge>
+                      </TableCell>
                       <TableCell><MoneyDisplay value={order.cod_amount} /></TableCell>
                       <TableCell><MoneyDisplay value={order.shipping_fee} /></TableCell>
                       <TableCell><StatusBadge value={order.status} /></TableCell>
@@ -891,11 +900,23 @@ export function MerchantWalletPanel({ merchant, merchantId }: { merchant: Mercha
                 <tbody>
                   {transactions.map((transaction) => (
                     <tr key={transaction.id}>
-                      <TableCell>{transaction.transaction_type}</TableCell>
-                      <TableCell>{transaction.direction}</TableCell>
+                      <TableCell>
+                        <StatusBadge value={transaction.transaction_type}>
+                          {pickDisplayLabel(transaction.transaction_type, null)}
+                        </StatusBadge>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge value={transaction.direction}>
+                          {pickDisplayLabel(transaction.direction, null)}
+                        </StatusBadge>
+                      </TableCell>
                       <TableCell><MoneyDisplay value={transaction.amount} /></TableCell>
                       <TableCell><StatusBadge value={transaction.status} /></TableCell>
-                      <TableCell>{transaction.source_type ?? '-'}</TableCell>
+                      <TableCell>
+                        <StatusBadge value={transaction.source_type}>
+                          {pickDisplayLabel(transaction.source_type ?? '-', null)}
+                        </StatusBadge>
+                      </TableCell>
                       <TableCell>{transaction.reference_number ?? '-'}</TableCell>
                       <TableCell>{formatDate(transaction.created_at)}</TableCell>
                       <TableCell>
@@ -974,8 +995,22 @@ export function MerchantWalletPanel({ merchant, merchantId }: { merchant: Mercha
         {transactionDetailsQuery.data ? (
           <div className="page-stack">
             <dl className="detail-list">
-              <div><dt>{t('Transaction Type', { defaultValue: 'Transaction Type' })}</dt><dd>{transactionDetailsQuery.data.data.transaction_type}</dd></div>
-              <div><dt>{t('Direction', { defaultValue: 'Direction' })}</dt><dd>{transactionDetailsQuery.data.data.direction}</dd></div>
+              <div>
+                <dt>{t('Transaction Type', { defaultValue: 'Transaction Type' })}</dt>
+                <dd>
+                  <StatusBadge value={transactionDetailsQuery.data.data.transaction_type}>
+                    {pickDisplayLabel(transactionDetailsQuery.data.data.transaction_type, null)}
+                  </StatusBadge>
+                </dd>
+              </div>
+              <div>
+                <dt>{t('Direction', { defaultValue: 'Direction' })}</dt>
+                <dd>
+                  <StatusBadge value={transactionDetailsQuery.data.data.direction}>
+                    {pickDisplayLabel(transactionDetailsQuery.data.data.direction, null)}
+                  </StatusBadge>
+                </dd>
+              </div>
               <div><dt>{t('Amount', { defaultValue: 'Amount' })}</dt><dd><MoneyDisplay value={transactionDetailsQuery.data.data.amount} /></dd></div>
               <div><dt>{t('Status')}</dt><dd><StatusBadge value={transactionDetailsQuery.data.data.status} /></dd></div>
               <div><dt>{t('Reference Number', { defaultValue: 'Reference Number' })}</dt><dd>{transactionDetailsQuery.data.data.reference_number ?? '-'}</dd></div>
@@ -1517,7 +1552,7 @@ export function MerchantIntegrationTokensPanel({ merchantId }: { merchantId: str
                   {tokens.map((token) => (
                     <tr key={token.id}>
                       <TableCell>{token.name}</TableCell>
-                      <TableCell>{token.provider}</TableCell>
+                      <TableCell><StatusBadge value={token.provider}>{token.provider}</StatusBadge></TableCell>
                       <TableCell>{token.token_prefix}</TableCell>
                       <TableCell>{token.permissions.join(', ')}</TableCell>
                       <TableCell><StatusBadge value={token.status} /></TableCell>
@@ -1576,7 +1611,7 @@ export function MerchantIntegrationTokensPanel({ merchantId }: { merchantId: str
         {tokenDetailsQuery.data ? (
           <dl className="detail-list">
             <div><dt>{t('Name')}</dt><dd>{tokenDetailsQuery.data.data.name}</dd></div>
-            <div><dt>{t('Provider', { defaultValue: 'Provider' })}</dt><dd>{tokenDetailsQuery.data.data.provider}</dd></div>
+            <div><dt>{t('Provider', { defaultValue: 'Provider' })}</dt><dd><StatusBadge value={tokenDetailsQuery.data.data.provider}>{tokenDetailsQuery.data.data.provider}</StatusBadge></dd></div>
             <div><dt>{t('Token Prefix', { defaultValue: 'Token Prefix' })}</dt><dd>{tokenDetailsQuery.data.data.token_prefix}</dd></div>
             <div><dt>{t('Permissions')}</dt><dd>{tokenDetailsQuery.data.data.permissions.join(', ')}</dd></div>
             <div><dt>{t('Status')}</dt><dd><StatusBadge value={tokenDetailsQuery.data.data.status} /></dd></div>

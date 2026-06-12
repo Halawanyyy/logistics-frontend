@@ -1,15 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { MapPinned } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { createGovernorate, getGovernorate, updateGovernorate } from '../api/location-pricing.api'
 import { GovernorateForm, type GovernorateFormValues } from '../components/GovernorateForm'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
+import { FormPageLayout } from '../../../shared/components/forms/FormPageLayout'
 import { ErrorState } from '../../../shared/components/feedback/ErrorState'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
 import { Button } from '../../../shared/components/ui/Button'
-import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
-import { PageHeader } from '../../../shared/components/ui/PageHeader'
 
 export function GovernorateFormPage({ mode }: { mode: 'create' | 'edit' }) {
+  const { t } = useTranslation()
   const { governorateId } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -29,7 +31,7 @@ export function GovernorateFormPage({ mode }: { mode: 'create' | 'edit' }) {
   })
 
   if (query.isLoading) {
-    return <LoadingState title="Loading governorate" />
+    return <LoadingState title={t('Loading governorate', { defaultValue: 'Loading governorate' })} />
   }
 
   if (query.isError) {
@@ -37,24 +39,35 @@ export function GovernorateFormPage({ mode }: { mode: 'create' | 'edit' }) {
   }
 
   return (
-    <section className="page-section">
-      <PageHeader
-        title={isEdit ? 'Edit Governorate' : 'Create Governorate'}
-        description="Manage governorate coverage."
-        actions={<Link className="ui-link-reset" to="/governorates"><Button variant="secondary">Back</Button></Link>}
+    <FormPageLayout
+      backTo="/governorates"
+      description={t('Manage delivery coverage at the governorate level with a focused setup form.', {
+        defaultValue: 'Manage delivery coverage at the governorate level with a focused setup form.',
+      })}
+      eyebrow={t('Locations & Pricing', { defaultValue: 'Locations & Pricing' })}
+      sectionIcon={<MapPinned size={18} />}
+      sectionDescription={t('Set the governorate name and whether it should stay active in the delivery network.', {
+        defaultValue: 'Set the governorate name and whether it should stay active in the delivery network.',
+      })}
+      sectionTitle={t('Governorate Details', { defaultValue: 'Governorate Details' })}
+      title={isEdit
+        ? t('Edit Governorate', { defaultValue: 'Edit Governorate' })
+        : t('Create Governorate', { defaultValue: 'Create Governorate' })}
+    >
+      <GovernorateForm
+        defaultValues={query.data?.data}
+        error={mutation.error}
+        isSubmitting={mutation.isPending}
+        secondaryAction={(
+          <Link className="ui-link-reset" to="/governorates">
+            <Button variant="secondary">{t('Cancel', { defaultValue: 'Cancel' })}</Button>
+          </Link>
+        )}
+        submitLabel={isEdit
+          ? t('Save Governorate', { defaultValue: 'Save Governorate' })
+          : t('Create Governorate', { defaultValue: 'Create Governorate' })}
+        onSubmit={(values) => mutation.mutate(values)}
       />
-      <Card>
-        <CardHeader><CardTitle>Governorate Details</CardTitle></CardHeader>
-        <CardContent>
-          <GovernorateForm
-            defaultValues={query.data?.data}
-            error={mutation.error}
-            isSubmitting={mutation.isPending}
-            submitLabel={isEdit ? 'Save Governorate' : 'Create Governorate'}
-            onSubmit={(values) => mutation.mutate(values)}
-          />
-        </CardContent>
-      </Card>
-    </section>
+    </FormPageLayout>
   )
 }

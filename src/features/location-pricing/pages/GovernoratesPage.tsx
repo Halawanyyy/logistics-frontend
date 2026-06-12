@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { deleteGovernorate, listGovernorates } from '../api/location-pricing.api'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
@@ -21,6 +21,7 @@ import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 
 export function GovernoratesPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [queryText, setQueryText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const queryClient = useQueryClient()
@@ -50,8 +51,8 @@ export function GovernoratesPage() {
   if (!query.data.data.length) {
     return (
       <section className="page-section">
-        <PageHeader title="Governorates" description="Location coverage configured in the API." actions={<Can permission={PERMISSIONS.LOCATION_PRICING_CREATE}><Link className="ui-link-reset" to="/governorates/create"><Button>Create Governorate</Button></Link></Can>} />
-        <EmptyState title="No governorates found" description="The API returned an empty governorates list." />
+        <PageHeader title={t('Governorates', { defaultValue: 'Governorates' })} description={t('Location coverage configured in the API.', { defaultValue: 'Location coverage configured in the API.' })} actions={<Can permission={PERMISSIONS.LOCATION_PRICING_CREATE}><Link className="ui-link-reset" to="/governorates/create"><Button>{t('Create Governorate', { defaultValue: 'Create Governorate' })}</Button></Link></Can>} />
+        <EmptyState title={t('No governorates found', { defaultValue: 'No governorates found' })} description={t('The API returned an empty governorates list.', { defaultValue: 'The API returned an empty governorates list.' })} />
       </section>
     )
   }
@@ -66,11 +67,11 @@ export function GovernoratesPage() {
 
   return (
     <section className="page-section">
-      <PageHeader title="Governorates" description="Governorates ordered by newest first." actions={<Can permission={PERMISSIONS.LOCATION_PRICING_CREATE}><Link className="ui-link-reset" to="/governorates/create"><Button>Create Governorate</Button></Link></Can>} />
+      <PageHeader title={t('Governorates', { defaultValue: 'Governorates' })} description={t('Governorates ordered by newest first.', { defaultValue: 'Governorates ordered by newest first.' })} actions={<Can permission={PERMISSIONS.LOCATION_PRICING_CREATE}><Link className="ui-link-reset" to="/governorates/create"><Button>{t('Create Governorate', { defaultValue: 'Create Governorate' })}</Button></Link></Can>} />
       <Card className="table-card">
         <CardHeader className="table-card__header">
-          <CardTitle>Governorates</CardTitle>
-          <CardDescription>Coverage zones used in shipping and pricing rules.</CardDescription>
+          <CardTitle>{t('Governorates', { defaultValue: 'Governorates' })}</CardTitle>
+          <CardDescription>{t('Coverage zones used in shipping and pricing rules.', { defaultValue: 'Coverage zones used in shipping and pricing rules.' })}</CardDescription>
         </CardHeader>
         <CardContent>
           {deleteMutation.error ? <div className="form-error">{getApiErrorMessage(deleteMutation.error)}</div> : null}
@@ -109,8 +110,9 @@ export function GovernoratesPage() {
                     <DropdownMenu>
                       <DropdownTrigger>...</DropdownTrigger>
                       <DropdownContent>
+                        <DropdownItem onClick={() => navigate(`/governorates/${governorate.id}`)}>{t('View')}</DropdownItem>
                         <Can permission={PERMISSIONS.LOCATION_PRICING_UPDATE}>
-                          <DropdownItem><Link className="table-link" to={`/governorates/${governorate.id}/edit`}>{t('Edit')}</Link></DropdownItem>
+                          <DropdownItem onClick={() => navigate(`/governorates/${governorate.id}/edit`)}>{t('Edit')}</DropdownItem>
                         </Can>
                         <Can permission={PERMISSIONS.LOCATION_PRICING_DELETE}>
                           <DropdownItem destructive onClick={() => {

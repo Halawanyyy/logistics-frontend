@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { getPublicTracking } from '../api/public-tracking.api'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { Button } from '../../../shared/components/ui/Button'
@@ -12,6 +13,7 @@ import { ErrorState } from '../../../shared/components/feedback/ErrorState'
 import { formatDate } from '../../../shared/utils/formatters'
 
 export function PublicTrackingPage() {
+  const { t } = useTranslation()
   const [shipmentNumber, setShipmentNumber] = useState('')
   const [submittedShipmentNumber, setSubmittedShipmentNumber] = useState('')
   const query = useQuery({
@@ -22,7 +24,12 @@ export function PublicTrackingPage() {
 
   return (
     <section className="page-section">
-      <PageHeader title="Track Shipment" description="Public shipment tracking by shipment number." />
+      <PageHeader
+        title={t('Track Shipment', { defaultValue: 'Track Shipment' })}
+        description={t('Public shipment tracking by shipment number.', {
+          defaultValue: 'Public shipment tracking by shipment number.',
+        })}
+      />
       <Card>
         <CardContent>
           <form
@@ -35,16 +42,21 @@ export function PublicTrackingPage() {
             <Input
               value={shipmentNumber}
               onChange={(event) => setShipmentNumber(event.target.value)}
-              placeholder="SHP-20260424-000001"
+              placeholder={t('Enter shipment number', { defaultValue: 'Enter shipment number' })}
             />
             <Button type="submit" loading={query.isFetching}>
-              Track
+              {t('Track', { defaultValue: 'Track' })}
             </Button>
           </form>
         </CardContent>
       </Card>
       {!submittedShipmentNumber ? (
-        <EmptyState title="Enter a shipment number" description="Tracking data will appear after lookup." />
+        <EmptyState
+          title={t('Enter a shipment number', { defaultValue: 'Enter a shipment number' })}
+          description={t('Tracking data will appear after lookup.', {
+            defaultValue: 'Tracking data will appear after lookup.',
+          })}
+        />
       ) : null}
       {query.isError ? (
         <ErrorState message={getApiErrorMessage(query.error)} onRetry={() => void query.refetch()} />
@@ -57,18 +69,18 @@ export function PublicTrackingPage() {
           </CardHeader>
           <CardContent className="detail-list">
             <div>
-              <dt>Customer</dt>
+              <dt>{t('Customer')}</dt>
               <dd>{query.data.data.customer_name}</dd>
             </div>
             <div>
-              <dt>Delivery</dt>
+              <dt>{t('Delivery', { defaultValue: 'Delivery' })}</dt>
               <dd>
                 {query.data.data.delivery_governorate_name} /{' '}
                 {query.data.data.delivery_area_name ?? '-'} - {query.data.data.delivery_address}
               </dd>
             </div>
             <div>
-              <dt>History</dt>
+              <dt>{t('History', { defaultValue: 'History' })}</dt>
               <dd className="activity-list">
                 {query.data.data.histories.map((history, index) => (
                   <div className="activity-row" key={`${history.status}-${index}`}>

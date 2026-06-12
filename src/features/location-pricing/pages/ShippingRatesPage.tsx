@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { deleteShippingRate, listShippingRates } from '../api/location-pricing.api'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
@@ -21,6 +21,7 @@ import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 
 export function ShippingRatesPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [queryText, setQueryText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const queryClient = useQueryClient()
@@ -125,8 +126,9 @@ export function ShippingRatesPage() {
                     <DropdownMenu>
                       <DropdownTrigger>...</DropdownTrigger>
                       <DropdownContent>
+                        <DropdownItem onClick={() => navigate(`/admin/shipping-rates/${rate.id}`)}>{t('View')}</DropdownItem>
                         <Can permission={PERMISSIONS.SHIPPING_RATES_UPDATE}>
-                          <DropdownItem><Link className="table-link" to={`/admin/shipping-rates/${rate.id}/edit`}>{t('Edit')}</Link></DropdownItem>
+                          <DropdownItem onClick={() => navigate(`/admin/shipping-rates/${rate.id}/edit`)}>{t('Edit')}</DropdownItem>
                         </Can>
                         <Can permission={PERMISSIONS.SHIPPING_RATES_DELETE}>
                           <DropdownItem destructive onClick={() => {

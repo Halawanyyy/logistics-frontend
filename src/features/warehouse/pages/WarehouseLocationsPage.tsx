@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getWarehouseBinLabel } from '../../../shared/api/labels.api'
 import { listWarehouses, createWarehouseBin, createWarehouseShelf, createWarehouseZone, listWarehouseBins, listWarehouseShelves, listWarehouseZones } from '../api/warehouse.api'
 import type {
@@ -33,8 +34,10 @@ import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
+import { useLocale } from '../../../shared/i18n/useLocale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
+import { getBinPrintableLabelDocument } from '../utils/binLabel'
 
 type LocationsTab = 'zones' | 'shelves' | 'bins'
 
@@ -131,7 +134,7 @@ function CreateZoneDialog({
   const { formError, getFieldError } = useFormApiErrors(error)
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Create Warehouse Zone</CardTitle>}>
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Create Warehouse Zone', { defaultValue: 'Create Warehouse Zone' })}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
           <span>Warehouse</span>
@@ -237,7 +240,7 @@ function CreateShelfDialog({
   }, [selectedWarehouseId, setValue])
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Create Warehouse Shelf</CardTitle>}>
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Create Warehouse Shelf', { defaultValue: 'Create Warehouse Shelf' })}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
           <span>Warehouse</span>
@@ -384,7 +387,7 @@ function CreateBinDialog({
   }, [selectedZoneId, setValue])
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Create Warehouse Bin</CardTitle>}>
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Create Warehouse Bin', { defaultValue: 'Create Warehouse Bin' })}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
           <span>Warehouse</span>
@@ -497,6 +500,8 @@ function CreateBinDialog({
 }
 
 export function WarehouseLocationsPage() {
+  const { t } = useTranslation()
+  const { locale } = useLocale()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = searchParams.get('tab')
@@ -602,14 +607,14 @@ export function WarehouseLocationsPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Warehouse Locations"
-        description="Zones, shelves, and bins used by warehouse storage operations."
+        title={t('Warehouse Locations', { defaultValue: 'Warehouse Locations' })}
+        description={t('Zones, shelves, and bins used by warehouse storage operations.', { defaultValue: 'Zones, shelves, and bins used by warehouse storage operations.' })}
         actions={(
           <Can permission={PERMISSIONS.WAREHOUSE_LOCATIONS_CREATE}>
             <div className="page-header__button-row">
-              {tab === 'zones' ? <Button type="button" onClick={() => setCreateZoneOpen(true)}>Create Zone</Button> : null}
-              {tab === 'shelves' ? <Button type="button" onClick={() => setCreateShelfOpen(true)}>Create Shelf</Button> : null}
-              {tab === 'bins' ? <Button type="button" onClick={() => setCreateBinOpen(true)}>Create Bin</Button> : null}
+              {tab === 'zones' ? <Button type="button" onClick={() => setCreateZoneOpen(true)}>{t('Create Zone', { defaultValue: 'Create Zone' })}</Button> : null}
+              {tab === 'shelves' ? <Button type="button" onClick={() => setCreateShelfOpen(true)}>{t('Create Shelf', { defaultValue: 'Create Shelf' })}</Button> : null}
+              {tab === 'bins' ? <Button type="button" onClick={() => setCreateBinOpen(true)}>{t('Create Bin', { defaultValue: 'Create Bin' })}</Button> : null}
             </div>
           </Can>
         )}
@@ -618,11 +623,11 @@ export function WarehouseLocationsPage() {
       <Card variant="flat" className="dashboard-filter-card">
         <CardContent className="dashboard-filters">
           <label className="field">
-            <span>Warehouse</span>
+            <span>{t('Warehouse', { defaultValue: 'Warehouse' })}</span>
             <SearchableSelect
               value={filters.warehouse_id}
-              placeholder="All warehouses"
-              searchPlaceholder="Search warehouses..."
+              placeholder={t('All warehouses', { defaultValue: 'All warehouses' })}
+              searchPlaceholder={t('Search warehouses...', { defaultValue: 'Search warehouses...' })}
               onChange={(warehouse_id) => setFilters((current) => ({
                 ...current,
                 warehouse_id,
@@ -630,7 +635,7 @@ export function WarehouseLocationsPage() {
                 shelf_id: '',
               }))}
               options={[
-                { label: 'All warehouses', value: '' },
+                { label: t('All warehouses', { defaultValue: 'All warehouses' }), value: '' },
                 ...((warehousesQuery.data?.data ?? []).map((warehouse) => ({
                   label: warehouse.name,
                   value: String(warehouse.id),
@@ -641,18 +646,18 @@ export function WarehouseLocationsPage() {
           </label>
           {(tab === 'shelves' || tab === 'bins') ? (
             <label className="field">
-              <span>Zone</span>
+              <span>{t('Zone', { defaultValue: 'Zone' })}</span>
               <SearchableSelect
                 value={filters.zone_id}
-                placeholder="All zones"
-                searchPlaceholder="Search zones..."
+                placeholder={t('All zones', { defaultValue: 'All zones' })}
+                searchPlaceholder={t('Search zones...', { defaultValue: 'Search zones...' })}
                 onChange={(zone_id) => setFilters((current) => ({
                   ...current,
                   zone_id,
                   shelf_id: '',
                 }))}
                 options={[
-                  { label: 'All zones', value: '' },
+                  { label: t('All zones', { defaultValue: 'All zones' }), value: '' },
                   ...zones.map((zone) => ({
                     label: zone.name,
                     value: String(zone.id),
@@ -664,14 +669,14 @@ export function WarehouseLocationsPage() {
           ) : null}
           {tab === 'bins' ? (
             <label className="field">
-              <span>Shelf</span>
+              <span>{t('Shelf', { defaultValue: 'Shelf' })}</span>
               <SearchableSelect
                 value={filters.shelf_id}
-                placeholder="All shelves"
-                searchPlaceholder="Search shelves..."
+                placeholder={t('All shelves', { defaultValue: 'All shelves' })}
+                searchPlaceholder={t('Search shelves...', { defaultValue: 'Search shelves...' })}
                 onChange={(shelf_id) => setFilters((current) => ({ ...current, shelf_id }))}
                 options={[
-                  { label: 'All shelves', value: '' },
+                  { label: t('All shelves', { defaultValue: 'All shelves' }), value: '' },
                   ...shelves.map((shelf) => ({
                     label: shelf.name,
                     value: String(shelf.id),
@@ -682,12 +687,12 @@ export function WarehouseLocationsPage() {
             </label>
           ) : null}
           <label className="field">
-            <span>Status</span>
+            <span>{t('Status', { defaultValue: 'Status' })}</span>
             <Select
               value={filters.status}
               onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
             >
-              <option value="">All statuses</option>
+              <option value="">{t('All statuses', { defaultValue: 'All statuses' })}</option>
               <option value="active">active</option>
               <option value="inactive">inactive</option>
             </Select>
@@ -695,11 +700,11 @@ export function WarehouseLocationsPage() {
         </CardContent>
         <CardContent>
           <div className="form-actions">
-            <TabButton active={tab === 'zones'} label="Zones" onClick={() => setTab('zones')} />
-            <TabButton active={tab === 'shelves'} label="Shelves" onClick={() => setTab('shelves')} />
-            <TabButton active={tab === 'bins'} label="Bins" onClick={() => setTab('bins')} />
+            <TabButton active={tab === 'zones'} label={t('Zones', { defaultValue: 'Zones' })} onClick={() => setTab('zones')} />
+            <TabButton active={tab === 'shelves'} label={t('Shelves', { defaultValue: 'Shelves' })} onClick={() => setTab('shelves')} />
+            <TabButton active={tab === 'bins'} label={t('Bins', { defaultValue: 'Bins' })} onClick={() => setTab('bins')} />
             <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
-              Reset filters
+              {t('Reset filters', { defaultValue: 'Reset filters' })}
             </Button>
           </div>
         </CardContent>
@@ -708,19 +713,19 @@ export function WarehouseLocationsPage() {
       <Card className="table-card">
         <CardHeader>
           <CardTitle>
-            {tab === 'zones' ? 'Warehouse Zones' : tab === 'shelves' ? 'Warehouse Shelves' : 'Warehouse Bins'}
+            {tab === 'zones' ? t('Warehouse Zones', { defaultValue: 'Warehouse Zones' }) : tab === 'shelves' ? t('Warehouse Shelves', { defaultValue: 'Warehouse Shelves' }) : t('Warehouse Bins', { defaultValue: 'Warehouse Bins' })}
           </CardTitle>
           <CardDescription>
             {tab === 'zones'
-              ? 'Zone storage locations inside each warehouse.'
+              ? t('Zone storage locations inside each warehouse.', { defaultValue: 'Zone storage locations inside each warehouse.' })
               : tab === 'shelves'
-                ? 'Shelf locations linked to warehouse zones.'
-                : 'Bin locations including barcode display for scan workflows.'}
+                ? t('Shelf locations linked to warehouse zones.', { defaultValue: 'Shelf locations linked to warehouse zones.' })
+                : t('Bin locations including barcode display for scan workflows.', { defaultValue: 'Bin locations including barcode display for scan workflows.' })}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {(tab === 'zones' && zonesQuery.isLoading) || (tab === 'shelves' && shelvesQuery.isLoading) || (tab === 'bins' && binsQuery.isLoading)
-            ? <LoadingState title={`Loading warehouse ${tab}`} />
+            ? <LoadingState title={t('Loading warehouse {{tab}}', { tab, defaultValue: `Loading warehouse ${tab}` })} />
             : null}
           {(tab === 'zones' && zonesQuery.isError) || (tab === 'shelves' && shelvesQuery.isError) || (tab === 'bins' && binsQuery.isError) ? (
             <ErrorState
@@ -733,19 +738,19 @@ export function WarehouseLocationsPage() {
               }}
             />
           ) : null}
-          {tab === 'zones' && !zones.length && !zonesQuery.isLoading && !zonesQuery.isError ? (
-            <EmptyState title="No warehouse zones" description="No zones matched the selected filters." />
-          ) : null}
-          {tab === 'shelves' && !shelves.length && !shelvesQuery.isLoading && !shelvesQuery.isError ? (
-            <EmptyState title="No warehouse shelves" description="No shelves matched the selected filters." />
-          ) : null}
-          {tab === 'bins' && !bins.length && !binsQuery.isLoading && !binsQuery.isError ? (
-            <EmptyState title="No warehouse bins" description="No bins matched the selected filters." />
+          {((tab === 'zones' && !zones.length && !zonesQuery.isLoading && !zonesQuery.isError) || (tab === 'shelves' && !shelves.length && !shelvesQuery.isLoading && !shelvesQuery.isError) || (tab === 'bins' && !bins.length && !binsQuery.isLoading && !binsQuery.isError)) ? (
+            tab === 'zones' ? (
+              <EmptyState title={t('No warehouse zones', { defaultValue: 'No warehouse zones' })} description={t('No zones matched the selected filters.', { defaultValue: 'No zones matched the selected filters.' })} />
+            ) : tab === 'shelves' ? (
+              <EmptyState title={t('No warehouse shelves', { defaultValue: 'No warehouse shelves' })} description={t('No shelves matched the selected filters.', { defaultValue: 'No shelves matched the selected filters.' })} />
+            ) : (
+              <EmptyState title={t('No warehouse bins', { defaultValue: 'No warehouse bins' })} description={t('No bins matched the selected filters.', { defaultValue: 'No bins matched the selected filters.' })} />
+            )
           ) : null}
 
           {tab === 'zones' && zones.length ? <ZonesTable zones={zones} /> : null}
           {tab === 'shelves' && shelves.length ? <ShelvesTable shelves={shelves} /> : null}
-          {tab === 'bins' && bins.length ? <BinsTable bins={bins} /> : null}
+          {tab === 'bins' && bins.length ? <BinsTable bins={bins} locale={locale} /> : null}
         </CardContent>
       </Card>
 
@@ -775,16 +780,18 @@ export function WarehouseLocationsPage() {
 }
 
 function ZonesTable({ zones }: { zones: WarehouseZone[] }) {
+  const { t } = useTranslation()
+
   return (
     <TableContainer>
       <Table variant="compact">
         <thead>
           <tr>
-            <TableHead>Warehouse</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Code</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Created</TableHead>
+            <TableHead>{t('Warehouse', { defaultValue: 'Warehouse' })}</TableHead>
+            <TableHead>{t('Name', { defaultValue: 'Name' })}</TableHead>
+            <TableHead>{t('Code', { defaultValue: 'Code' })}</TableHead>
+            <TableHead>{t('Status', { defaultValue: 'Status' })}</TableHead>
+            <TableHead>{t('Created', { defaultValue: 'Created' })}</TableHead>
           </tr>
         </thead>
         <tbody>
@@ -808,17 +815,19 @@ function ZonesTable({ zones }: { zones: WarehouseZone[] }) {
 }
 
 function ShelvesTable({ shelves }: { shelves: WarehouseShelf[] }) {
+  const { t } = useTranslation()
+
   return (
     <TableContainer>
       <Table variant="compact">
         <thead>
           <tr>
-            <TableHead>Warehouse</TableHead>
-            <TableHead>Zone</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Code</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Created</TableHead>
+            <TableHead>{t('Warehouse', { defaultValue: 'Warehouse' })}</TableHead>
+            <TableHead>{t('Zone', { defaultValue: 'Zone' })}</TableHead>
+            <TableHead>{t('Name', { defaultValue: 'Name' })}</TableHead>
+            <TableHead>{t('Code', { defaultValue: 'Code' })}</TableHead>
+            <TableHead>{t('Status', { defaultValue: 'Status' })}</TableHead>
+            <TableHead>{t('Created', { defaultValue: 'Created' })}</TableHead>
           </tr>
         </thead>
         <tbody>
@@ -842,22 +851,24 @@ function ShelvesTable({ shelves }: { shelves: WarehouseShelf[] }) {
   )
 }
 
-function BinsTable({ bins }: { bins: WarehouseBin[] }) {
+function BinsTable({ bins, locale }: { bins: WarehouseBin[]; locale: 'en' | 'ar' }) {
+  const { t } = useTranslation()
+
   return (
     <TableContainer>
       <Table variant="compact">
         <thead>
           <tr>
-            <TableHead>Warehouse</TableHead>
-            <TableHead>Zone</TableHead>
-            <TableHead>Shelf</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Code</TableHead>
-            <TableHead>Barcode</TableHead>
-            <TableHead>Label</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>{t('Warehouse', { defaultValue: 'Warehouse' })}</TableHead>
+            <TableHead>{t('Zone', { defaultValue: 'Zone' })}</TableHead>
+            <TableHead>{t('Shelf', { defaultValue: 'Shelf' })}</TableHead>
+            <TableHead>{t('Name', { defaultValue: 'Name' })}</TableHead>
+            <TableHead>{t('Code', { defaultValue: 'Code' })}</TableHead>
+            <TableHead>{t('Barcode', { defaultValue: 'Barcode' })}</TableHead>
+            <TableHead>{t('Label', { defaultValue: 'Label' })}</TableHead>
+            <TableHead>{t('Status', { defaultValue: 'Status' })}</TableHead>
+            <TableHead>{t('Created', { defaultValue: 'Created' })}</TableHead>
+            <TableHead>{t('Actions', { defaultValue: 'Actions' })}</TableHead>
           </tr>
         </thead>
         <tbody>
@@ -877,9 +888,19 @@ function BinsTable({ bins }: { bins: WarehouseBin[] }) {
                 <LabelDocumentDialog
                   buttonVariant="ghost"
                   defaultFormat="html"
-                  fetchDocument={(options) => getWarehouseBinLabel(bin.id, options)}
-                  title={`Bin Label - ${bin.name}`}
-                  triggerLabel="Label"
+                  fetchDocument={(options) => getBinPrintableLabelDocument({
+                    bin,
+                    fetchDocument: (requestOptions) => getWarehouseBinLabel(bin.id, requestOptions),
+                    locale,
+                    options,
+                    t,
+                  })}
+                  formats={['html', 'pdf']}
+                  title={t('Bin Label - {{name}}', {
+                    defaultValue: `Bin Label - ${bin.name}`,
+                    name: bin.name,
+                  })}
+                  triggerLabel={t('Label', { defaultValue: 'Label' })}
                 />
               </TableCell>
               <TableCell>

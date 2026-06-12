@@ -152,11 +152,11 @@ function GenerateExportDialog({
         <label className="field">
           <span>{t('Status')}</span>
           <Select {...register('status')}>
-            <option value="">All statuses</option>
-            <option value="pending">pending</option>
-            <option value="approved">approved</option>
-            <option value="completed">completed</option>
-            <option value="failed">failed</option>
+            <option value="">{t('All statuses')}</option>
+            <option value="pending">{t('pending', { defaultValue: 'pending' })}</option>
+            <option value="approved">{t('approved', { defaultValue: 'approved' })}</option>
+            <option value="completed">{t('completed', { defaultValue: 'completed' })}</option>
+            <option value="failed">{t('failed', { defaultValue: 'failed' })}</option>
           </Select>
           <FieldError error={errors.status?.message ?? getFieldError('status')} />
         </label>
@@ -179,6 +179,7 @@ export function ExportsPage() {
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<ExportFiltersState>(initialFilters)
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [downloadingExportId, setDownloadingExportId] = useState<number | null>(null)
   const params: ExportLogFilters = useMemo(
     () => ({
       ...(filters.export_type ? { export_type: filters.export_type } : {}),
@@ -219,14 +220,19 @@ export function ExportsPage() {
     onSuccess: ({ blob, exportType }) => {
       triggerBlobDownload(blob, `${exportType}-export.csv`)
     },
+    onSettled: () => {
+      setDownloadingExportId(null)
+    },
   })
   const exportLogs = exportsQuery.data?.data ?? []
 
   return (
     <section className="page-section">
       <PageHeader
-        title="Exports"
-        description="Asynchronous-ready export history and CSV generation."
+        title={t('Exports')}
+        description={t('Asynchronous-ready export history and CSV generation.', {
+          defaultValue: 'Asynchronous-ready export history and CSV generation.',
+        })}
         actions={(
           <Can permission={PERMISSIONS.EXPORTS_CREATE}>
             <ExportButton onExport={() => setGenerateOpen(true)} />
@@ -264,11 +270,11 @@ export function ExportsPage() {
               value={filters.status}
               onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
             >
-              <option value="">All statuses</option>
-              <option value="pending">pending</option>
-              <option value="processing">processing</option>
-              <option value="completed">completed</option>
-              <option value="failed">failed</option>
+              <option value="">{t('All statuses')}</option>
+              <option value="pending">{t('pending', { defaultValue: 'pending' })}</option>
+              <option value="processing">{t('processing', { defaultValue: 'processing' })}</option>
+              <option value="completed">{t('completed', { defaultValue: 'completed' })}</option>
+              <option value="failed">{t('failed', { defaultValue: 'failed' })}</option>
             </Select>
           </label>
           <DateRangeFilter
@@ -309,15 +315,17 @@ export function ExportsPage() {
           {exportsQuery.isLoading ? <LoadingState title={t('Loading export history')} /> : null}
           {exportsQuery.isError ? (
             <ErrorState
-              title="Unable to load export history"
+              title={t('Unable to load export history', { defaultValue: 'Unable to load export history' })}
               message={getApiErrorMessage(exportsQuery.error)}
               onRetry={() => void exportsQuery.refetch()}
             />
           ) : null}
           {!exportsQuery.isLoading && !exportsQuery.isError && !exportLogs.length ? (
             <EmptyState
-              title="No exports found"
-              description="No export logs matched the selected filters."
+              title={t('No exports found', { defaultValue: 'No exports found' })}
+              description={t('No export logs matched the selected filters.', {
+                defaultValue: 'No export logs matched the selected filters.',
+              })}
             />
           ) : null}
           {exportLogs.length ? (
@@ -363,11 +371,14 @@ export function ExportsPage() {
                               type="button"
                               variant="secondary"
                               disabled={exportLog.status !== 'completed' || !exportLog.download_url}
-                              loading={downloadMutation.isPending}
-                              onClick={() => downloadMutation.mutate({
-                                id: exportLog.id,
-                                exportType: String(exportLog.export_type),
-                              })}
+                              loading={downloadingExportId === exportLog.id && downloadMutation.isPending}
+                              onClick={() => {
+                                setDownloadingExportId(exportLog.id)
+                                downloadMutation.mutate({
+                                  id: exportLog.id,
+                                  exportType: String(exportLog.export_type),
+                                })
+                              }}
                             >
                               {t('Download')}
                             </Button>

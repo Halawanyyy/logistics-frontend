@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { confirmOrder, deleteOrder, listOrders } from '../api/orders.api'
 import { createShipmentFromOrder } from '../../shipments/api/shipments.api'
 import { getOrderLabel } from '../../../shared/api/labels.api'
@@ -15,7 +15,6 @@ import { MerchantSelector } from '../../../shared/components/selectors/MerchantS
 import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../shared/components/states/LoadingState'
-import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
 import { ConfirmActionModal } from '../../../shared/components/modals/ConfirmActionModal'
 import { Button } from '../../../shared/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
@@ -26,8 +25,11 @@ import { Select } from '../../../shared/components/ui/Select'
 import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
+import { useLocale } from '../../../shared/i18n/useLocale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
+import type { Order } from '../types/order.types'
+import { getOrderPrintableLabelDocument } from '../utils/orderLabel'
 
 type OrdersListFilters = {
   status: string
@@ -69,6 +71,8 @@ const initialFilters: OrdersListFilters = {
 
 export function OrdersListPage() {
   const { t } = useTranslation()
+  const { locale } = useLocale()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const searchText = searchParams.get('search') ?? ''
   const [filters, setFilters] = useState(() => ({
@@ -76,6 +80,8 @@ export function OrdersListPage() {
     search: searchText,
   }))
   const [orderPendingDelete, setOrderPendingDelete] = useState<{ id: number; orderNumber: string } | null>(null)
+  const [selectedOrderForLabel, setSelectedOrderForLabel] = useState<Order | null>(null)
+  const [isOrderLabelDialogOpen, setIsOrderLabelDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const queryClient = useQueryClient()
   const params = useMemo(() => ({
@@ -141,8 +147,10 @@ export function OrdersListPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Orders"
-        description="Orders with merchant, customer, commercial, and shipment state details."
+        title={t('Orders')}
+        description={t('Orders with merchant, customer, commercial, and shipment state details.', {
+          defaultValue: 'Orders with merchant, customer, commercial, and shipment state details.',
+        })}
         actions={
           <Can permission={PERMISSIONS.ORDERS_CREATE}>
             <Link className="ui-link-reset" to={adminPath('/orders/create')}>
@@ -347,13 +355,10 @@ export function OrdersListPage() {
                   <tr>
                     <TableHead>{t('Order')}</TableHead>
                     <TableHead>{t('Merchant')}</TableHead>
-                    <TableHead>{t('Customer')}</TableHead>
                     <TableHead>{t('Order Type', { defaultValue: 'Order Type' })}</TableHead>
                     <TableHead>{t('Fulfillment', { defaultValue: 'Fulfillment' })}</TableHead>
                     <TableHead>{t('Warehouse Flow', { defaultValue: 'Warehouse Flow' })}</TableHead>
                     <TableHead>{t('Payment', { defaultValue: 'Payment' })}</TableHead>
-                    <TableHead>{t('COD')}</TableHead>
-                    <TableHead>{t('Shipping Fee', { defaultValue: 'Shipping Fee' })}</TableHead>
                     <TableHead>{t('Status')}</TableHead>
                     <TableHead>{t('Created')}</TableHead>
                     <TableHead>{t('Actions')}</TableHead>
@@ -381,12 +386,12 @@ export function OrdersListPage() {
                           </Link>
                         </TableCell>
                         <TableCell>{order.merchant_name}</TableCell>
-                        <TableCell>
-                          {order.customer_name}
-                          <p className="table-meta">{order.customer_phone}</p>
-                        </TableCell>
                         <TableCell>{order.order_type ?? '-'}</TableCell>
-                        <TableCell>{pickDisplayLabel(order.fulfillment_type, order.fulfillment_type_label)}</TableCell>
+                        <TableCell>
+                          <StatusBadge value={order.fulfillment_type}>
+                            {pickDisplayLabel(order.fulfillment_type, order.fulfillment_type_label)}
+                          </StatusBadge>
+                        </TableCell>
                         <TableCell>
                           {order.fulfillment_type === 'from_warehouse' ? (
                             <StatusBadge value={order.warehouse_fulfillment_status}>
@@ -394,9 +399,11 @@ export function OrdersListPage() {
                             </StatusBadge>
                           ) : '-'}
                         </TableCell>
-                        <TableCell>{pickDisplayLabel(order.payment_type, order.payment_type_label)}</TableCell>
-                        <TableCell><MoneyDisplay value={order.cod_amount} /></TableCell>
-                        <TableCell><MoneyDisplay value={order.shipping_fee} /></TableCell>
+                        <TableCell>
+                          <StatusBadge value={order.payment_type}>
+                            {pickDisplayLabel(order.payment_type, order.payment_type_label)}
+                          </StatusBadge>
+                        </TableCell>
                         <TableCell>
                           <StatusBadge value={order.status}>
                             {pickDisplayLabel(order.status, order.status_label)}
@@ -408,17 +415,17 @@ export function OrdersListPage() {
                             <DropdownMenu>
                               <DropdownTrigger>...</DropdownTrigger>
                               <DropdownContent>
-                                <DropdownItem>
-                                  <Link className="table-link" to={adminPath(`/orders/${order.id}`)}>
-                                    {t('View')}
-                                  </Link>
+                                <DropdownItem
+                                  onClick={() => {
+                                    navigate(adminPath(`/orders/${order.id}`))
+                                  }}
+                                >
+                                  {t('View')}
                                 </DropdownItem>
                                 {!isShipmentCreated ? (
                                   <Can permission={PERMISSIONS.ORDERS_UPDATE}>
-                                    <DropdownItem>
-                                      <Link className="table-link" to={adminPath(`/orders/${order.id}/edit`)}>
-                                        {t('Edit')}
-                                      </Link>
+                                    <DropdownItem onClick={() => navigate(adminPath(`/orders/${order.id}/edit`))}>
+                                      {t('Edit')}
                                     </DropdownItem>
                                   </Can>
                                 ) : null}
@@ -436,24 +443,32 @@ export function OrdersListPage() {
                                     </DropdownItem>
                                   </Can>
                                 ) : null}
-                                {canCreateShipment ? (
+                                {!isShipmentCreated ? (
                                   <Can permission={PERMISSIONS.ORDERS_CREATE_SHIPMENT}>
-                                    <DropdownItem onClick={() => createShipmentMutation.mutate(order.id)}>
+                                    <DropdownItem
+                                      disabled={!canCreateShipment}
+                                      title={
+                                        !canCreateShipment
+                                          ? (order.fulfillment_type === 'from_warehouse' && order.warehouse_fulfillment_status !== 'fulfilled' && order.status === 'confirmed')
+                                            ? t('Awaiting warehouse fulfillment before shipment can be created.', { defaultValue: 'Awaiting warehouse fulfillment before shipment can be created.' })
+                                            : t('Order must be confirmed and approved to create a shipment.', { defaultValue: 'Order must be confirmed and approved to create a shipment.' })
+                                          : undefined
+                                      }
+                                      onClick={() => createShipmentMutation.mutate(order.id)}
+                                    >
                                       {t('Create Shipment')}
                                     </DropdownItem>
                                   </Can>
                                 ) : null}
-                                <DropdownItem>
-                                  <LabelDocumentDialog
-                                    buttonVariant="ghost"
-                                    defaultFormat="html"
-                                    fetchDocument={(options) => getOrderLabel(order.id, options)}
-                                    title={t('Order Label - {{orderNumber}}', {
-                                      orderNumber: order.order_number,
-                                      defaultValue: `Order Label - ${order.order_number}`,
-                                    })}
-                                    triggerLabel={t('Label', { defaultValue: 'Label' })}
-                                  />
+                                <DropdownItem
+                                  onClick={(event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
+                                    setSelectedOrderForLabel(order)
+                                    setIsOrderLabelDialogOpen(true)
+                                  }}
+                                >
+                                  {t('Label', { defaultValue: 'Label' })}
                                 </DropdownItem>
                               </DropdownContent>
                             </DropdownMenu>
@@ -485,6 +500,39 @@ export function OrdersListPage() {
             deleteMutation.mutate(orderPendingDelete.id)
           }
         }}
+      />
+
+      <LabelDocumentDialog
+        defaultFormat="html"
+        fetchDocument={(options) => {
+          if (!selectedOrderForLabel) {
+            throw new Error(t('No order selected for label.', { defaultValue: 'No order selected for label.' }))
+          }
+
+          return getOrderPrintableLabelDocument({
+            fetchDocument: (requestOptions) => getOrderLabel(selectedOrderForLabel.id, requestOptions),
+            locale,
+            options,
+            order: selectedOrderForLabel,
+            t,
+          })
+        }}
+        formats={['html', 'pdf']}
+        hideTrigger
+        onOpenChange={(nextOpen) => {
+          setIsOrderLabelDialogOpen(nextOpen)
+          if (!nextOpen) {
+            setSelectedOrderForLabel(null)
+          }
+        }}
+        open={isOrderLabelDialogOpen}
+        title={t('Order Label - {{orderNumber}}', {
+          orderNumber: selectedOrderForLabel?.order_number ?? '',
+          defaultValue: selectedOrderForLabel
+            ? `Order Label - ${selectedOrderForLabel.order_number}`
+            : 'Order Label',
+        })}
+        triggerLabel={t('Label', { defaultValue: 'Label' })}
       />
     </section>
   )

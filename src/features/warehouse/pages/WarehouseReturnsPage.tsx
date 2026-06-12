@@ -9,6 +9,7 @@ import { Button } from '../../../shared/components/ui/Button'
 import { ApiFilterBar, compactFilters } from '../../../shared/components/data/ApiFilterBar'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
+import { useTranslation } from 'react-i18next'
 
 const initialFilters = {
   shipment_id: '',
@@ -23,39 +24,41 @@ const initialFilters = {
 }
 
 export function WarehouseReturnsPage() {
+  const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const params = compactFilters(filters)
   return (
     <ResourceListPage<WarehouseReturn>
-      title="Warehouse Returns"
-      description="Returned warehouse items and their stock condition."
-      actions={<Can permission={PERMISSIONS.WAREHOUSE_RETURNS_CREATE}><Link className="ui-link-reset" to="/warehouse-returns/create"><Button>Create Return</Button></Link></Can>}
+      title={t('Warehouse Returns')}
+      description={t('Returned warehouse items and their stock condition.')}
+      actions={<Can permission={PERMISSIONS.WAREHOUSE_RETURNS_CREATE}><Link className="ui-link-reset" to="/warehouse-returns/create"><Button>{t('Create Return')}</Button></Link></Can>}
       queryKey={['warehouse-returns', params]}
       queryFn={() => listWarehouseReturns(params)}
       filters={
         <ApiFilterBar
           filters={filters}
           fields={[
-            { label: 'Shipment ID', name: 'shipment_id', type: 'number' },
-            { label: 'Order ID', name: 'order_id', type: 'number' },
-            { label: 'Warehouse ID', name: 'warehouse_id', type: 'number' },
-            { label: 'Merchant ID', name: 'merchant_id', type: 'number' },
-            { label: 'Product ID', name: 'warehouse_product_id', type: 'number' },
-            { label: 'Condition', name: 'condition', type: 'select', options: [{ label: 'sellable', value: 'sellable' }, { label: 'damaged', value: 'damaged' }, { label: 'disposed', value: 'disposed' }] },
-            { label: 'Status', name: 'status', type: 'select', options: [{ label: 'pending', value: 'pending' }, { label: 'received', value: 'received' }, { label: 'inspected', value: 'inspected' }, { label: 'restocked', value: 'restocked' }, { label: 'damaged', value: 'damaged' }, { label: 'rejected', value: 'rejected' }, { label: 'closed', value: 'closed' }] },
-            { label: 'Date From', name: 'date_from', type: 'date' },
-            { label: 'Date To', name: 'date_to', type: 'date' },
+            { label: t('Shipment ID'), name: 'shipment_id', type: 'number' },
+            { label: t('Order ID'), name: 'order_id', type: 'number' },
+            { label: t('Warehouse ID'), name: 'warehouse_id', type: 'number' },
+            { label: t('Merchant ID'), name: 'merchant_id', type: 'number' },
+            { label: t('Product ID'), name: 'warehouse_product_id', type: 'number' },
+            { label: t('Condition'), name: 'condition', type: 'select', options: [{ label: t('sellable'), value: 'sellable' }, { label: t('damaged'), value: 'damaged' }, { label: t('disposed'), value: 'disposed' }] },
+            { label: t('Status'), name: 'status', type: 'select', options: [{ label: t('pending'), value: 'pending' }, { label: t('received'), value: 'received' }, { label: t('inspected'), value: 'inspected' }, { label: t('restocked'), value: 'restocked' }, { label: t('damaged'), value: 'damaged' }, { label: t('rejected'), value: 'rejected' }, { label: t('closed'), value: 'closed' }] },
+            { label: t('Date From'), name: 'date_from', type: 'date' },
+            { label: t('Date To'), name: 'date_to', type: 'date' },
           ]}
           onChange={(name, value) => setFilters((current) => ({ ...current, [name]: value }))}
           onReset={() => setFilters(initialFilters)}
         />
       }
       columns={[
-        { header: 'Product', render: (item) => <Link className="table-link" to={`/warehouse-returns/${item.id}`}>{item.product_name}</Link> },
-        { header: 'Warehouse', render: (item) => item.warehouse_name },
-        { header: 'Quantity', render: (item) => item.quantity },
-        { header: 'Condition', render: (item) => <StatusBadge value={item.condition} /> },
-        { header: 'Created', render: (item) => formatDate(item.created_at) },
+        { header: t('Product'), render: (item) => <Link className="table-link" to={`/warehouse-returns/${item.id}`}>{item.product_name}</Link> },
+        { header: t('Warehouse'), render: (item) => item.warehouse_name },
+        { header: t('Quantity'), render: (item) => item.quantity },
+        { header: t('Condition'), render: (item) => <StatusBadge value={item.condition} /> },
+        { header: t('Status'), render: (item) => <StatusBadge value={item.status}>{item.status_label ?? item.status}</StatusBadge> },
+        { header: t('Created'), render: (item) => formatDate(item.created_at) },
       ]}
     />
   )

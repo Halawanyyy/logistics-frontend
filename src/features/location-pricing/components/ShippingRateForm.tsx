@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm, useWatch } from 'react-hook-form'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { getApiErrorMessage, getApiValidationErrors } from '../../../shared/api/api-error'
-import { Button } from '../../../shared/components/ui/Button'
+import { FormActionsBar } from '../../../shared/components/forms/FormActionsBar'
 import { Input } from '../../../shared/components/ui/Input'
 import { SearchableSelect } from '../../../shared/components/ui/SearchableSelect'
 import type { Area, Governorate, ShippingRate } from '../types/location-pricing.types'
@@ -25,6 +26,7 @@ type ShippingRateFormProps = {
   error?: unknown
   governorates: Governorate[]
   isSubmitting?: boolean
+  secondaryAction?: ReactNode
   submitLabel: string
   onSubmit: (values: ShippingRateFormValues) => void
 }
@@ -35,6 +37,7 @@ export function ShippingRateForm({
   error,
   governorates,
   isSubmitting = false,
+  secondaryAction,
   onSubmit,
   submitLabel,
 }: ShippingRateFormProps) {
@@ -92,7 +95,7 @@ export function ShippingRateForm({
           )}
         />
         {errors.governorate_id?.message || validationErrors.governorate_id?.[0] ? (
-          <small>{errors.governorate_id?.message ?? validationErrors.governorate_id?.[0]}</small>
+          <small>{errors.governorate_id?.message ? t(errors.governorate_id.message) : validationErrors.governorate_id?.[0]}</small>
         ) : null}
       </label>
       <label className="field">
@@ -121,21 +124,21 @@ export function ShippingRateForm({
         <span>{t('Delivery Fee')}</span>
         <Input type="number" step="0.01" {...register('delivery_fee', { valueAsNumber: true })} />
         {errors.delivery_fee?.message || validationErrors.delivery_fee?.[0] ? (
-          <small>{errors.delivery_fee?.message ?? validationErrors.delivery_fee?.[0]}</small>
+          <small>{errors.delivery_fee?.message ? t(errors.delivery_fee.message) : validationErrors.delivery_fee?.[0]}</small>
         ) : null}
       </label>
       <label className="field">
         <span>{t('Swap Fee')}</span>
         <Input type="number" step="0.01" {...register('swap_fee', { valueAsNumber: true })} />
         {errors.swap_fee?.message || validationErrors.swap_fee?.[0] ? (
-          <small>{errors.swap_fee?.message ?? validationErrors.swap_fee?.[0]}</small>
+          <small>{errors.swap_fee?.message ? t(errors.swap_fee.message) : validationErrors.swap_fee?.[0]}</small>
         ) : null}
       </label>
       <label className="field">
         <span>{t('Return Fee')}</span>
         <Input type="number" step="0.01" {...register('return_fee', { valueAsNumber: true })} />
         {errors.return_fee?.message || validationErrors.return_fee?.[0] ? (
-          <small>{errors.return_fee?.message ?? validationErrors.return_fee?.[0]}</small>
+          <small>{errors.return_fee?.message ? t(errors.return_fee.message) : validationErrors.return_fee?.[0]}</small>
         ) : null}
       </label>
       <label className="field field--inline">
@@ -143,11 +146,11 @@ export function ShippingRateForm({
         <span>{t('Active')}</span>
       </label>
       {error ? <div className="form-error">{getApiErrorMessage(error)}</div> : null}
-      <div className="form-actions">
-        <Button type="submit" loading={isSubmitting}>
-          {t(submitLabel, { defaultValue: submitLabel })}
-        </Button>
-      </div>
+      <FormActionsBar
+        isSubmitting={isSubmitting}
+        secondaryAction={secondaryAction}
+        submitLabel={submitLabel}
+      />
     </form>
   )
 }

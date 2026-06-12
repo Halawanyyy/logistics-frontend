@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Building, Palette, Settings, Printer, Globe, Save } from 'lucide-react'
 import {
   getLabelSettings,
   listLabelTemplates,
@@ -19,7 +20,6 @@ import { Button } from '../../../shared/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
 import { Input } from '../../../shared/components/ui/Input'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
-import { SearchableSelect } from '../../../shared/components/ui/SearchableSelect'
 import { Select } from '../../../shared/components/ui/Select'
 import { isImageLikeValue, useBranding } from '../../../shared/branding/useBranding'
 import {
@@ -29,6 +29,7 @@ import {
   listSettingsGroups,
 } from '../api/settings.api'
 import type { SettingRecord } from '../types/settings.types'
+import { cn } from '../../../shared/utils/cn'
 
 function getFieldValue(value: unknown) {
   if (typeof value === 'boolean') {
@@ -64,6 +65,13 @@ function isNumericSetting(setting: SettingRecord) {
 
 function isCompanyGroup(group: string) {
   return /company|branding|general|public|support/i.test(group)
+}
+
+function getGroupIcon(group: string) {
+  if (/company/i.test(group)) return Building
+  if (/branding/i.test(group)) return Palette
+  if (/public/i.test(group)) return Globe
+  return Settings
 }
 
 function getInputType(setting: SettingRecord) {
@@ -127,7 +135,7 @@ export function SettingsPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const branding = useBranding()
-  const [selectedGroup, setSelectedGroup] = useState('')
+  const [activeTab, setActiveTab] = useState('')
   const [draftValues, setDraftValues] = useState<Record<string, string>>({})
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null)
 
@@ -135,23 +143,36 @@ export function SettingsPage() {
     queryKey: ['settings', 'groups'],
     queryFn: listSettingsGroups,
   })
+  
   const publicSettingsQuery = useQuery({
     queryKey: ['settings', 'public'],
     queryFn: listPublicSettings,
   })
+  
   const labelTemplatesQuery = useQuery({
     queryKey: ['labels', 'templates'],
     queryFn: listLabelTemplates,
   })
+  
   const labelSettingsQuery = useQuery({
     queryKey: ['labels', 'settings'],
     queryFn: getLabelSettings,
   })
 
+  const groups = groupsQuery.data?.data ?? []
+  
+  useEffect(() => {
+    if (groups.length > 0 && !activeTab) {
+      setActiveTab(groups[0].group)
+    }
+  }, [groups, activeTab])
+
+  const isApiGroup = activeTab !== 'label-tools' && activeTab !== 'public-details'
+  
   const groupQuery = useQuery({
-    queryKey: ['settings', 'group', selectedGroup],
-    queryFn: () => getSettingsGroup(selectedGroup),
-    enabled: Boolean(selectedGroup),
+    queryKey: ['settings', 'group', activeTab],
+    queryFn: () => getSettingsGroup(activeTab),
+    enabled: Boolean(activeTab) && isApiGroup,
   })
 
   const mutation = useMutation({
@@ -167,13 +188,9 @@ export function SettingsPage() {
 
   const { formError, normalizedError } = useFormApiErrors(mutation.error)
   const fieldErrors = normalizedError?.fieldErrors ?? {}
-  const groups = groupsQuery.data?.data ?? []
+  
   const settings = groupQuery.data?.data ?? []
-
-  const suggestedGroups = useMemo(
-    () => groups.filter((group) => isCompanyGroup(group.group)),
-    [groups],
-  )
+  const publicSettings = publicSettingsQuery.data?.data ?? []
 
   const editableSettings = useMemo(
     () => settings.filter((setting) => setting.is_editable).sort((a, b) => a.sort_order - b.sort_order),
@@ -188,6 +205,7 @@ export function SettingsPage() {
   const previewLogoValue = logoSetting
     ? draftValues[logoSetting.key] ?? getFieldValue(logoSetting.value)
     : branding.companyLogo
+  const selectedGroupLabel = isApiGroup ? formatGroupLabel(activeTab) : ''
 
   function currentValue(key: string, fallback: unknown) {
     return draftValues[key] ?? getFieldValue(fallback)
@@ -202,8 +220,8 @@ export function SettingsPage() {
     })
   }
 
-  function handleGroupChange(group: string) {
-    setSelectedGroup(group)
+  function handleTabChange(tab: string) {
+    setActiveTab(tab)
     setDraftValues({})
     setLastSavedAt(null)
   }
@@ -220,293 +238,331 @@ export function SettingsPage() {
     <section className="page-section settings-page">
       <PageHeader
         title={t('Settings')}
-        description={t('Manage live company branding, operational defaults, and public-facing configuration from documented backend settings groups.', {
-          defaultValue: 'Manage live company branding, operational defaults, and public-facing configuration from documented backend settings groups.',
+        eyebrow={t('Workspace Setup', { defaultValue: 'Workspace Setup' })}
+        description={t('Manage company identity, operational preferences, and label tools from one clean control center.', {
+          defaultValue: 'Manage company identity, operational preferences, and label tools from one clean control center.',
         })}
-        actions={(
-          <Button
-            disabled={!selectedGroup || !editableSettings.length}
-            loading={mutation.isPending}
-            onClick={submitGroup}
-          >
-            {t('Save Group')}
-          </Button>
-        )}
       />
 
-      <div className="settings-overview-grid">
-        <Card className="settings-brand-card">
-          <CardHeader>
-            <CardTitle>{t('Company Branding', { defaultValue: 'Company Branding' })}</CardTitle>
-            <CardDescription>
-              {t('The sidebar, topbar, login experience, and public preview all read from the same live company settings.', {
-                defaultValue: 'The sidebar, topbar, login experience, and public preview all read from the same live company settings.',
-              })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="settings-brand-card__content">
-            <div className="settings-brand-card__preview">
-              <BrandMark logoUrl={previewLogoValue} name={previewCompanyName} size="lg" />
-              <div>
-                <strong>{previewCompanyName}</strong>
-                <p>{branding.companyWebsite || branding.companyEmail || t('Public company branding preview', { defaultValue: 'Public company branding preview' })}</p>
-              </div>
-            </div>
-            <div className="settings-brand-card__meta">
-              <span>{t('Logo source is currently URL/string based from the documented settings API.', {
-                defaultValue: 'Logo source is currently URL/string based from the documented settings API.',
-              })}</span>
-              <span>{t('Changes here propagate through shared React Query invalidation after save.', {
-                defaultValue: 'Changes here propagate through shared React Query invalidation after save.',
-              })}</span>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="settings-layout">
+        <aside className="settings-sidebar">
+          <nav className="settings-nav-menu">
+            {groups.map((group) => {
+              const Icon = getGroupIcon(group.group)
+              const isActive = activeTab === group.group
+              return (
+                <button
+                  key={group.group}
+                  className={cn('settings-nav-item', isActive && 'settings-nav-item--active')}
+                  onClick={() => handleTabChange(group.group)}
+                >
+                  <Icon size={18} />
+                  <span>{formatGroupLabel(group.group)}</span>
+                </button>
+              )
+            })}
+            
+            <div style={{ height: '1px', background: 'var(--border)', margin: '0.75rem 0' }} />
+            
+            <button
+              className={cn('settings-nav-item', activeTab === 'label-tools' && 'settings-nav-item--active')}
+              onClick={() => handleTabChange('label-tools')}
+            >
+              <Printer size={18} />
+              <span>{t('Label & Printing Tools')}</span>
+            </button>
+            <button
+              className={cn('settings-nav-item', activeTab === 'public-details' && 'settings-nav-item--active')}
+              onClick={() => handleTabChange('public-details')}
+            >
+              <Globe size={18} />
+              <span>{t('Live Public Details')}</span>
+            </button>
+          </nav>
+        </aside>
 
-        <Card className="table-card">
-          <CardHeader className="table-card__header">
-            <CardTitle>{t('Settings Groups')}</CardTitle>
-            <CardDescription>{t('Select a group to edit its configurable settings.')}</CardDescription>
-          </CardHeader>
-          <CardContent className="page-stack">
-            <label className="field">
-              <span>{t('Group')}</span>
-              <SearchableSelect
-                value={selectedGroup}
-                placeholder={t('Select a group')}
-                searchPlaceholder={t('Search settings groups...')}
-                onChange={handleGroupChange}
-                options={[
-                  { label: t('Select a group'), value: '' },
-                  ...groups.map((group) => ({
-                    label: `${formatGroupLabel(group.group)} (${group.settings_count})`,
-                    value: group.group,
-                    keywords: [group.group],
-                  })),
-                ]}
-              />
-            </label>
-
-            {suggestedGroups.length ? (
-              <div className="settings-quick-links">
-                {suggestedGroups.map((group) => (
-                  <Button
-                    key={group.group}
-                    size="sm"
-                    variant={selectedGroup === group.group ? 'primary' : 'secondary'}
-                    onClick={() => handleGroupChange(group.group)}
-                  >
-                    {t('Manage {{group}}', { group: formatGroupLabel(group.group), defaultValue: `Manage ${formatGroupLabel(group.group)}` })}
-                  </Button>
-                ))}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      </div>
-
-      {groupQuery.isLoading ? <LoadingState title={t('Loading settings group')} /> : null}
-      {groupQuery.isError ? <ErrorState message={getApiErrorMessage(groupQuery.error)} onRetry={() => void groupQuery.refetch()} /> : null}
-
-      {selectedGroup && !groupQuery.isLoading && !groupQuery.isError ? (
-        <Card className="settings-editor-card">
-          <CardHeader>
-            <CardTitle>{t('{{group}} settings', { group: formatGroupLabel(selectedGroup), defaultValue: `${formatGroupLabel(selectedGroup)} settings` })}</CardTitle>
-            <CardDescription>
-              {isCompanyGroup(selectedGroup)
-                ? t('Company name updates globally after save. Company logo currently uses the documented string/URL setting flow.', {
-                  defaultValue: 'Company name updates globally after save. Company logo currently uses the documented string/URL setting flow.',
-                })
-                : t('Encrypted values stay masked and non-editable settings remain disabled.')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="page-stack">
-            {!settings.length ? (
-              <EmptyState
-                title={t('No settings found')}
-                description={t('The selected group returned no settings.', { defaultValue: 'The selected group returned no settings.' })}
-              />
-            ) : null}
-
-            {lastSavedAt ? (
-              <div className="form-success">
-                {t('Settings saved and shared branding queries refreshed.', {
-                  defaultValue: 'Settings saved and shared branding queries refreshed.',
-                })}
-              </div>
-            ) : null}
-
-            {settings.length ? (
-              <div className="settings-form-grid">
-                {settings
-                  .sort((a, b) => a.sort_order - b.sort_order)
-                  .map((setting, index) => {
-                    const value = currentValue(setting.key, setting.value)
-                    const logoField = isLogoSetting(setting.key, setting.label)
-                    const imagePreviewVisible = logoField && value && isImageLikeValue(value)
-
-                    return (
-                      <label className={logoField ? 'field field--logo-setting' : 'field'} key={setting.id}>
-                        <span>{setting.label}</span>
-                        {setting.options?.length ? (
-                          <Select
-                            disabled={!setting.is_editable}
-                            value={value}
-                            onChange={(event) => {
-                              setDraftValues((current) => ({ ...current, [setting.key]: event.target.value }))
-                              setLastSavedAt(null)
-                            }}
-                          >
-                            {setting.options.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </Select>
-                        ) : isBooleanSetting(setting) ? (
-                          <Select
-                            disabled={!setting.is_editable}
-                            value={value}
-                            onChange={(event) => {
-                              setDraftValues((current) => ({ ...current, [setting.key]: event.target.value }))
-                              setLastSavedAt(null)
-                            }}
-                          >
-                            <option value="true">{t('Yes', { defaultValue: 'Yes' })}</option>
-                            <option value="false">{t('No', { defaultValue: 'No' })}</option>
-                          </Select>
-                        ) : (
-                          <Input
-                            disabled={!setting.is_editable}
-                            type={getInputType(setting)}
-                            value={value}
-                            onChange={(event) => {
-                              setDraftValues((current) => ({ ...current, [setting.key]: event.target.value }))
-                              setLastSavedAt(null)
-                            }}
-                          />
-                        )}
-
-                        {imagePreviewVisible ? (
-                          <div className="settings-logo-preview">
-                            <BrandMark logoUrl={value} name={previewCompanyName} size="md" />
-                            <div>
-                              <strong>{t('Logo preview', { defaultValue: 'Logo preview' })}</strong>
-                              <p>{t('This preview uses the current URL/path value and falls back safely if the image cannot load.', {
-                                defaultValue: 'This preview uses the current URL/path value and falls back safely if the image cannot load.',
-                              })}</p>
-                            </div>
-                          </div>
-                        ) : null}
-
-                        {setting.description ? <small className="field-help">{setting.description}</small> : null}
-                        {logoField ? (
-                          <small className="field-help">
-                            {t('Documented backend support currently exposes company_logo as a settings value. Use an image URL or public path here; a binary logo upload endpoint is not documented for settings.', {
-                              defaultValue: 'Documented backend support currently exposes company_logo as a settings value. Use an image URL or public path here; a binary logo upload endpoint is not documented for settings.',
-                            })}
-                          </small>
-                        ) : null}
-                        <FieldError error={getSettingFieldError(setting, index, fieldErrors) ?? undefined} />
-                      </label>
-                    )
+        <main className="settings-content">
+          {isApiGroup && isCompanyGroup(activeTab) ? (
+            <Card className="settings-brand-card">
+              <CardHeader>
+                <CardTitle>{t('Company Identity Overview', { defaultValue: 'Company Identity Overview' })}</CardTitle>
+                <CardDescription>
+                  {t('This is how your storefront name, support details, and logo currently appear across the admin experience.', {
+                    defaultValue: 'This is how your storefront name, support details, and logo currently appear across the admin experience.',
                   })}
-              </div>
-            ) : null}
-
-            {formError ? <div className="form-error">{formError}</div> : null}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('Label Tools')}</CardTitle>
-          <CardDescription>
-            {t('Label preview/test utilities and backend-managed label settings/templates.')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="page-stack">
-          <div className="page-header__button-row">
-            <LabelDocumentDialog
-              defaultFormat="html"
-              fetchDocument={(options) => previewLabelDocument({ label_type: 'shipment', ...options })}
-              title="Label Preview"
-              triggerLabel="Preview Shipment Label"
-            />
-            <LabelDocumentDialog
-              defaultFormat="html"
-              fetchDocument={(options) => testLabelDocument({ label_type: 'shipment', ...options })}
-              title="Label Test"
-              triggerLabel="Test Shipment Label"
-            />
-          </div>
-
-          {labelTemplatesQuery.isLoading || labelSettingsQuery.isLoading ? <LoadingState title={t('Loading label tools')} /> : null}
-          {labelTemplatesQuery.isError ? <ErrorState message={getApiErrorMessage(labelTemplatesQuery.error)} onRetry={() => void labelTemplatesQuery.refetch()} /> : null}
-          {labelSettingsQuery.isError ? <ErrorState message={getApiErrorMessage(labelSettingsQuery.error)} onRetry={() => void labelSettingsQuery.refetch()} /> : null}
-
-          {!labelTemplatesQuery.isLoading && !labelTemplatesQuery.isError ? (
-            <div className="detail-list">
-              <div>
-                <dt>{t('Templates')}</dt>
-                <dd>{labelTemplatesQuery.data?.data.length ?? 0}</dd>
-              </div>
-              <div>
-                <dt>{t('Label Settings')}</dt>
-                <dd>{labelSettingsQuery.data?.data.length ?? 0}</dd>
-              </div>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('Public Settings')}</CardTitle>
-          <CardDescription>
-            {t('Publicly exposable settings from `/api/public/settings`. This section is read-only here.')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="page-stack">
-          <div className="settings-guidance">
-            <p>
-              {t('Company name, logo, and support details are managed in the editable admin settings groups above. Public Settings shows the live public output, but editing should happen through the grouped settings form.')}
-            </p>
-          </div>
-
-          <div className="settings-public-brand">
-            <BrandMark logoUrl={branding.companyLogo} name={branding.companyName} size="lg" />
-            <div>
-              <strong>{branding.companyName}</strong>
-              <p>{branding.companyAddress || branding.companyPhone || t('Live public brand output from the public settings endpoint.', {
-                defaultValue: 'Live public brand output from the public settings endpoint.',
-              })}</p>
-            </div>
-          </div>
-
-          {publicSettingsQuery.isLoading ? <LoadingState title={t('Loading public settings')} /> : null}
-          {publicSettingsQuery.isError ? <ErrorState message={getApiErrorMessage(publicSettingsQuery.error)} onRetry={() => void publicSettingsQuery.refetch()} /> : null}
-          {!publicSettingsQuery.isLoading && !publicSettingsQuery.isError && !(publicSettingsQuery.data?.data.length) ? (
-            <EmptyState title={t('No public settings')} description={t('The backend returned no public settings.')} />
-          ) : null}
-          {publicSettingsQuery.data?.data.length ? (
-            <div className="detail-list">
-              {publicSettingsQuery.data.data.map((setting) => (
-                <div key={setting.key}>
-                  <dt>{setting.label}</dt>
-                  <dd className="settings-public-value">
-                    {isLogoSetting(setting.key, setting.label) && typeof setting.value === 'string' && setting.value && isImageLikeValue(setting.value) ? (
-                      <BrandMark className="settings-public-logo" logoUrl={setting.value} name={branding.companyName} size="md" />
-                    ) : null}
-                    <span>{getFieldValue(setting.value)}</span>
-                  </dd>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="settings-brand-card__content">
+                <div className="settings-brand-card__preview">
+                  <BrandMark logoUrl={previewLogoValue} name={previewCompanyName} size="lg" />
+                  <div>
+                    <strong>{previewCompanyName}</strong>
+                    <p>{branding.companyWebsite || branding.companyEmail || t('Public company branding preview', { defaultValue: 'Public company branding preview' })}</p>
+                  </div>
                 </div>
-              ))}
-            </div>
+              </CardContent>
+            </Card>
           ) : null}
-        </CardContent>
-      </Card>
+
+          {isApiGroup ? (
+            <>
+              {groupQuery.isLoading ? <LoadingState title={t('Loading settings group')} /> : null}
+              {groupQuery.isError ? <ErrorState message={getApiErrorMessage(groupQuery.error)} onRetry={() => void groupQuery.refetch()} /> : null}
+
+              {!groupQuery.isLoading && !groupQuery.isError ? (
+                <div className="page-stack">
+                  <Card className="settings-editor-card">
+                    <CardHeader>
+                      <CardTitle>{t('{{group}} settings', { group: selectedGroupLabel, defaultValue: `${selectedGroupLabel} settings` })}</CardTitle>
+                      <CardDescription>
+                        {isCompanyGroup(activeTab)
+                          ? t('Use this section to refine brand-facing fields and everyday operational details.', {
+                            defaultValue: 'Use this section to refine brand-facing fields and everyday operational details.',
+                          })
+                          : t('Review each setting carefully before saving. Locked fields stay read-only here.', {
+                            defaultValue: 'Review each setting carefully before saving. Locked fields stay read-only here.',
+                          })}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="page-stack">
+                      {!settings.length ? (
+                        <EmptyState
+                          title={t('No settings found')}
+                          description={t('The selected group returned no settings.', { defaultValue: 'The selected group returned no settings.' })}
+                        />
+                      ) : null}
+
+                      {lastSavedAt ? (
+                        <div className="form-success">
+                          {t('Settings saved and shared branding queries refreshed.', {
+                            defaultValue: 'Settings saved and shared branding queries refreshed.',
+                          })}
+                        </div>
+                      ) : null}
+
+                      {settings.length ? (
+                        <div className="settings-form-grid">
+                          {settings
+                            .sort((a, b) => a.sort_order - b.sort_order)
+                            .map((setting, index) => {
+                              const value = currentValue(setting.key, setting.value)
+                              const logoField = isLogoSetting(setting.key, setting.label)
+                              const imagePreviewVisible = logoField && value && isImageLikeValue(value)
+
+                              return (
+                                <label className={logoField ? 'field field--logo-setting' : 'field'} key={setting.id}>
+                                  <span>{setting.label}</span>
+                                  {setting.options?.length ? (
+                                    <Select
+                                      disabled={!setting.is_editable}
+                                      value={value}
+                                      onChange={(event) => {
+                                        setDraftValues((current) => ({ ...current, [setting.key]: event.target.value }))
+                                        setLastSavedAt(null)
+                                      }}
+                                    >
+                                      {setting.options.map((option) => (
+                                        <option key={option} value={option}>
+                                          {option}
+                                        </option>
+                                      ))}
+                                    </Select>
+                                  ) : isBooleanSetting(setting) ? (
+                                    <Select
+                                      disabled={!setting.is_editable}
+                                      value={value}
+                                      onChange={(event) => {
+                                        setDraftValues((current) => ({ ...current, [setting.key]: event.target.value }))
+                                        setLastSavedAt(null)
+                                      }}
+                                    >
+                                      <option value="true">{t('Yes', { defaultValue: 'Yes' })}</option>
+                                      <option value="false">{t('No', { defaultValue: 'No' })}</option>
+                                    </Select>
+                                  ) : (
+                                    <Input
+                                      disabled={!setting.is_editable}
+                                      type={getInputType(setting)}
+                                      value={value}
+                                      onChange={(event) => {
+                                        setDraftValues((current) => ({ ...current, [setting.key]: event.target.value }))
+                                        setLastSavedAt(null)
+                                      }}
+                                    />
+                                  )}
+
+                                  {imagePreviewVisible ? (
+                                    <div className="settings-logo-preview">
+                                      <BrandMark logoUrl={value} name={previewCompanyName} size="md" />
+                                      <div>
+                                        <strong>{t('Logo preview', { defaultValue: 'Logo preview' })}</strong>
+                                        <p>{t('This preview uses the current URL/path value and falls back safely if the image cannot load.', {
+                                          defaultValue: 'This preview uses the current URL/path value and falls back safely if the image cannot load.',
+                                        })}</p>
+                                      </div>
+                                    </div>
+                                  ) : null}
+
+                                  {setting.description ? <small className="field-help">{setting.description}</small> : null}
+                                  {logoField ? (
+                                    <small className="field-help">
+                                      {t('Use a public image URL or shared asset path so the logo preview can appear everywhere the brand is shown.', {
+                                        defaultValue: 'Use a public image URL or shared asset path so the logo preview can appear everywhere the brand is shown.',
+                                      })}
+                                    </small>
+                                  ) : null}
+                                  <FieldError error={getSettingFieldError(setting, index, fieldErrors) ?? undefined} />
+                                </label>
+                              )
+                            })}
+                        </div>
+                      ) : null}
+
+                      {formError ? <div className="form-error">{formError}</div> : null}
+                    </CardContent>
+                  </Card>
+
+                  {editableSettings.length > 0 ? (
+                    <div className="settings-sticky-save">
+                      <Button
+                        loading={mutation.isPending}
+                        onClick={submitGroup}
+                      >
+                        <Save size={16} className="icon-start" />
+                        {t('Save Changes', { defaultValue: 'Save Changes' })}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
+          ) : null}
+
+          {activeTab === 'label-tools' ? (
+            <Card className="settings-tools-card">
+              <CardHeader>
+                <CardTitle>{t('Label & Printing Tools', { defaultValue: 'Label & Printing Tools' })}</CardTitle>
+                <CardDescription>
+                  {t('Preview and test shipment labels with the same branded layout used for daily operations.', {
+                    defaultValue: 'Preview and test shipment labels with the same branded layout used for daily operations.',
+                  })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="page-stack">
+                <div className="settings-tools-grid">
+                  <Card variant="flat" className="settings-tool-card">
+                    <CardHeader>
+                      <CardTitle>{t('Preview Shipment Label', { defaultValue: 'Preview Shipment Label' })}</CardTitle>
+                      <CardDescription>
+                        {t('Open the current shipment label layout and review spacing, barcode rendering, and translations.', {
+                          defaultValue: 'Open the current shipment label layout and review spacing, barcode rendering, and translations.',
+                        })}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="page-stack">
+                      <LabelDocumentDialog
+                        defaultFormat="html"
+                        fetchDocument={(options) => previewLabelDocument({ label_type: 'shipment', ...options })}
+                        title="Label Preview"
+                        triggerLabel="Open Preview"
+                      />
+                    </CardContent>
+                  </Card>
+
+                  <Card variant="flat" className="settings-tool-card">
+                    <CardHeader>
+                      <CardTitle>{t('Test Shipment Label', { defaultValue: 'Test Shipment Label' })}</CardTitle>
+                      <CardDescription>
+                        {t('Generate a test document to validate label content before using it in day-to-day workflows.', {
+                          defaultValue: 'Generate a test document to validate label content before using it in day-to-day workflows.',
+                        })}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="page-stack">
+                      <LabelDocumentDialog
+                        defaultFormat="html"
+                        fetchDocument={(options) => testLabelDocument({ label_type: 'shipment', ...options })}
+                        title="Label Test"
+                        triggerLabel="Run Test"
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {labelTemplatesQuery.isLoading || labelSettingsQuery.isLoading ? <LoadingState title={t('Loading label tools')} /> : null}
+                {labelTemplatesQuery.isError ? <ErrorState message={getApiErrorMessage(labelTemplatesQuery.error)} onRetry={() => void labelTemplatesQuery.refetch()} /> : null}
+                {labelSettingsQuery.isError ? <ErrorState message={getApiErrorMessage(labelSettingsQuery.error)} onRetry={() => void labelSettingsQuery.refetch()} /> : null}
+
+                {!labelTemplatesQuery.isLoading && !labelTemplatesQuery.isError ? (
+                  <div className="detail-list settings-tool-metrics">
+                    <div>
+                      <dt>{t('Templates')}</dt>
+                      <dd>{labelTemplatesQuery.data?.data.length ?? 0}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('Label Settings')}</dt>
+                      <dd>{labelSettingsQuery.data?.data.length ?? 0}</dd>
+                    </div>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {activeTab === 'public-details' ? (
+            <Card className="settings-public-card">
+              <CardHeader>
+                <CardTitle>{t('Live Customer-Facing Details', { defaultValue: 'Live Customer-Facing Details' })}</CardTitle>
+                <CardDescription>
+                  {t('Review the details customers and public-facing screens currently use. These values are read-only here.', {
+                    defaultValue: 'Review the details customers and public-facing screens currently use. These values are read-only here.',
+                  })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="page-stack">
+                <div className="settings-guidance">
+                  <p>
+                    {t('Use the editable settings groups above to update company identity and support details. This section simply reflects the live customer-facing result.', {
+                      defaultValue: 'Use the editable settings groups above to update company identity and support details. This section simply reflects the live customer-facing result.',
+                    })}
+                  </p>
+                </div>
+
+                <div className="settings-public-brand">
+                  <BrandMark logoUrl={branding.companyLogo} name={branding.companyName} size="lg" />
+                  <div>
+                    <strong>{branding.companyName}</strong>
+                    <p>{branding.companyAddress || branding.companyPhone || t('Live public brand details shown to customers.', {
+                      defaultValue: 'Live public brand details shown to customers.',
+                    })}</p>
+                  </div>
+                </div>
+
+                {publicSettingsQuery.isLoading ? <LoadingState title={t('Loading public settings')} /> : null}
+                {publicSettingsQuery.isError ? <ErrorState message={getApiErrorMessage(publicSettingsQuery.error)} onRetry={() => void publicSettingsQuery.refetch()} /> : null}
+                {!publicSettingsQuery.isLoading && !publicSettingsQuery.isError && !publicSettings.length ? (
+                  <EmptyState title={t('No public settings')} description={t('The backend returned no public settings.')} />
+                ) : null}
+                {publicSettings.length ? (
+                  <div className="detail-list">
+                    {publicSettings.map((setting) => (
+                      <div key={setting.key}>
+                        <dt>{setting.label}</dt>
+                        <dd className="settings-public-value">
+                          {isLogoSetting(setting.key, setting.label) && typeof setting.value === 'string' && setting.value && isImageLikeValue(setting.value) ? (
+                            <BrandMark className="settings-public-logo" logoUrl={setting.value} name={branding.companyName} size="md" />
+                          ) : null}
+                          <span title={getFieldValue(setting.value)}>{getFieldValue(setting.value)}</span>
+                        </dd>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+        </main>
+      </div>
     </section>
   )
 }

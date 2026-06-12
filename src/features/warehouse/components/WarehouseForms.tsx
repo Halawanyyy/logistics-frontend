@@ -4,9 +4,9 @@ import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { FieldError } from '../../../shared/components/forms/FieldError'
+import { FormActionsBar } from '../../../shared/components/forms/FormActionsBar'
 import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { SearchableSelect } from '../../../shared/components/ui/SearchableSelect'
-import { Button } from '../../../shared/components/ui/Button'
 import { Input } from '../../../shared/components/ui/Input'
 import { Select } from '../../../shared/components/ui/Select'
 import type { Area, Governorate } from '../../location-pricing/types/location-pricing.types'
@@ -82,6 +82,7 @@ type Props = {
   orders?: Order[]
   products?: WarehouseProduct[]
   shipments?: Shipment[]
+  secondaryAction?: ReactNode
   submitLabel: string
   warehouses?: Warehouse[]
   onSubmit: (values: any) => void
@@ -98,6 +99,7 @@ export function WarehouseForm({
   onSubmit,
   orders = [],
   products = [],
+  secondaryAction,
   shipments = [],
   submitLabel,
   warehouses = [],
@@ -613,11 +615,11 @@ export function WarehouseForm({
       ) : null}
 
       {formError ? <div className="form-error">{formError}</div> : null}
-      <div className="form-actions">
-        <Button type="submit" loading={isSubmitting}>
-          {submitLabel}
-        </Button>
-      </div>
+      <FormActionsBar
+        isSubmitting={isSubmitting}
+        secondaryAction={secondaryAction}
+        submitLabel={submitLabel}
+      />
     </form>
   )
 }

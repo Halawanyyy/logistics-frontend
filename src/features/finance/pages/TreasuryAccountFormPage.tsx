@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Landmark } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -10,13 +11,13 @@ import {
 } from '../api/finance.api'
 import type { CreateTreasuryAccountRequest } from '../types/finance.types'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
+import { FormActionsBar } from '../../../shared/components/forms/FormActionsBar'
 import { FieldError } from '../../../shared/components/forms/FieldError'
+import { FormPageLayout } from '../../../shared/components/forms/FormPageLayout'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../shared/components/states/LoadingState'
 import { Button } from '../../../shared/components/ui/Button'
-import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
 import { Input } from '../../../shared/components/ui/Input'
-import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { Select } from '../../../shared/components/ui/Select'
 import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { adminPath } from '../../../shared/routing/paths'
@@ -100,77 +101,76 @@ export function TreasuryAccountFormPage({ mode }: { mode: 'create' | 'edit' }) {
   }, [reset, treasuryAccountQuery.data])
 
   return (
-    <section className="page-section">
-      <PageHeader
-        title={t(isEdit ? 'Edit Treasury Account' : 'Create Treasury Account', {
-          defaultValue: isEdit ? 'Edit Treasury Account' : 'Create Treasury Account',
-        })}
-        description={t('Create or update treasury accounts used by payouts and expense payments.', { defaultValue: 'Create or update treasury accounts used by payouts and expense payments.' })}
-        actions={(
-          <Link className="ui-link-reset" to={adminPath('/finance/treasury/accounts')}>
-            <Button variant="secondary">{t('Back')}</Button>
-          </Link>
-        )}
-      />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('Treasury Account Details', { defaultValue: 'Treasury Account Details' })}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="form-grid" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
-            <label className="field">
-              <span>{t('Name')}</span>
-              <Input {...register('name', { required: 'Name is required.' })} />
-              <FieldError error={errors.name?.message ?? getFieldError('name')} />
-            </label>
-            <label className="field">
-              <span>{t('Code')}</span>
-              <Input {...register('code', { required: 'Code is required.' })} />
-              <FieldError error={errors.code?.message ?? getFieldError('code')} />
-            </label>
-            <label className="field">
-              <span>{t('Type')}</span>
-              <Select {...register('type', { required: 'Type is required.' })}>
-                <option value="cash">cash</option>
-                <option value="bank">bank</option>
-                <option value="wallet">wallet</option>
-              </Select>
-              <FieldError error={errors.type?.message ?? getFieldError('type')} />
-            </label>
-            <label className="field">
-              <span>{t('Opening Balance', { defaultValue: 'Opening Balance' })}</span>
-              <Input
-                type="number"
-                step="0.01"
-                {...register('opening_balance', { valueAsNumber: true, required: 'Opening balance is required.' })}
-              />
-              <FieldError error={errors.opening_balance?.message ?? getFieldError('opening_balance')} />
-            </label>
-            <label className="field">
-              <span>{t('Status')}</span>
-              <Select {...register('status', { required: 'Status is required.' })}>
-                <option value="active">{t('Active')}</option>
-                <option value="inactive">{t('Inactive')}</option>
-              </Select>
-              <FieldError error={errors.status?.message ?? getFieldError('status')} />
-            </label>
-            <label className="field">
-              <span>{t('Notes')}</span>
-              <Input {...register('notes')} />
-              <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
-            </label>
-            {formError ? <div className="form-error">{formError}</div> : null}
-            <div className="form-actions">
-              <Button type="submit" loading={mutation.isPending}>
-                {t(isEdit ? 'Save Treasury Account' : 'Create Treasury Account', {
-                  defaultValue: isEdit ? 'Save Treasury Account' : 'Create Treasury Account',
-                })}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </section>
+    <FormPageLayout
+      backTo={adminPath('/finance/treasury/accounts')}
+      description={t('Create or update treasury accounts used by payouts and expense payments.', {
+        defaultValue: 'Create or update treasury accounts used by payouts and expense payments.',
+      })}
+      eyebrow={t('Finance', { defaultValue: 'Finance' })}
+      sectionIcon={<Landmark size={18} />}
+      sectionDescription={t('Define the treasury account identity, opening balance, and operational status before saving.', {
+        defaultValue: 'Define the treasury account identity, opening balance, and operational status before saving.',
+      })}
+      sectionTitle={t('Treasury Account Details', { defaultValue: 'Treasury Account Details' })}
+      title={t(isEdit ? 'Edit Treasury Account' : 'Create Treasury Account', {
+        defaultValue: isEdit ? 'Edit Treasury Account' : 'Create Treasury Account',
+      })}
+    >
+      <form className="form-grid" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
+        <label className="field">
+          <span>{t('Name')}</span>
+          <Input {...register('name', { required: 'Name is required.' })} />
+          <FieldError error={errors.name?.message ?? getFieldError('name')} />
+        </label>
+        <label className="field">
+          <span>{t('Code')}</span>
+          <Input {...register('code', { required: 'Code is required.' })} />
+          <FieldError error={errors.code?.message ?? getFieldError('code')} />
+        </label>
+        <label className="field">
+          <span>{t('Type')}</span>
+          <Select {...register('type', { required: 'Type is required.' })}>
+            <option value="cash">cash</option>
+            <option value="bank">bank</option>
+            <option value="wallet">wallet</option>
+          </Select>
+          <FieldError error={errors.type?.message ?? getFieldError('type')} />
+        </label>
+        <label className="field">
+          <span>{t('Opening Balance', { defaultValue: 'Opening Balance' })}</span>
+          <Input
+            type="number"
+            step="0.01"
+            {...register('opening_balance', { valueAsNumber: true, required: 'Opening balance is required.' })}
+          />
+          <FieldError error={errors.opening_balance?.message ?? getFieldError('opening_balance')} />
+        </label>
+        <label className="field">
+          <span>{t('Status')}</span>
+          <Select {...register('status', { required: 'Status is required.' })}>
+            <option value="active">{t('Active')}</option>
+            <option value="inactive">{t('Inactive')}</option>
+          </Select>
+          <FieldError error={errors.status?.message ?? getFieldError('status')} />
+        </label>
+        <label className="field">
+          <span>{t('Notes')}</span>
+          <Input {...register('notes')} />
+          <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
+        </label>
+        {formError ? <div className="form-error">{formError}</div> : null}
+        <FormActionsBar
+          isSubmitting={mutation.isPending}
+          secondaryAction={(
+            <Link className="ui-link-reset" to={adminPath('/finance/treasury/accounts')}>
+              <Button variant="secondary">{t('Cancel', { defaultValue: 'Cancel' })}</Button>
+            </Link>
+          )}
+          submitLabel={t(isEdit ? 'Save Treasury Account' : 'Create Treasury Account', {
+            defaultValue: isEdit ? 'Save Treasury Account' : 'Create Treasury Account',
+          })}
+        />
+      </form>
+    </FormPageLayout>
   )
 }

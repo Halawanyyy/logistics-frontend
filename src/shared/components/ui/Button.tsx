@@ -33,7 +33,13 @@ export function Button({
       {...props}
     >
       {loading ? <span className="ui-button__spinner" aria-hidden="true" /> : null}
-      <span>{loading ? t('Loading...') : typeof children === 'string' ? t(children, { defaultValue: children }) : children}</span>
+      <span className="ui-button__content">
+        {typeof children === 'string' ? (
+          <span className="ui-button__label">{loading ? t('Loading...') : t(children, { defaultValue: children })}</span>
+        ) : (
+          children
+        )}
+      </span>
     </button>
   )
 }

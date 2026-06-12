@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm, useWatch } from 'react-hook-form'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { getApiErrorMessage, getApiValidationErrors } from '../../../shared/api/api-error'
-import { Button } from '../../../shared/components/ui/Button'
+import { FormActionsBar } from '../../../shared/components/forms/FormActionsBar'
 import { Input } from '../../../shared/components/ui/Input'
 import { SearchableSelect } from '../../../shared/components/ui/SearchableSelect'
 import { Select } from '../../../shared/components/ui/Select'
@@ -40,12 +41,14 @@ export function PricingPlanForm({
   defaultValues,
   error,
   isSubmitting,
+  secondaryAction,
   submitLabel,
   onSubmit,
 }: {
   defaultValues?: PricingPlan
   error?: unknown
   isSubmitting?: boolean
+  secondaryAction?: ReactNode
   submitLabel: string
   onSubmit: (values: PricingPlanFormValues) => void
 }) {
@@ -68,7 +71,8 @@ export function PricingPlanForm({
   })
 
   function fieldError(name: keyof PricingPlanFormValues) {
-    return errors[name]?.message ?? validationErrors[name]?.[0]
+    const errorMsg = errors[name]?.message ?? validationErrors[name]?.[0]
+    return errorMsg ? t(errorMsg) : undefined
   }
 
   return (
@@ -98,16 +102,16 @@ export function PricingPlanForm({
       <label className="field">
         <span>{t('Status')}</span>
         <Select {...register('status')}>
-          <option value="active">active</option>
-          <option value="inactive">inactive</option>
+          <option value="active">{t('active', { defaultValue: 'active' })}</option>
+          <option value="inactive">{t('inactive', { defaultValue: 'inactive' })}</option>
         </Select>
       </label>
       {error ? <div className="form-error">{getApiErrorMessage(error)}</div> : null}
-      <div className="form-actions">
-        <Button type="submit" loading={isSubmitting}>
-          {t(submitLabel, { defaultValue: submitLabel })}
-        </Button>
-      </div>
+      <FormActionsBar
+        isSubmitting={isSubmitting}
+        secondaryAction={secondaryAction}
+        submitLabel={submitLabel}
+      />
     </form>
   )
 }
@@ -119,6 +123,7 @@ export function PricingPlanRateForm({
   governorates,
   isSubmitting,
   pricingPlans,
+  secondaryAction,
   submitLabel,
   onSubmit,
 }: {
@@ -128,6 +133,7 @@ export function PricingPlanRateForm({
   governorates: Governorate[]
   isSubmitting?: boolean
   pricingPlans: PricingPlan[]
+  secondaryAction?: ReactNode
   submitLabel: string
   onSubmit: (values: PricingPlanRateFormValues) => void
 }) {
@@ -154,7 +160,8 @@ export function PricingPlanRateForm({
   const filteredAreas = governorateId ? areas.filter((area) => area.governorate_id === governorateId) : areas
 
   function fieldError(name: keyof PricingPlanRateFormValues) {
-    return errors[name]?.message ?? validationErrors[name]?.[0]
+    const errorMsg = errors[name]?.message ?? validationErrors[name]?.[0]
+    return errorMsg ? t(errorMsg) : undefined
   }
 
   return (
@@ -248,11 +255,11 @@ export function PricingPlanRateForm({
         <span>{t('Active')}</span>
       </label>
       {error ? <div className="form-error">{getApiErrorMessage(error)}</div> : null}
-      <div className="form-actions">
-        <Button type="submit" loading={isSubmitting}>
-          {t(submitLabel, { defaultValue: submitLabel })}
-        </Button>
-      </div>
+      <FormActionsBar
+        isSubmitting={isSubmitting}
+        secondaryAction={secondaryAction}
+        submitLabel={submitLabel}
+      />
     </form>
   )
 }

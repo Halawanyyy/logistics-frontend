@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { BadgeDollarSign } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   createPricingPlan,
   createPricingPlanRate,
@@ -13,11 +15,10 @@ import {
 } from '../api/location-pricing.api'
 import { PricingPlanForm, PricingPlanRateForm } from '../components/PricingPlanForms'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
+import { FormPageLayout } from '../../../shared/components/forms/FormPageLayout'
 import { ErrorState } from '../../../shared/components/feedback/ErrorState'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
 import { Button } from '../../../shared/components/ui/Button'
-import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
-import { PageHeader } from '../../../shared/components/ui/PageHeader'
 
 type PricingPlanFormPageProps = {
   kind: 'plan' | 'rate'
@@ -25,6 +26,7 @@ type PricingPlanFormPageProps = {
 }
 
 export function PricingPlanFormPage({ kind, mode }: PricingPlanFormPageProps) {
+  const { t } = useTranslation()
   const { pricingPlanId, pricingPlanRateId } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -82,7 +84,7 @@ export function PricingPlanFormPage({ kind, mode }: PricingPlanFormPageProps) {
   const error = planQuery.error ?? rateQuery.error ?? pricingPlansQuery.error ?? governoratesQuery.error ?? areasQuery.error
 
   if (isLoading) {
-    return <LoadingState title="Loading pricing form" />
+    return <LoadingState title={t('Loading pricing form', { defaultValue: 'Loading pricing form' })} />
   }
 
   if ((kind === 'plan' && mode === 'edit' && !planQuery.data) || (kind === 'rate' && mode === 'edit' && !rateQuery.data) || error) {
@@ -90,43 +92,69 @@ export function PricingPlanFormPage({ kind, mode }: PricingPlanFormPageProps) {
   }
 
   return (
-    <section className="page-section">
-      <PageHeader
-        title={mode === 'create' ? `Create Pricing ${kind === 'plan' ? 'Plan' : 'Rate'}` : `Edit Pricing ${kind === 'plan' ? 'Plan' : 'Rate'}`}
-        description={kind === 'plan' ? 'Merchant pricing plan.' : 'Pricing plan rate by location.'}
-        actions={
-          <Link className="ui-link-reset" to={kind === 'plan' ? '/admin/pricing-plans' : '/admin/pricing-plan-rates'}>
-            <Button variant="secondary">Back</Button>
-          </Link>
-        }
-      />
-      <Card>
-        <CardHeader>
-          <CardTitle>{kind === 'plan' ? 'Pricing Plan Details' : 'Pricing Plan Rate Details'}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {kind === 'plan' ? (
-            <PricingPlanForm
-              defaultValues={planQuery.data?.data}
-              error={mutation.error}
-              isSubmitting={mutation.isPending}
-              submitLabel={mode === 'create' ? 'Create Pricing Plan' : 'Save Pricing Plan'}
-              onSubmit={(values) => mutation.mutate(values)}
-            />
-          ) : (
-            <PricingPlanRateForm
-              areas={areasQuery.data?.data ?? []}
-              defaultValues={rateQuery.data?.data}
-              error={mutation.error}
-              governorates={governoratesQuery.data?.data ?? []}
-              isSubmitting={mutation.isPending}
-              pricingPlans={pricingPlansQuery.data?.data ?? []}
-              submitLabel={mode === 'create' ? 'Create Pricing Plan Rate' : 'Save Pricing Plan Rate'}
-              onSubmit={(values) => mutation.mutate(values)}
-            />
+    <FormPageLayout
+      backTo={kind === 'plan' ? '/admin/pricing-plans' : '/admin/pricing-plan-rates'}
+      description={kind === 'plan'
+        ? t('Define merchant pricing plans with clean commercial ranges and status control.', {
+          defaultValue: 'Define merchant pricing plans with clean commercial ranges and status control.',
+        })
+        : t('Define location-based rates for each pricing plan without changing the existing API contract.', {
+          defaultValue: 'Define location-based rates for each pricing plan without changing the existing API contract.',
+        })}
+      eyebrow={t('Locations & Pricing', { defaultValue: 'Locations & Pricing' })}
+      sectionIcon={<BadgeDollarSign size={18} />}
+      sectionDescription={kind === 'plan'
+        ? t('Set the plan identity, optional order-volume range, and current plan status.', {
+          defaultValue: 'Set the plan identity, optional order-volume range, and current plan status.',
+        })
+        : t('Choose the plan and location scope, then provide the rate values that apply to that coverage.', {
+          defaultValue: 'Choose the plan and location scope, then provide the rate values that apply to that coverage.',
+        })}
+      sectionTitle={kind === 'plan'
+        ? t('Pricing Plan Details', { defaultValue: 'Pricing Plan Details' })
+        : t('Pricing Plan Rate Details', { defaultValue: 'Pricing Plan Rate Details' })}
+      title={kind === 'plan'
+        ? (mode === 'create'
+            ? t('Create Pricing Plan', { defaultValue: 'Create Pricing Plan' })
+            : t('Edit Pricing Plan', { defaultValue: 'Edit Pricing Plan' }))
+        : (mode === 'create'
+            ? t('Create Pricing Plan Rate', { defaultValue: 'Create Pricing Plan Rate' })
+            : t('Edit Pricing Plan Rate', { defaultValue: 'Edit Pricing Plan Rate' }))}
+    >
+      {kind === 'plan' ? (
+        <PricingPlanForm
+          defaultValues={planQuery.data?.data}
+          error={mutation.error}
+          isSubmitting={mutation.isPending}
+          secondaryAction={(
+            <Link className="ui-link-reset" to="/admin/pricing-plans">
+              <Button variant="secondary">{t('Cancel', { defaultValue: 'Cancel' })}</Button>
+            </Link>
           )}
-        </CardContent>
-      </Card>
-    </section>
+          submitLabel={mode === 'create'
+            ? t('Create Pricing Plan', { defaultValue: 'Create Pricing Plan' })
+            : t('Save Pricing Plan', { defaultValue: 'Save Pricing Plan' })}
+          onSubmit={(values) => mutation.mutate(values)}
+        />
+      ) : (
+        <PricingPlanRateForm
+          areas={areasQuery.data?.data ?? []}
+          defaultValues={rateQuery.data?.data}
+          error={mutation.error}
+          governorates={governoratesQuery.data?.data ?? []}
+          isSubmitting={mutation.isPending}
+          pricingPlans={pricingPlansQuery.data?.data ?? []}
+          secondaryAction={(
+            <Link className="ui-link-reset" to="/admin/pricing-plan-rates">
+              <Button variant="secondary">{t('Cancel', { defaultValue: 'Cancel' })}</Button>
+            </Link>
+          )}
+          submitLabel={mode === 'create'
+            ? t('Create Pricing Plan Rate', { defaultValue: 'Create Pricing Plan Rate' })
+            : t('Save Pricing Plan Rate', { defaultValue: 'Save Pricing Plan Rate' })}
+          onSubmit={(values) => mutation.mutate(values)}
+        />
+      )}
+    </FormPageLayout>
   )
 }

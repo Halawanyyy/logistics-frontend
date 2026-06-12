@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { BarcodeScannerInput } from '../../../shared/components/barcode/BarcodeScannerInput'
@@ -21,6 +22,7 @@ import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { cancelPickingList, getPickingList, scanPickingList } from '../api/warehouse.api'
 
 export function PickingListDetailsPage() {
+  const { t } = useTranslation()
   const { pickingListId } = useParams()
   const queryClient = useQueryClient()
   const [barcode, setBarcode] = useState('')
@@ -53,20 +55,20 @@ export function PickingListDetailsPage() {
   })
 
   if (query.isLoading) {
-    return <LoadingState title="Loading picking list" />
+    return <LoadingState title={t('Loading picking list', { defaultValue: 'Loading picking list' })} />
   }
 
   if (query.isError && isApiNotFound(query.error)) {
     return (
       <NotFoundState
-        title="Picking list not found"
-        description="No picking list with this ID was returned by the warehouse API."
+        title={t('Picking list not found', { defaultValue: 'Picking list not found' })}
+        description={t('No picking list with this ID was returned by the warehouse API.', { defaultValue: 'No picking list with this ID was returned by the warehouse API.' })}
       />
     )
   }
 
   if (query.isError || !query.data) {
-    return <ErrorState title="Unable to load picking list" message={getApiErrorMessage(query.error)} onRetry={() => void query.refetch()} />
+    return <ErrorState title={t('Unable to load picking list', { defaultValue: 'Unable to load picking list' })} message={getApiErrorMessage(query.error)} onRetry={() => void query.refetch()} />
   }
 
   const pickingList = query.data.data
@@ -77,19 +79,19 @@ export function PickingListDetailsPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title={pickingList.picking_number ?? pickingList.picking_list_number ?? `Picking List #${pickingList.id}`}
-        description="Detail data is loaded from the documented picking list detail endpoint."
+        title={pickingList.picking_number ?? pickingList.picking_list_number ?? t('Picking List #{{id}}', { id: pickingList.id, defaultValue: `Picking List #${pickingList.id}` })}
+        description={t('Detail data is loaded from the documented picking list detail endpoint.', { defaultValue: 'Detail data is loaded from the documented picking list detail endpoint.' })}
         actions={(
           <div className="page-header__button-row">
             <Can permission={PERMISSIONS.PICKING_LISTS_CANCEL}>
               {canCancel ? (
                 <Button type="button" variant="secondary" onClick={() => setCancelOpen(true)}>
-                  Cancel Picking List
+                  {t('Cancel Picking List', { defaultValue: 'Cancel Picking List' })}
                 </Button>
               ) : null}
             </Can>
             <Link className="ui-link-reset" to={adminPath('/warehouse/picking-lists')}>
-              <Button variant="secondary">Back</Button>
+              <Button variant="secondary">{t('Back')}</Button>
             </Link>
           </div>
         )}
@@ -101,21 +103,21 @@ export function PickingListDetailsPage() {
       <div className="details-grid">
         <Card className="detail-card">
           <CardHeader>
-            <CardTitle>Overview</CardTitle>
-            <CardDescription>Picking batch summary and assignment.</CardDescription>
+            <CardTitle>{t('Overview')}</CardTitle>
+            <CardDescription>{t('Picking batch summary and assignment.', { defaultValue: 'Picking batch summary and assignment.' })}</CardDescription>
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
-              <div><dt>Warehouse</dt><dd>{pickingList.warehouse_name ?? '-'}</dd></div>
-              <div><dt>Assigned To</dt><dd>{pickingList.assigned_to_name ?? '-'}</dd></div>
-              <div><dt>Created By</dt><dd>{pickingList.created_by_name ?? '-'}</dd></div>
-              <div><dt>Status</dt><dd><StatusBadge value={pickingList.status ?? 'pending'} /></dd></div>
-              <div><dt>Total Orders</dt><dd>{pickingList.total_orders ?? '-'}</dd></div>
-              <div><dt>Total Items</dt><dd>{pickingList.total_items ?? '-'}</dd></div>
-              <div><dt>Picked Items</dt><dd>{pickingList.picked_items ?? '-'}</dd></div>
-              <div><dt>Picked At</dt><dd>{pickingList.picked_at ? formatDate(pickingList.picked_at) : '-'}</dd></div>
-              <div><dt>Notes</dt><dd>{pickingList.notes ?? '-'}</dd></div>
-              <div><dt>Created</dt><dd>{formatDate(pickingList.created_at)}</dd></div>
+              <div><dt>{t('Warehouse')}</dt><dd>{pickingList.warehouse_name ?? '-'}</dd></div>
+              <div><dt>{t('Assigned To', { defaultValue: 'Assigned To' })}</dt><dd>{pickingList.assigned_to_name ?? '-'}</dd></div>
+              <div><dt>{t('Created By')}</dt><dd>{pickingList.created_by_name ?? '-'}</dd></div>
+              <div><dt>{t('Status')}</dt><dd><StatusBadge value={pickingList.status ?? 'pending'} /></dd></div>
+              <div><dt>{t('Total Orders', { defaultValue: 'Total Orders' })}</dt><dd>{pickingList.total_orders ?? '-'}</dd></div>
+              <div><dt>{t('Total Items', { defaultValue: 'Total Items' })}</dt><dd>{pickingList.total_items ?? '-'}</dd></div>
+              <div><dt>{t('Picked Items', { defaultValue: 'Picked Items' })}</dt><dd>{pickingList.picked_items ?? '-'}</dd></div>
+              <div><dt>{t('Picked At', { defaultValue: 'Picked At' })}</dt><dd>{pickingList.picked_at ? formatDate(pickingList.picked_at) : '-'}</dd></div>
+              <div><dt>{t('Notes')}</dt><dd>{pickingList.notes ?? '-'}</dd></div>
+              <div><dt>{t('Created')}</dt><dd>{formatDate(pickingList.created_at)}</dd></div>
             </dl>
           </CardContent>
         </Card>
@@ -123,12 +125,12 @@ export function PickingListDetailsPage() {
         <Can permission={PERMISSIONS.PICKING_LISTS_SCAN}>
           <Card className="detail-card">
             <CardHeader>
-              <CardTitle>Scan Pick</CardTitle>
-              <CardDescription>Scanner input behaves as keyboard input and submits on Enter.</CardDescription>
+              <CardTitle>{t('Scan Pick', { defaultValue: 'Scan Pick' })}</CardTitle>
+              <CardDescription>{t('Scanner input behaves as keyboard input and submits on Enter.', { defaultValue: 'Scanner input behaves as keyboard input and submits on Enter.' })}</CardDescription>
             </CardHeader>
             <CardContent className="form-grid">
               <label className="field">
-                <span>Barcode</span>
+                <span>{t('Barcode')}</span>
                 <BarcodeScannerInput
                   autoFocus
                   value={barcode}
@@ -141,12 +143,12 @@ export function PickingListDetailsPage() {
                 />
               </label>
               <label className="field">
-                <span>Quantity</span>
+                <span>{t('Quantity')}</span>
                 <Input type="number" min="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
               </label>
               <div className="form-actions">
                 <Button type="button" disabled={!canScan} loading={scanMutation.isPending} onClick={() => scanMutation.mutate()}>
-                  Scan Pick
+                  {t('Scan Pick', { defaultValue: 'Scan Pick' })}
                 </Button>
               </div>
             </CardContent>
@@ -156,27 +158,27 @@ export function PickingListDetailsPage() {
 
       <Card className="table-card">
         <CardHeader>
-          <CardTitle>Picking Rows</CardTitle>
-          <CardDescription>Item rows returned by the picking list detail payload.</CardDescription>
+          <CardTitle>{t('Picking Rows', { defaultValue: 'Picking Rows' })}</CardTitle>
+          <CardDescription>{t('Item rows returned by the picking list detail payload.', { defaultValue: 'Item rows returned by the picking list detail payload.' })}</CardDescription>
         </CardHeader>
         <CardContent>
           {!rows.length ? (
             <EmptyState
-              title="No picking rows returned"
-              description="This picking list did not return any item rows in the detail payload."
+              title={t('No picking rows returned', { defaultValue: 'No picking rows returned' })}
+              description={t('This picking list did not return any item rows in the detail payload.', { defaultValue: 'This picking list did not return any item rows in the detail payload.' })}
             />
           ) : (
             <TableContainer>
               <Table variant="compact">
                 <thead>
                   <tr>
-                    <TableHead>Order</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Warehouse Product</TableHead>
-                    <TableHead>Bin</TableHead>
-                    <TableHead>Required</TableHead>
-                    <TableHead>Picked</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t('Order')}</TableHead>
+                    <TableHead>{t('Product')}</TableHead>
+                    <TableHead>{t('Warehouse Product')}</TableHead>
+                    <TableHead>{t('Bin', { defaultValue: 'Bin' })}</TableHead>
+                    <TableHead>{t('Required', { defaultValue: 'Required' })}</TableHead>
+                    <TableHead>{t('Picked', { defaultValue: 'Picked' })}</TableHead>
+                    <TableHead>{t('Status')}</TableHead>
                   </tr>
                 </thead>
                 <tbody>
@@ -208,9 +210,9 @@ export function PickingListDetailsPage() {
 
       <ConfirmActionModal
         open={cancelOpen}
-        title="Cancel picking list"
-        description={`Cancel ${pickingList.picking_number ?? pickingList.picking_list_number ?? `#${pickingList.id}`}?`}
-        confirmLabel="Cancel picking list"
+        title={t('Cancel picking list', { defaultValue: 'Cancel picking list' })}
+        description={t('Cancel {{pickingNumber}}?', { pickingNumber: pickingList.picking_number ?? pickingList.picking_list_number ?? `#${pickingList.id}`, defaultValue: `Cancel ${pickingList.picking_number ?? pickingList.picking_list_number ?? `#${pickingList.id}`}?` })}
+        confirmLabel={t('Cancel picking list', { defaultValue: 'Cancel picking list' })}
         variant="danger"
         loading={cancelMutation.isPending}
         onCancel={() => setCancelOpen(false)}

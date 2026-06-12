@@ -3,6 +3,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { calculateShippingRate } from '../api/location-pricing.api'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { Button } from '../../../shared/components/ui/Button'
@@ -24,6 +25,7 @@ const calculatorSchema = z.object({
 type CalculatorValues = z.infer<typeof calculatorSchema>
 
 export function ShippingRateCalculatorPage() {
+  const { t } = useTranslation()
   const mutation = useMutation({ mutationFn: calculateShippingRate })
   const {
     control,
@@ -51,16 +53,18 @@ export function ShippingRateCalculatorPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Shipping Rate Calculator"
-        description="Calculate the shipping fee for a destination."
-        actions={<Link className="ui-link-reset" to="/admin/shipping-rates"><Button variant="secondary">Back</Button></Link>}
+        title={t('Shipping Rate Calculator', { defaultValue: 'Shipping Rate Calculator' })}
+        description={t('Calculate the shipping fee for a destination.', {
+          defaultValue: 'Calculate the shipping fee for a destination.',
+        })}
+        actions={<Link className="ui-link-reset" to="/admin/shipping-rates"><Button variant="secondary">{t('Back')}</Button></Link>}
       />
       <Card>
-        <CardHeader><CardTitle>Destination</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t('Destination', { defaultValue: 'Destination' })}</CardTitle></CardHeader>
         <CardContent>
           <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
             <label className="field">
-              <span>Merchant</span>
+              <span>{t('Merchant')}</span>
               <MerchantSelector
                 value={merchantId ?? ''}
                 includeAllOption
@@ -68,33 +72,33 @@ export function ShippingRateCalculatorPage() {
               />
             </label>
             <label className="field">
-              <span>Order Type</span>
+              <span>{t('Order Type')}</span>
               <Select {...register('order_type')}>
-                <option value="">Default delivery</option>
-                <option value="delivery">delivery</option>
-                <option value="swap">swap</option>
-                <option value="return">return</option>
+                <option value="">{t('Default delivery', { defaultValue: 'Default delivery' })}</option>
+                <option value="delivery">{t('delivery', { defaultValue: 'delivery' })}</option>
+                <option value="swap">{t('swap', { defaultValue: 'swap' })}</option>
+                <option value="return">{t('return', { defaultValue: 'return' })}</option>
               </Select>
             </label>
             <GovernorateAreaSelector
               governorateId={governorateId}
               areaId={areaId}
-              governorateLabel="Delivery Governorate"
-              areaLabel="Delivery Area"
+              governorateLabel={t('Delivery Governorate', { defaultValue: 'Delivery Governorate' })}
+              areaLabel={t('Delivery Area', { defaultValue: 'Delivery Area' })}
               onChange={({ governorate_id, area_id }) => {
                 setValue('governorate_id', governorate_id, { shouldValidate: true })
                 setValue('area_id', area_id)
               }}
             />
-            {errors.governorate_id?.message ? <div className="form-error">{errors.governorate_id.message}</div> : null}
+            {errors.governorate_id?.message ? <div className="form-error">{t(errors.governorate_id.message)}</div> : null}
             {mutation.error ? <div className="form-error">{getApiErrorMessage(mutation.error)}</div> : null}
-            <div className="form-actions"><Button type="submit" loading={mutation.isPending}>Calculate</Button></div>
+            <div className="form-actions"><Button type="submit" loading={mutation.isPending}>{t('Calculate', { defaultValue: 'Calculate' })}</Button></div>
           </form>
         </CardContent>
       </Card>
       {mutation.data ? (
         <Card>
-          <CardHeader><CardTitle>Result</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t('Result', { defaultValue: 'Result' })}</CardTitle></CardHeader>
           <CardContent>
             <Input value={formatMoney(mutation.data.data.shipping_fee ?? mutation.data.data.delivery_fee ?? '0')} readOnly />
           </CardContent>

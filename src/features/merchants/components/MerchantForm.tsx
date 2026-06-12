@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
-import { Button } from '../../../shared/components/ui/Button'
+import { FormActionsBar } from '../../../shared/components/forms/FormActionsBar'
 import { Input } from '../../../shared/components/ui/Input'
 import { SearchableSelect } from '../../../shared/components/ui/SearchableSelect'
 import { Select } from '../../../shared/components/ui/Select'
@@ -28,6 +29,7 @@ type MerchantFormProps = {
   error?: unknown
   isSubmitting?: boolean
   pricingPlans?: PricingPlan[]
+  secondaryAction?: ReactNode
   submitLabel: string
   onSubmit: (values: MerchantFormValues) => void
 }
@@ -37,6 +39,7 @@ export function MerchantForm({
   error,
   isSubmitting = false,
   pricingPlans = [],
+  secondaryAction,
   onSubmit,
   submitLabel,
 }: MerchantFormProps) {
@@ -90,8 +93,8 @@ export function MerchantForm({
       <label className="field">
         <span>{t('Status')}</span>
         <Select {...register('status')}>
-          <option value="active">active</option>
-          <option value="inactive">inactive</option>
+          <option value="active">{t('active')}</option>
+          <option value="inactive">{t('inactive')}</option>
         </Select>
         <FieldError error={errors.status?.message ?? getFieldError('status')} />
       </label>
@@ -122,11 +125,11 @@ export function MerchantForm({
 
       {formError ? <div className="form-error">{formError}</div> : null}
 
-      <div className="form-actions">
-        <Button type="submit" loading={isSubmitting}>
-          {t(submitLabel, { defaultValue: submitLabel })}
-        </Button>
-      </div>
+      <FormActionsBar
+        isSubmitting={isSubmitting}
+        secondaryAction={secondaryAction}
+        submitLabel={submitLabel}
+      />
     </form>
   )
 }

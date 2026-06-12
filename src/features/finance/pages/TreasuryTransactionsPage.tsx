@@ -20,6 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Dialog } from '../../../shared/components/ui/Dialog'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { Select } from '../../../shared/components/ui/Select'
+import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
 import { formatDate } from '../../../shared/utils/formatters'
@@ -162,8 +163,16 @@ export function TreasuryTransactionsPage() {
                   {transactions.map((transaction) => (
                     <tr key={transaction.id}>
                       <TableCell>{transaction.treasury_account_name ?? `#${transaction.treasury_account_id ?? '-'}`}</TableCell>
-                      <TableCell>{pickDisplayLabel(transaction.direction ?? '-', transaction.direction_label)}</TableCell>
-                      <TableCell>{pickDisplayLabel(transaction.source_type ?? '-', transaction.source_type_label)}</TableCell>
+                      <TableCell>
+                        <StatusBadge value={transaction.direction}>
+                          {pickDisplayLabel(transaction.direction ?? '-', transaction.direction_label)}
+                        </StatusBadge>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge value={transaction.source_type}>
+                          {pickDisplayLabel(transaction.source_type ?? '-', transaction.source_type_label)}
+                        </StatusBadge>
+                      </TableCell>
                       <TableCell>{transaction.reference_number ?? '-'}</TableCell>
                       <TableCell><MoneyDisplay value={transaction.amount ?? null} /></TableCell>
                       <TableCell><MoneyDisplay value={transaction.balance_after ?? null} /></TableCell>
@@ -194,8 +203,22 @@ export function TreasuryTransactionsPage() {
           <div className="page-stack">
             <dl className="detail-list">
               <div><dt>{t('Account')}</dt><dd>{selectedTransaction.treasury_account_name ?? `#${selectedTransaction.treasury_account_id ?? '-'}`}</dd></div>
-              <div><dt>{t('Direction')}</dt><dd>{pickDisplayLabel(selectedTransaction.direction ?? '-', selectedTransaction.direction_label)}</dd></div>
-              <div><dt>{t('Source Type')}</dt><dd>{pickDisplayLabel(selectedTransaction.source_type ?? '-', selectedTransaction.source_type_label)}</dd></div>
+              <div>
+                <dt>{t('Direction')}</dt>
+                <dd>
+                  <StatusBadge value={selectedTransaction.direction}>
+                    {pickDisplayLabel(selectedTransaction.direction ?? '-', selectedTransaction.direction_label)}
+                  </StatusBadge>
+                </dd>
+              </div>
+              <div>
+                <dt>{t('Source Type')}</dt>
+                <dd>
+                  <StatusBadge value={selectedTransaction.source_type}>
+                    {pickDisplayLabel(selectedTransaction.source_type ?? '-', selectedTransaction.source_type_label)}
+                  </StatusBadge>
+                </dd>
+              </div>
               <div><dt>{t('Reference')}</dt><dd>{selectedTransaction.reference_number ?? '-'}</dd></div>
               <div><dt>{t('Amount')}</dt><dd><MoneyDisplay value={selectedTransaction.amount ?? null} /></dd></div>
               <div><dt>{t('Balance After')}</dt><dd><MoneyDisplay value={selectedTransaction.balance_after ?? null} /></dd></div>

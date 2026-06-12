@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -46,6 +47,7 @@ function CompletePackingTaskDialog({
   open: boolean
   defaultValues: CompletePackingTaskFormValues
 }) {
+  const { t } = useTranslation()
   const {
     register,
     handleSubmit,
@@ -61,42 +63,42 @@ function CompletePackingTaskDialog({
   }, [defaultValues, reset])
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Complete Packing Task</CardTitle>}>
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Complete Packing Task', { defaultValue: 'Complete Packing Task' })}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Package Weight</span>
+          <span>{t('Package Weight', { defaultValue: 'Package Weight' })}</span>
           <Input type="number" step="0.01" min="0" {...register('package_weight', { valueAsNumber: true, min: 0 })} />
           <FieldError error={errors.package_weight?.message ?? getFieldError('package_weight')} />
         </label>
         <label className="field">
-          <span>Package Length</span>
+          <span>{t('Package Length', { defaultValue: 'Package Length' })}</span>
           <Input type="number" step="0.01" min="0" {...register('package_length', { valueAsNumber: true, min: 0 })} />
           <FieldError error={errors.package_length?.message ?? getFieldError('package_length')} />
         </label>
         <label className="field">
-          <span>Package Width</span>
+          <span>{t('Package Width', { defaultValue: 'Package Width' })}</span>
           <Input type="number" step="0.01" min="0" {...register('package_width', { valueAsNumber: true, min: 0 })} />
           <FieldError error={errors.package_width?.message ?? getFieldError('package_width')} />
         </label>
         <label className="field">
-          <span>Package Height</span>
+          <span>{t('Package Height', { defaultValue: 'Package Height' })}</span>
           <Input type="number" step="0.01" min="0" {...register('package_height', { valueAsNumber: true, min: 0 })} />
           <FieldError error={errors.package_height?.message ?? getFieldError('package_height')} />
         </label>
         <label className="field">
-          <span>Packaging Fee</span>
+          <span>{t('Packaging Fee', { defaultValue: 'Packaging Fee' })}</span>
           <Input type="number" step="0.01" min="0" {...register('packaging_fee', { valueAsNumber: true, min: 0 })} />
           <FieldError error={errors.packaging_fee?.message ?? getFieldError('packaging_fee')} />
         </label>
         <label className="field">
-          <span>Notes</span>
+          <span>{t('Notes')}</span>
           <Input {...register('notes')} />
           <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
         </label>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={isSubmitting}>Complete Task</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="submit" loading={isSubmitting}>{t('Complete Task', { defaultValue: 'Complete Task' })}</Button>
         </div>
       </form>
     </Dialog>
@@ -104,6 +106,7 @@ function CompletePackingTaskDialog({
 }
 
 export function PackingTaskDetailsPage() {
+  const { t } = useTranslation()
   const { packingTaskId } = useParams()
   const queryClient = useQueryClient()
   const [completeOpen, setCompleteOpen] = useState(false)
@@ -133,20 +136,20 @@ export function PackingTaskDetailsPage() {
   })
 
   if (query.isLoading) {
-    return <LoadingState title="Loading packing task" />
+    return <LoadingState title={t('Loading packing task', { defaultValue: 'Loading packing task' })} />
   }
 
   if (query.isError && isApiNotFound(query.error)) {
     return (
       <NotFoundState
-        title="Packing task not found"
-        description="No packing task with this ID was returned by the warehouse API."
+        title={t('Packing task not found', { defaultValue: 'Packing task not found' })}
+        description={t('No packing task with this ID was returned by the warehouse API.', { defaultValue: 'No packing task with this ID was returned by the warehouse API.' })}
       />
     )
   }
 
   if (query.isError || !query.data) {
-    return <ErrorState title="Unable to load packing task" message={getApiErrorMessage(query.error)} onRetry={() => void query.refetch()} />
+    return <ErrorState title={t('Unable to load packing task', { defaultValue: 'Unable to load packing task' })} message={getApiErrorMessage(query.error)} onRetry={() => void query.refetch()} />
   }
 
   const task = query.data.data
@@ -155,19 +158,19 @@ export function PackingTaskDetailsPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title={task.packing_number ?? task.packing_task_number ?? `Packing Task #${task.id}`}
-        description="Detail data is loaded from the documented packing task detail endpoint."
+        title={task.packing_number ?? task.packing_task_number ?? t('Packing Task #{{id}}', { id: task.id, defaultValue: `Packing Task #${task.id}` })}
+        description={t('Detail data is loaded from the documented packing task detail endpoint.', { defaultValue: 'Detail data is loaded from the documented packing task detail endpoint.' })}
         actions={(
           <div className="page-header__button-row">
             <Can permission={PERMISSIONS.PACKING_TASKS_COMPLETE}>
               {canComplete ? (
                 <Button type="button" variant="secondary" onClick={() => setCompleteOpen(true)}>
-                  Complete Task
+                  {t('Complete Task', { defaultValue: 'Complete Task' })}
                 </Button>
               ) : null}
             </Can>
             <Link className="ui-link-reset" to={adminPath('/warehouse/packing-tasks')}>
-              <Button variant="secondary">Back</Button>
+              <Button variant="secondary">{t('Back')}</Button>
             </Link>
           </div>
         )}
@@ -178,36 +181,36 @@ export function PackingTaskDetailsPage() {
       <div className="details-grid">
         <Card className="detail-card">
           <CardHeader>
-            <CardTitle>Overview</CardTitle>
-            <CardDescription>Packing task references and completion state.</CardDescription>
+            <CardTitle>{t('Overview')}</CardTitle>
+            <CardDescription>{t('Packing task references and completion state.', { defaultValue: 'Packing task references and completion state.' })}</CardDescription>
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
-              <div><dt>Status</dt><dd><StatusBadge value={task.status ?? 'pending'} /></dd></div>
-              <div><dt>Picking List</dt><dd>{task.picking_number_ref ?? task.picking_list_id ?? '-'}</dd></div>
-              <div><dt>Order</dt><dd>{task.order_number ?? task.order_id ?? '-'}</dd></div>
-              <div><dt>Shipment</dt><dd>{task.shipment_number ?? task.shipment_id ?? '-'}</dd></div>
-              <div><dt>Merchant</dt><dd>{task.merchant_name ?? '-'}</dd></div>
-              <div><dt>Packed By</dt><dd>{task.packed_by_name ?? '-'}</dd></div>
-              <div><dt>Packed At</dt><dd>{task.packed_at ? formatDate(task.packed_at) : '-'}</dd></div>
-              <div><dt>Created At</dt><dd>{formatDate(task.created_at)}</dd></div>
+              <div><dt>{t('Status')}</dt><dd><StatusBadge value={task.status ?? 'pending'} /></dd></div>
+              <div><dt>{t('Picking List', { defaultValue: 'Picking List' })}</dt><dd>{task.picking_number_ref ?? task.picking_list_id ?? '-'}</dd></div>
+              <div><dt>{t('Order')}</dt><dd>{task.order_number ?? task.order_id ?? '-'}</dd></div>
+              <div><dt>{t('Shipment')}</dt><dd>{task.shipment_number ?? task.shipment_id ?? '-'}</dd></div>
+              <div><dt>{t('Merchant')}</dt><dd>{task.merchant_name ?? '-'}</dd></div>
+              <div><dt>{t('Packed By', { defaultValue: 'Packed By' })}</dt><dd>{task.packed_by_name ?? '-'}</dd></div>
+              <div><dt>{t('Packed At', { defaultValue: 'Packed At' })}</dt><dd>{task.packed_at ? formatDate(task.packed_at) : '-'}</dd></div>
+              <div><dt>{t('Created At')}</dt><dd>{formatDate(task.created_at)}</dd></div>
             </dl>
           </CardContent>
         </Card>
 
         <Card className="detail-card">
           <CardHeader>
-            <CardTitle>Package</CardTitle>
-            <CardDescription>Dimensions and packaging fee returned by the API.</CardDescription>
+            <CardTitle>{t('Package', { defaultValue: 'Package' })}</CardTitle>
+            <CardDescription>{t('Dimensions and packaging fee returned by the API.', { defaultValue: 'Dimensions and packaging fee returned by the API.' })}</CardDescription>
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
-              <div><dt>Weight</dt><dd>{task.package_weight ?? '-'}</dd></div>
-              <div><dt>Length</dt><dd>{task.package_length ?? '-'}</dd></div>
-              <div><dt>Width</dt><dd>{task.package_width ?? '-'}</dd></div>
-              <div><dt>Height</dt><dd>{task.package_height ?? '-'}</dd></div>
-              <div><dt>Packaging Fee</dt><dd><MoneyDisplay value={task.packaging_fee ?? null} /></dd></div>
-              <div><dt>Notes</dt><dd>{task.notes ?? '-'}</dd></div>
+              <div><dt>{t('Weight')}</dt><dd>{task.package_weight ?? '-'}</dd></div>
+              <div><dt>{t('Length')}</dt><dd>{task.package_length ?? '-'}</dd></div>
+              <div><dt>{t('Width')}</dt><dd>{task.package_width ?? '-'}</dd></div>
+              <div><dt>{t('Height')}</dt><dd>{task.package_height ?? '-'}</dd></div>
+              <div><dt>{t('Packaging Fee', { defaultValue: 'Packaging Fee' })}</dt><dd><MoneyDisplay value={task.packaging_fee ?? null} /></dd></div>
+              <div><dt>{t('Notes')}</dt><dd>{task.notes ?? '-'}</dd></div>
             </dl>
           </CardContent>
         </Card>

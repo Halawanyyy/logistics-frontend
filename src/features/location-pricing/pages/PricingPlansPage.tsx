@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { deletePricingPlan, deletePricingPlanRate, listPricingPlanRates, listPricingPlans } from '../api/location-pricing.api'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { EmptyState } from '../../../shared/components/feedback/EmptyState'
@@ -18,6 +19,7 @@ import { Table, TableCell, TableContainer, TableHead } from '../../../shared/com
 import { formatMoney } from '../../../shared/utils/formatters'
 
 export function PricingPlansPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const plansQuery = useQuery({ queryKey: ['pricing-plans'], queryFn: () => listPricingPlans() })
   const deleteMutation = useMutation({
@@ -26,7 +28,7 @@ export function PricingPlansPage() {
   })
 
   if (plansQuery.isLoading) {
-    return <LoadingState title="Loading pricing plans" />
+    return <LoadingState title={t('Loading pricing plans', { defaultValue: 'Loading pricing plans' })} />
   }
 
   if (plansQuery.isError || !plansQuery.data) {
@@ -36,34 +38,43 @@ export function PricingPlansPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Pricing Plans"
-        description="Merchant pricing tiers and assignment ranges."
+        title={t('Pricing Plans')}
+        description={t('Merchant pricing tiers and assignment ranges.', {
+          defaultValue: 'Merchant pricing tiers and assignment ranges.',
+        })}
         actions={
           <Can permission={PERMISSIONS.PRICING_PLANS_CREATE}>
             <Link className="ui-link-reset" to="/admin/pricing-plans/create">
-              <Button>Create Pricing Plan</Button>
+              <Button>{t('Create Pricing Plan', { defaultValue: 'Create Pricing Plan' })}</Button>
             </Link>
           </Can>
         }
       />
       <Card className="table-card">
         <CardHeader className="table-card__header">
-          <CardTitle>Pricing Plans</CardTitle>
-          <CardDescription>Used by merchants and order shipping fee lookup priority.</CardDescription>
+          <CardTitle>{t('Pricing Plans')}</CardTitle>
+          <CardDescription>{t('Used by merchants and order shipping fee lookup priority.', {
+            defaultValue: 'Used by merchants and order shipping fee lookup priority.',
+          })}</CardDescription>
         </CardHeader>
         <CardContent>
-          {!plansQuery.data.data.length ? <EmptyState title="No pricing plans found" description="The API returned no pricing plans." /> : null}
+          {!plansQuery.data.data.length ? (
+            <EmptyState
+              title={t('No pricing plans found', { defaultValue: 'No pricing plans found' })}
+              description={t('The API returned no pricing plans.', { defaultValue: 'The API returned no pricing plans.' })}
+            />
+          ) : null}
           {deleteMutation.error ? <div className="form-error">{getApiErrorMessage(deleteMutation.error)}</div> : null}
           {plansQuery.data.data.length ? (
             <TableContainer>
               <Table>
                 <thead>
                   <tr>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Merchants</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('Name')}</TableHead>
+                    <TableHead>{t('Code')}</TableHead>
+                    <TableHead>{t('Status')}</TableHead>
+                    <TableHead>{t('Merchants')}</TableHead>
+                    <TableHead>{t('Actions')}</TableHead>
                   </tr>
                 </thead>
                 <tbody>
@@ -77,7 +88,7 @@ export function PricingPlansPage() {
                         <div className="page-header__button-row">
                           <Can permission={PERMISSIONS.PRICING_PLANS_UPDATE}>
                             <Link className="ui-link-reset" to={`/admin/pricing-plans/${plan.id}/edit`}>
-                              <Button size="sm" variant="secondary">Edit</Button>
+                              <Button size="sm" variant="secondary">{t('Edit')}</Button>
                             </Link>
                           </Can>
                           <Can permission={PERMISSIONS.PRICING_PLANS_DELETE}>
@@ -86,12 +97,15 @@ export function PricingPlansPage() {
                               type="button"
                               variant="danger"
                               onClick={() => {
-                                if (window.confirm(`Delete pricing plan ${plan.name}?`)) {
+                                if (window.confirm(t('Delete pricing plan {{name}}?', {
+                                  name: plan.name,
+                                  defaultValue: `Delete pricing plan ${plan.name}?`,
+                                }))) {
                                   deleteMutation.mutate(plan.id)
                                 }
                               }}
                             >
-                              Delete
+                              {t('Delete')}
                             </Button>
                           </Can>
                         </div>
@@ -109,6 +123,7 @@ export function PricingPlansPage() {
 }
 
 export function PricingPlanRatesPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState({
     pricing_plan_id: '',
@@ -134,7 +149,7 @@ export function PricingPlanRatesPage() {
   })
 
   if (filteredRatesQuery.isLoading) {
-    return <LoadingState title="Loading pricing plan rates" />
+    return <LoadingState title={t('Loading pricing plan rates', { defaultValue: 'Loading pricing plan rates' })} />
   }
 
   if (filteredRatesQuery.isError || !filteredRatesQuery.data) {
@@ -146,12 +161,14 @@ export function PricingPlanRatesPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Pricing Plan Rates"
-        description="Area and governorate pricing rules for merchant plans."
+        title={t('Pricing Plan Rates')}
+        description={t('Area and governorate pricing rules for merchant plans.', {
+          defaultValue: 'Area and governorate pricing rules for merchant plans.',
+        })}
         actions={
           <Can permission={PERMISSIONS.PRICING_PLAN_RATES_CREATE}>
             <Link className="ui-link-reset" to="/admin/pricing-plan-rates/create">
-              <Button>Create Rate</Button>
+              <Button>{t('Create Rate', { defaultValue: 'Create Rate' })}</Button>
             </Link>
           </Can>
         }
@@ -159,14 +176,14 @@ export function PricingPlanRatesPage() {
       <Card variant="flat" className="dashboard-filter-card">
         <CardContent className="dashboard-filters">
           <label className="field">
-            <span>Pricing Plan</span>
+            <span>{t('Pricing Plan')}</span>
             <SearchableSelect
               value={filters.pricing_plan_id}
-              placeholder="All pricing plans"
-              searchPlaceholder="Search pricing plans..."
+              placeholder={t('All pricing plans', { defaultValue: 'All pricing plans' })}
+              searchPlaceholder={t('Search pricing plans...', { defaultValue: 'Search pricing plans...' })}
               onChange={(pricing_plan_id) => setFilters((current) => ({ ...current, pricing_plan_id }))}
               options={[
-                { label: 'All pricing plans', value: '' },
+                { label: t('All pricing plans', { defaultValue: 'All pricing plans' }), value: '' },
                 ...((plansQuery.data?.data ?? []).map((plan) => ({
                   label: plan.name,
                   value: String(plan.id),
@@ -179,8 +196,8 @@ export function PricingPlanRatesPage() {
             governorateId={filters.governorate_id}
             areaId={filters.area_id}
             includeAllOption
-            governorateLabel="Governorate"
-            areaLabel="Area"
+            governorateLabel={t('Governorate')}
+            areaLabel={t('Area')}
             onChange={({ governorate_id, area_id }) =>
               setFilters((current) => ({
                 ...current,
@@ -197,37 +214,46 @@ export function PricingPlanRatesPage() {
               variant="secondary"
               onClick={() => setFilters({ pricing_plan_id: '', governorate_id: '', area_id: '' })}
             >
-              Reset filters
+              {t('Reset filters')}
             </Button>
           </div>
         </CardContent>
       </Card>
       <Card className="table-card">
         <CardHeader className="table-card__header">
-          <CardTitle>Pricing Plan Rates</CardTitle>
-          <CardDescription>Governorate defaults and area overrides for each pricing plan.</CardDescription>
+          <CardTitle>{t('Pricing Plan Rates')}</CardTitle>
+          <CardDescription>{t('Governorate defaults and area overrides for each pricing plan.', {
+            defaultValue: 'Governorate defaults and area overrides for each pricing plan.',
+          })}</CardDescription>
         </CardHeader>
         <CardContent>
-          {!rates.length ? <EmptyState title="No plan rates found" description="No pricing plan rates matched the selected filters." /> : null}
+          {!rates.length ? (
+            <EmptyState
+              title={t('No plan rates found', { defaultValue: 'No plan rates found' })}
+              description={t('No pricing plan rates matched the selected filters.', {
+                defaultValue: 'No pricing plan rates matched the selected filters.',
+              })}
+            />
+          ) : null}
           {deleteMutation.error ? <div className="form-error">{getApiErrorMessage(deleteMutation.error)}</div> : null}
           {rates.length ? (
             <TableContainer>
               <Table>
                 <thead>
                   <tr>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Delivery</TableHead>
-                    <TableHead>Swap</TableHead>
-                    <TableHead>Return</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('Plan', { defaultValue: 'Plan' })}</TableHead>
+                    <TableHead>{t('Location', { defaultValue: 'Location' })}</TableHead>
+                    <TableHead>{t('Delivery', { defaultValue: 'Delivery' })}</TableHead>
+                    <TableHead>{t('Swap', { defaultValue: 'Swap' })}</TableHead>
+                    <TableHead>{t('Return', { defaultValue: 'Return' })}</TableHead>
+                    <TableHead>{t('Actions')}</TableHead>
                   </tr>
                 </thead>
                 <tbody>
                   {rates.map((rate) => (
                     <tr key={rate.id}>
                       <TableCell><Link className="table-link" to={`/admin/pricing-plan-rates/${rate.id}`}>{rate.pricing_plan_name}</Link></TableCell>
-                      <TableCell>{rate.area_name ? `${rate.governorate_name} / ${rate.area_name}` : `${rate.governorate_name} / default`}</TableCell>
+                      <TableCell>{rate.area_name ? `${rate.governorate_name} / ${rate.area_name}` : `${rate.governorate_name} / ${t('default', { defaultValue: 'default' })}`}</TableCell>
                       <TableCell>{formatMoney(rate.delivery_fee)}</TableCell>
                       <TableCell>{formatMoney(rate.swap_fee)}</TableCell>
                       <TableCell>{formatMoney(rate.return_fee)}</TableCell>
@@ -235,7 +261,7 @@ export function PricingPlanRatesPage() {
                         <div className="page-header__button-row">
                           <Can permission={PERMISSIONS.PRICING_PLAN_RATES_UPDATE}>
                             <Link className="ui-link-reset" to={`/admin/pricing-plan-rates/${rate.id}/edit`}>
-                              <Button size="sm" variant="secondary">Edit</Button>
+                              <Button size="sm" variant="secondary">{t('Edit')}</Button>
                             </Link>
                           </Can>
                           <Can permission={PERMISSIONS.PRICING_PLAN_RATES_DELETE}>
@@ -244,12 +270,14 @@ export function PricingPlanRatesPage() {
                               type="button"
                               variant="danger"
                               onClick={() => {
-                                if (window.confirm('Delete this pricing plan rate?')) {
+                                if (window.confirm(t('Delete this pricing plan rate?', {
+                                  defaultValue: 'Delete this pricing plan rate?',
+                                }))) {
                                   deleteMutation.mutate(rate.id)
                                 }
                               }}
                             >
-                              Delete
+                              {t('Delete')}
                             </Button>
                           </Can>
                         </div>

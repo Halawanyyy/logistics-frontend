@@ -262,22 +262,11 @@ function buildNavigationGroups(
       ],
     },
     {
-      id: 'orders',
-      label: t('Orders'),
-      kind: 'link' as const,
-      linkTo: adminPath('/orders'),
-      icon: Package,
+      id: 'orders-shipments',
+      label: t('Orders & Shipments', { defaultValue: 'Orders & Shipments' }),
+      collapsible: true,
       items: [
         ...pick(itemMap, adminPath('/orders'), Package),
-      ],
-    },
-    {
-      id: 'shipments',
-      label: t('Shipments'),
-      kind: 'link' as const,
-      linkTo: adminPath('/shipments'),
-      icon: Truck,
-      items: [
         ...pick(itemMap, adminPath('/shipments'), Truck),
       ],
     },

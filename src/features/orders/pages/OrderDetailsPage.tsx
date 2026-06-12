@@ -48,9 +48,11 @@ import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
+import { useLocale } from '../../../shared/i18n/useLocale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
 import { useAuthStore } from '../../auth/store/auth.store'
+import { getOrderPrintableLabelDocument } from '../utils/orderLabel'
 
 const reserveStockSchema = z.object({
   warehouse_id: z.number().min(1, 'Warehouse is required.'),
@@ -195,6 +197,7 @@ function ReserveStockDialog({
 
 export function OrderDetailsPage() {
   const { t } = useTranslation()
+  const { locale } = useLocale()
   const { orderId } = useParams()
   const user = useAuthStore((state) => state.user)
   const [reserveOpen, setReserveOpen] = useState(false)
@@ -369,11 +372,19 @@ export function OrderDetailsPage() {
                 </Button>
               </Can>
             ) : null}
-            {canCreateShipment ? (
+            {!isShipmentCreated ? (
               <Can permission={PERMISSIONS.ORDERS_CREATE_SHIPMENT}>
                 <Button
                   variant="secondary"
                   loading={createShipmentMutation.isPending}
+                  disabled={!canCreateShipment}
+                  title={
+                    !canCreateShipment
+                      ? shipmentBlockedByWarehouseFlow
+                        ? t('Awaiting warehouse fulfillment before shipment can be created.', { defaultValue: 'Awaiting warehouse fulfillment before shipment can be created.' })
+                        : t('Order must be confirmed and approved to create a shipment.', { defaultValue: 'Order must be confirmed and approved to create a shipment.' })
+                      : undefined
+                  }
                   onClick={() => createShipmentMutation.mutate()}
                 >
                   {t('Create Shipment')}
@@ -382,7 +393,14 @@ export function OrderDetailsPage() {
             ) : null}
             <LabelDocumentDialog
               defaultFormat="html"
-              fetchDocument={(options) => getOrderLabel(order.id, options)}
+              fetchDocument={(options) => getOrderPrintableLabelDocument({
+                fetchDocument: (requestOptions) => getOrderLabel(order.id, requestOptions),
+                locale,
+                options,
+                order,
+                t,
+              })}
+              formats={['html', 'pdf']}
               title={t('Order Label - {{orderNumber}}', {
                 orderNumber: order.order_number,
                 defaultValue: `Order Label - ${order.order_number}`,
@@ -459,8 +477,22 @@ export function OrderDetailsPage() {
                 </dd>
               </div>
               <div><dt>{t('Order Type', { defaultValue: 'Order Type' })}</dt><dd>{order.order_type ?? '-'}</dd></div>
-              <div><dt>{t('Fulfillment Type', { defaultValue: 'Fulfillment Type' })}</dt><dd>{pickDisplayLabel(order.fulfillment_type, order.fulfillment_type_label)}</dd></div>
-              <div><dt>{t('Payment Type', { defaultValue: 'Payment Type' })}</dt><dd>{pickDisplayLabel(order.payment_type, order.payment_type_label)}</dd></div>
+              <div>
+                <dt>{t('Fulfillment Type', { defaultValue: 'Fulfillment Type' })}</dt>
+                <dd>
+                  <StatusBadge value={order.fulfillment_type}>
+                    {pickDisplayLabel(order.fulfillment_type, order.fulfillment_type_label)}
+                  </StatusBadge>
+                </dd>
+              </div>
+              <div>
+                <dt>{t('Payment Type', { defaultValue: 'Payment Type' })}</dt>
+                <dd>
+                  <StatusBadge value={order.payment_type}>
+                    {pickDisplayLabel(order.payment_type, order.payment_type_label)}
+                  </StatusBadge>
+                </dd>
+              </div>
               <div>
                 <dt>{t('Warehouse Fulfillment', { defaultValue: 'Warehouse Fulfillment' })}</dt>
                 <dd>

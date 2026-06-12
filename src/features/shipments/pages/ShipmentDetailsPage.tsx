@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { z } from 'zod'
+import { useTranslation } from 'react-i18next'
 import { getOrder } from '../../orders/api/orders.api'
 import { getShipmentLabel, getShipmentWaybill } from '../../../shared/api/labels.api'
 import {
@@ -46,6 +47,7 @@ import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
+import { useLocale } from '../../../shared/i18n/useLocale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
 import { listWarehouseProducts } from '../../warehouse/api/warehouse.api'
@@ -53,6 +55,15 @@ import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
 import { NotFoundState } from '../../../shared/components/states/NotFoundState'
 import { PrintView } from '../../../shared/components/print/PrintView'
 import { useAuthStore } from '../../auth/store/auth.store'
+import { getShipmentPrintableLabelDocument } from '../utils/shipmentLabel'
+
+function logShipmentLabelEntry(message: string, details?: Record<string, unknown>) {
+  if (!import.meta.env.DEV || typeof console === 'undefined') {
+    return
+  }
+
+  console.info('[shipment-label]', message, details ?? {})
+}
 
 const shipmentStatuses: ShipmentStatus[] = [
   'pending_pickup',
@@ -134,6 +145,7 @@ function UpdateStatusDialog({
   open: boolean
   currentStatus: ShipmentStatus
 }) {
+  const { t } = useTranslation()
   const { formError, getFieldError } = useFormApiErrors(error)
   const {
     register,
@@ -145,29 +157,29 @@ function UpdateStatusDialog({
   })
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Update Status</CardTitle>}>
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Update Status', { defaultValue: 'Update Status' })}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Status</span>
+          <span>{t('Status')}</span>
           <Select {...register('status')}>
             {manualShipmentStatuses.map((status) => (
-              <option key={status} value={status}>{status}</option>
+              <option key={status} value={status}>{pickDisplayLabel(status, t(status, { defaultValue: status }))}</option>
             ))}
           </Select>
           <FieldError error={errors.status?.message ?? getFieldError('status')} />
         </label>
         <label className="field">
-          <span>Notes</span>
+          <span>{t('Notes')}</span>
           <Input {...register('notes')} />
           <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
         </label>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            Update Status
+            {t('Update Status', { defaultValue: 'Update Status' })}
           </Button>
         </div>
       </form>
@@ -190,6 +202,7 @@ function AssignDriverDialog({
   open: boolean
   currentDriverId?: number | null
 }) {
+  const { t } = useTranslation()
   const { formError, getFieldError } = useFormApiErrors(error)
   const {
     setValue,
@@ -202,10 +215,10 @@ function AssignDriverDialog({
   })
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Assign Driver</CardTitle>}>
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Assign Driver', { defaultValue: 'Assign Driver' })}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Driver</span>
+          <span>{t('Driver', { defaultValue: 'Driver' })}</span>
           <DriverSelector
             value={watch('driver_id') ? String(watch('driver_id')) : ''}
             onChange={(driverId) => setValue('driver_id', driverId ? Number(driverId) : 0, { shouldValidate: true })}
@@ -215,10 +228,10 @@ function AssignDriverDialog({
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            Assign Driver
+            {t('Assign Driver', { defaultValue: 'Assign Driver' })}
           </Button>
         </div>
       </form>
@@ -239,6 +252,7 @@ function DeliveryAttemptDialog({
   onSubmit: (values: DeliveryAttemptFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const { formError, getFieldError } = useFormApiErrors(error)
   const {
     register,
@@ -256,44 +270,44 @@ function DeliveryAttemptDialog({
   })
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Add Delivery Attempt</CardTitle>}>
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Add Delivery Attempt', { defaultValue: 'Add Delivery Attempt' })}</CardTitle>}>
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Result</span>
+          <span>{t('Result', { defaultValue: 'Result' })}</span>
           <Select {...register('result')}>
             {deliveryResultOptions.map((result) => (
-              <option key={result} value={result}>{result}</option>
+              <option key={result} value={result}>{t(result, { defaultValue: result })}</option>
             ))}
           </Select>
           <FieldError error={errors.result?.message ?? getFieldError('result')} />
         </label>
         <label className="field">
-          <span>Reason</span>
+          <span>{t('Reason', { defaultValue: 'Reason' })}</span>
           <Input {...register('reason')} />
           <FieldError error={errors.reason?.message ?? getFieldError('reason')} />
         </label>
         <label className="field">
-          <span>Notes</span>
+          <span>{t('Notes')}</span>
           <Input {...register('notes')} />
           <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
         </label>
         <label className="field">
-          <span>Next Action</span>
+          <span>{t('Next Action', { defaultValue: 'Next Action' })}</span>
           <Input {...register('next_action')} />
           <FieldError error={errors.next_action?.message ?? getFieldError('next_action')} />
         </label>
         <label className="field">
-          <span>Next Attempt Date</span>
+          <span>{t('Next Attempt Date', { defaultValue: 'Next Attempt Date' })}</span>
           <Input type="datetime-local" {...register('next_attempt_date')} />
           <FieldError error={errors.next_attempt_date?.message ?? getFieldError('next_attempt_date')} />
         </label>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            Add Attempt
+            {t('Add Attempt', { defaultValue: 'Add Attempt' })}
           </Button>
         </div>
       </form>
@@ -318,6 +332,7 @@ function ShipmentPrintDialog({
   onSubmit: (values: PrintShipmentListFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const { formError, getFieldError } = useFormApiErrors(error)
   const {
     register,
@@ -341,36 +356,38 @@ function ShipmentPrintDialog({
   }, [initialDate, initialStatus, open, reset])
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Load Print View</CardTitle>} variant="small">
+    <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Load Print View', { defaultValue: 'Load Print View' })}</CardTitle>} variant="small">
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label className="field">
-          <span>Print Date</span>
+          <span>{t('Print Date', { defaultValue: 'Print Date' })}</span>
           <Input
             type="date"
-            {...register('date', { required: 'Print date is required.' })}
+            {...register('date', { required: t('Print date is required.', { defaultValue: 'Print date is required.' }) })}
           />
           <FieldError error={errors.date?.message ?? getFieldError('date')} />
         </label>
         <label className="field">
-          <span>Status</span>
+          <span>{t('Status')}</span>
           <Select {...register('status')}>
-            <option value="">All statuses</option>
+            <option value="">{t('All statuses')}</option>
             {shipmentStatuses.map((status) => (
-              <option key={status} value={status}>{status}</option>
+              <option key={status} value={status}>{pickDisplayLabel(status, t(status, { defaultValue: status }))}</option>
             ))}
           </Select>
           <FieldError error={errors.status?.message ?? getFieldError('status')} />
         </label>
         <p className="table-meta">
-          Driver and delivery location filters are taken from this shipment when available.
+          {t('Driver and delivery location filters are taken from this shipment when available.', {
+            defaultValue: 'Driver and delivery location filters are taken from this shipment when available.',
+          })}
         </p>
         {formError ? <div className="form-error">{formError}</div> : null}
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            Load Print View
+            {t('Load Print View', { defaultValue: 'Load Print View' })}
           </Button>
         </div>
       </form>
@@ -404,6 +421,7 @@ function CompleteDeliveryDialog({
     damaged_quantity?: number
   }>
 }) {
+  const { t } = useTranslation()
   const { formError, getFieldError } = useFormApiErrors(error)
   const remainingItems = useMemo(
     () => orderItems.map((item) => ({
@@ -459,20 +477,24 @@ function CompleteDeliveryDialog({
   }, [open, remainingItems, reset])
 
   return (
-    <Dialog open={open} onClose={onClose} title={<CardTitle>Complete Delivery</CardTitle>}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={<CardTitle>{t('Complete Delivery', { defaultValue: 'Complete Delivery' })}</CardTitle>}
+    >
       {remainingItems.length ? (
         <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
           <label className="field">
-            <span>Shipment Status</span>
+            <span>{t('Shipment Status', { defaultValue: 'Shipment Status' })}</span>
             <Select {...register('shipment_status')}>
-              <option value="delivered">delivered</option>
-              <option value="partially_delivered">partially_delivered</option>
-              <option value="failed">failed</option>
+              <option value="delivered">{t('delivered', { defaultValue: 'delivered' })}</option>
+              <option value="partially_delivered">{t('partially_delivered', { defaultValue: 'partially_delivered' })}</option>
+              <option value="failed">{t('failed', { defaultValue: 'failed' })}</option>
             </Select>
             <FieldError error={errors.shipment_status?.message ?? getFieldError('shipment_status')} />
           </label>
           <label className="field">
-            <span>Notes</span>
+            <span>{t('Notes')}</span>
             <Input {...register('notes')} />
             <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
           </label>
@@ -487,29 +509,29 @@ function CompleteDeliveryDialog({
                 <div className="order-item-row" key={field.id}>
                   <input type="hidden" {...register(`items.${index}.order_item_id`, { valueAsNumber: true })} />
                   <label className="field">
-                    <span>Product</span>
+                    <span>{t('Product')}</span>
                     <Input value={orderItem.product_name} disabled />
                   </label>
                   <label className="field">
-                    <span>Ordered</span>
+                    <span>{t('Ordered', { defaultValue: 'Ordered' })}</span>
                     <Input value={String(orderItem.quantity)} disabled />
                   </label>
                   <label className="field">
-                    <span>Remaining</span>
+                    <span>{t('Remaining', { defaultValue: 'Remaining' })}</span>
                     <Input value={String(orderItem.remaining)} disabled />
                   </label>
                   <label className="field">
-                    <span>Result</span>
+                    <span>{t('Result', { defaultValue: 'Result' })}</span>
                     <Select {...register(`items.${index}.result_status`)}>
-                      <option value="delivered">delivered</option>
-                      <option value="returned">returned</option>
-                      <option value="damaged">damaged</option>
-                      <option value="cancelled">cancelled</option>
+                      <option value="delivered">{t('delivered', { defaultValue: 'delivered' })}</option>
+                      <option value="returned">{t('returned', { defaultValue: 'returned' })}</option>
+                      <option value="damaged">{t('damaged', { defaultValue: 'damaged' })}</option>
+                      <option value="cancelled">{t('cancelled', { defaultValue: 'cancelled' })}</option>
                     </Select>
                     <FieldError error={errors.items?.[index]?.result_status?.message ?? getFieldError(`items.${index}.result_status`)} />
                   </label>
                   <label className="field">
-                    <span>Quantity</span>
+                    <span>{t('Quantity')}</span>
                     <Input
                       type="number"
                       {...register(`items.${index}.quantity`, {
@@ -530,9 +552,9 @@ function CompleteDeliveryDialog({
                   {showReturnCondition ? (
                     <>
                       <label className="field">
-                        <span>Warehouse Product</span>
+                        <span>{t('Warehouse Product', { defaultValue: 'Warehouse Product' })}</span>
                         <Select {...register(`items.${index}.warehouse_product_id`, { valueAsNumber: true })}>
-                          <option value={0}>Select product</option>
+                          <option value={0}>{t('Select product', { defaultValue: 'Select product' })}</option>
                           {(warehouseProductsQuery.data?.data ?? []).map((product) => (
                             <option key={product.id} value={product.id}>
                               {product.name} ({product.sku})
@@ -542,23 +564,23 @@ function CompleteDeliveryDialog({
                         <FieldError error={errors.items?.[index]?.warehouse_product_id?.message ?? getFieldError(`items.${index}.warehouse_product_id`)} />
                       </label>
                       <label className="field">
-                        <span>Return Condition</span>
+                        <span>{t('Return Condition', { defaultValue: 'Return Condition' })}</span>
                         <Select
                           {...register(`items.${index}.return_condition`, {
                             validate: (value) => (showReturnCondition && !value ? 'Return condition is required.' : true),
                           })}
                         >
-                          <option value="">Select condition</option>
-                          <option value="sellable">sellable</option>
-                          <option value="damaged">damaged</option>
-                          <option value="disposed">disposed</option>
+                          <option value="">{t('Select condition', { defaultValue: 'Select condition' })}</option>
+                          <option value="sellable">{t('sellable', { defaultValue: 'sellable' })}</option>
+                          <option value="damaged">{t('damaged', { defaultValue: 'damaged' })}</option>
+                          <option value="disposed">{t('disposed', { defaultValue: 'disposed' })}</option>
                         </Select>
                         <FieldError error={errors.items?.[index]?.return_condition?.message ?? getFieldError(`items.${index}.return_condition`)} />
                       </label>
                     </>
                   ) : null}
                   <label className="field">
-                    <span>Notes</span>
+                    <span>{t('Notes')}</span>
                     <Input {...register(`items.${index}.notes`)} />
                     <FieldError error={errors.items?.[index]?.notes?.message ?? getFieldError(`items.${index}.notes`)} />
                   </label>
@@ -570,17 +592,19 @@ function CompleteDeliveryDialog({
           {formError ? <div className="form-error">{formError}</div> : null}
           <div className="form-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button type="submit" loading={isSubmitting}>
-              Complete Delivery
+              {t('Complete Delivery', { defaultValue: 'Complete Delivery' })}
             </Button>
           </div>
         </form>
       ) : (
         <EmptyState
-          title="No remaining order items"
-          description="All order items already have completed delivery counters, so there is nothing left to complete here."
+          title={t('No remaining order items', { defaultValue: 'No remaining order items' })}
+          description={t('All order items already have completed delivery counters, so there is nothing left to complete here.', {
+            defaultValue: 'All order items already have completed delivery counters, so there is nothing left to complete here.',
+          })}
         />
       )}
     </Dialog>
@@ -588,12 +612,15 @@ function CompleteDeliveryDialog({
 }
 
 export function ShipmentDetailsPage() {
+  const { t } = useTranslation()
+  const { locale } = useLocale()
   const { shipmentId } = useParams()
   const user = useAuthStore((state) => state.user)
   const [statusOpen, setStatusOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [completeDeliveryOpen, setCompleteDeliveryOpen] = useState(false)
   const [deliveryAttemptOpen, setDeliveryAttemptOpen] = useState(false)
+  const [shipmentLabelOpen, setShipmentLabelOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
   const [printData, setPrintData] = useState<ShipmentPrintListResponse['data'] | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
@@ -635,7 +662,7 @@ export function ShipmentDetailsPage() {
     mutationFn: (values: StatusFormValues) => updateShipmentStatus(shipmentId!, values),
     onSuccess: async () => {
       setStatusOpen(false)
-      setSuccessMessage('Shipment status updated successfully.')
+      setSuccessMessage(t('Shipment status updated successfully.', { defaultValue: 'Shipment status updated successfully.' }))
       await invalidateShipment()
     },
   })
@@ -643,7 +670,7 @@ export function ShipmentDetailsPage() {
     mutationFn: (values: AssignDriverFormValues) => assignShipmentDriver(shipmentId!, values),
     onSuccess: async () => {
       setAssignOpen(false)
-      setSuccessMessage('Driver assigned successfully.')
+      setSuccessMessage(t('Driver assigned successfully.', { defaultValue: 'Driver assigned successfully.' }))
       await invalidateShipment()
     },
   })
@@ -664,7 +691,7 @@ export function ShipmentDetailsPage() {
     }),
     onSuccess: async () => {
       setCompleteDeliveryOpen(false)
-      setSuccessMessage('Delivery completed successfully.')
+      setSuccessMessage(t('Delivery completed successfully.', { defaultValue: 'Delivery completed successfully.' }))
       await invalidateShipment()
     },
   })
@@ -683,7 +710,7 @@ export function ShipmentDetailsPage() {
     },
     onSuccess: async () => {
       setDeliveryAttemptOpen(false)
-      setSuccessMessage('Delivery attempt recorded successfully.')
+      setSuccessMessage(t('Delivery attempt recorded successfully.', { defaultValue: 'Delivery attempt recorded successfully.' }))
       await invalidateShipment()
     },
   })
@@ -697,8 +724,10 @@ export function ShipmentDetailsPage() {
   if (query.isLoading) {
     return (
       <LoadingState
-        title="Loading shipment"
-        description="Fetching shipment details and status history from the API."
+        title={t('Loading shipment', { defaultValue: 'Loading shipment' })}
+        description={t('Fetching shipment details and status history from the API.', {
+          defaultValue: 'Fetching shipment details and status history from the API.',
+        })}
       />
     )
   }
@@ -706,8 +735,10 @@ export function ShipmentDetailsPage() {
   if (query.isError && isApiNotFound(query.error)) {
     return (
       <NotFoundState
-        title="Shipment not found"
-        description="This shipment could not be found in the shipments API."
+        title={t('Shipment not found', { defaultValue: 'Shipment not found' })}
+        description={t('This shipment could not be found in the shipments API.', {
+          defaultValue: 'This shipment could not be found in the shipments API.',
+        })}
       />
     )
   }
@@ -733,57 +764,71 @@ export function ShipmentDetailsPage() {
     ?? shipment.created_at.slice(0, 10)
 
   return (
-    <section className="page-section">
+    <section className="page-section report-surface">
       <PageHeader
         title={shipment.shipment_number}
-        description={`Shipment created from order #${shipment.order_number ?? shipment.order_id}.`}
+        description={t('Shipment created from order #{{orderNumber}}.', {
+          orderNumber: shipment.order_number ?? shipment.order_id,
+          defaultValue: `Shipment created from order #${shipment.order_number ?? shipment.order_id}.`,
+        })}
         actions={
           <div className="page-header__button-row">
             <Can permission={PERMISSIONS.SHIPMENTS_UPDATE_STATUS}>
               {canAssignDriver ? (
                 <Button variant="secondary" onClick={() => setStatusOpen(true)}>
-                  Update Status
+                  {t('Update Status', { defaultValue: 'Update Status' })}
                 </Button>
               ) : null}
             </Can>
             <Can permission={PERMISSIONS.SHIPMENTS_ASSIGN_DRIVER}>
               {canAssignDriver ? (
                 <Button variant="secondary" onClick={() => setAssignOpen(true)}>
-                  Assign Driver
+                  {t('Assign Driver', { defaultValue: 'Assign Driver' })}
                 </Button>
               ) : null}
             </Can>
             <Can permission={PERMISSIONS.DELIVERY_ATTEMPTS_CREATE}>
               <Button variant="secondary" onClick={() => setDeliveryAttemptOpen(true)}>
-                Add Delivery Attempt
+                {t('Add Delivery Attempt', { defaultValue: 'Add Delivery Attempt' })}
               </Button>
             </Can>
             <Can permission={PERMISSIONS.SHIPMENTS_UPDATE_STATUS}>
               {canCompleteDelivery ? (
                 <Button variant="secondary" onClick={() => setCompleteDeliveryOpen(true)}>
-                  Complete Delivery
+                  {t('Complete Delivery', { defaultValue: 'Complete Delivery' })}
                 </Button>
               ) : null}
             </Can>
             <Can permission={PERMISSIONS.SHIPMENTS_PRINT}>
               <Button variant="secondary" onClick={() => setPrintOpen(true)} loading={printMutation.isPending}>
-                Load Print View
+                {t('Load Print View', { defaultValue: 'Load Print View' })}
               </Button>
             </Can>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                logShipmentLabelEntry('ShipmentDetailsPage label action clicked', {
+                  shipmentId: shipment.id,
+                  shipmentNumber: shipment.shipment_number,
+                })
+                setShipmentLabelOpen(true)
+              }}
+            >
+              {t('Label', { defaultValue: 'Label' })}
+            </Button>
             <LabelDocumentDialog
               defaultFormat="html"
-              fetchDocument={(options) => getShipmentLabel(shipment.id, options)}
-              title={`Shipment Label - ${shipment.shipment_number}`}
-              triggerLabel="Label"
-            />
-            <LabelDocumentDialog
-              defaultFormat="html"
+              formats={['html', 'pdf']}
               fetchDocument={(options) => getShipmentWaybill(shipment.id, options)}
-              title={`Shipment Waybill - ${shipment.shipment_number}`}
-              triggerLabel="Waybill"
+              title={t('Shipment Waybill - {{shipmentNumber}}', {
+                shipmentNumber: shipment.shipment_number,
+                defaultValue: `Shipment Waybill - ${shipment.shipment_number}`,
+              })}
+              triggerLabel={t('Waybill', { defaultValue: 'Waybill' })}
             />
             <Link className="ui-link-reset" to={adminPath('/shipments')}>
-              <Button variant="secondary">Back to shipments</Button>
+              <Button variant="secondary">{t('Back to shipments', { defaultValue: 'Back to shipments' })}</Button>
             </Link>
           </div>
         }
@@ -799,47 +844,65 @@ export function ShipmentDetailsPage() {
       <div className="details-grid">
         <Card className="detail-card">
           <CardHeader>
-            <CardTitle>Overview</CardTitle>
-            <CardDescription>Shipment summary, customer, order type, and collection values.</CardDescription>
+            <CardTitle>{t('Overview', { defaultValue: 'Overview' })}</CardTitle>
+            <CardDescription>{t('Shipment summary, customer, order type, and collection values.', {
+              defaultValue: 'Shipment summary, customer, order type, and collection values.',
+            })}</CardDescription>
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
-              <div><dt>Merchant</dt><dd>{shipment.merchant_name}</dd></div>
-              <div><dt>Customer</dt><dd>{shipment.customer_name}</dd></div>
-              <div><dt>Phone</dt><dd>{shipment.customer_phone}</dd></div>
+              <div><dt>{t('Merchant')}</dt><dd>{shipment.merchant_name}</dd></div>
+              <div><dt>{t('Customer')}</dt><dd>{shipment.customer_name}</dd></div>
+              <div><dt>{t('Phone')}</dt><dd>{shipment.customer_phone}</dd></div>
               <div>
-                <dt>Status</dt>
+                <dt>{t('Status')}</dt>
                 <dd>
                   <StatusBadge value={shipment.status}>
                     {pickDisplayLabel(shipment.status, shipment.status_label)}
                   </StatusBadge>
                 </dd>
               </div>
-              <div><dt>Order Type</dt><dd>{shipment.order_type ?? '-'}</dd></div>
-              <div><dt>Fulfillment Type</dt><dd>{shipment.fulfillment_type ?? '-'}</dd></div>
-              <div><dt>Payment Type</dt><dd>{pickDisplayLabel(shipment.payment_type, shipment.payment_type_label)}</dd></div>
-              <div><dt>Assigned Driver</dt><dd>{shipment.assigned_driver_name ?? '-'}</dd></div>
-              <div><dt>COD Amount</dt><dd><MoneyDisplay value={shipment.cod_amount} /></dd></div>
-              <div><dt>Delivered COD Amount</dt><dd><MoneyDisplay value={shipment.delivered_cod_amount ?? null} /></dd></div>
-              <div><dt>Shipping Fee</dt><dd><MoneyDisplay value={shipment.shipping_fee} /></dd></div>
-              <div><dt>Created At</dt><dd>{formatDate(shipment.created_at)}</dd></div>
+              <div><dt>{t('Order Type', { defaultValue: 'Order Type' })}</dt><dd>{shipment.order_type ?? '-'}</dd></div>
+              <div>
+                <dt>{t('Fulfillment Type', { defaultValue: 'Fulfillment Type' })}</dt>
+                <dd>
+                  <StatusBadge value={shipment.fulfillment_type}>
+                    {pickDisplayLabel(shipment.fulfillment_type, null)}
+                  </StatusBadge>
+                </dd>
+              </div>
+              <div>
+                <dt>{t('Payment Type', { defaultValue: 'Payment Type' })}</dt>
+                <dd>
+                  <StatusBadge value={shipment.payment_type}>
+                    {pickDisplayLabel(shipment.payment_type, shipment.payment_type_label)}
+                  </StatusBadge>
+                </dd>
+              </div>
+              <div><dt>{t('Assigned Driver', { defaultValue: 'Assigned Driver' })}</dt><dd>{shipment.assigned_driver_name ?? '-'}</dd></div>
+              <div><dt>{t('COD Amount', { defaultValue: 'COD Amount' })}</dt><dd><MoneyDisplay value={shipment.cod_amount} /></dd></div>
+              <div><dt>{t('Delivered COD Amount', { defaultValue: 'Delivered COD Amount' })}</dt><dd><MoneyDisplay value={shipment.delivered_cod_amount ?? null} /></dd></div>
+              <div><dt>{t('Shipping Fee', { defaultValue: 'Shipping Fee' })}</dt><dd><MoneyDisplay value={shipment.shipping_fee} /></dd></div>
+              <div><dt>{t('Created At', { defaultValue: 'Created At' })}</dt><dd>{formatDate(shipment.created_at)}</dd></div>
             </dl>
           </CardContent>
         </Card>
 
         <Card className="detail-card">
           <CardHeader>
-            <CardTitle>Delivery</CardTitle>
-            <CardDescription>Delivery destination and tracking notes.</CardDescription>
+            <CardTitle>{t('Delivery', { defaultValue: 'Delivery' })}</CardTitle>
+            <CardDescription>{t('Delivery destination and tracking notes.', {
+              defaultValue: 'Delivery destination and tracking notes.',
+            })}</CardDescription>
           </CardHeader>
           <CardContent>
             <dl className="detail-list">
-              <div><dt>Governorate</dt><dd>{shipment.delivery_governorate_name}</dd></div>
-              <div><dt>Area</dt><dd>{shipment.delivery_area_name ?? '-'}</dd></div>
-              <div><dt>Address</dt><dd>{shipment.delivery_address}</dd></div>
-              <div><dt>Tracking Notes</dt><dd>{shipment.tracking_notes ?? '-'}</dd></div>
+              <div><dt>{t('Governorate')}</dt><dd>{shipment.delivery_governorate_name}</dd></div>
+              <div><dt>{t('Area')}</dt><dd>{shipment.delivery_area_name ?? '-'}</dd></div>
+              <div><dt>{t('Address')}</dt><dd>{shipment.delivery_address}</dd></div>
+              <div><dt>{t('Tracking Notes', { defaultValue: 'Tracking Notes' })}</dt><dd>{shipment.tracking_notes ?? '-'}</dd></div>
               <div>
-                <dt>Order</dt>
+                <dt>{t('Order', { defaultValue: 'Order' })}</dt>
                 <dd>
                   <Link className="table-link" to={adminPath(`/orders/${shipment.order_id}`)}>
                     {shipment.order_number ?? `#${shipment.order_id}`}
@@ -847,7 +910,7 @@ export function ShipmentDetailsPage() {
                 </dd>
               </div>
               <div>
-                <dt>Public Tracking</dt>
+                <dt>{t('Public Tracking', { defaultValue: 'Public Tracking' })}</dt>
                 <dd>{`/track/${shipment.shipment_number}`}</dd>
               </div>
             </dl>
@@ -857,18 +920,20 @@ export function ShipmentDetailsPage() {
 
       <Card className="table-card">
         <CardHeader className="section-title-row">
-          <CardTitle>Status History</CardTitle>
-          <CardDescription>Chronological history returned by the shipment API.</CardDescription>
+          <CardTitle>{t('Status History', { defaultValue: 'Status History' })}</CardTitle>
+          <CardDescription>{t('Chronological history returned by the shipment API.', {
+            defaultValue: 'Chronological history returned by the shipment API.',
+          })}</CardDescription>
         </CardHeader>
         <CardContent>
           <TableContainer>
             <Table variant="compact">
               <thead>
                 <tr>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead>Changed By</TableHead>
-                  <TableHead>Changed At</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
+                  <TableHead>{t('Notes')}</TableHead>
+                  <TableHead>{t('Changed By', { defaultValue: 'Changed By' })}</TableHead>
+                  <TableHead>{t('Changed At', { defaultValue: 'Changed At' })}</TableHead>
                 </tr>
               </thead>
               <tbody>
@@ -890,39 +955,46 @@ export function ShipmentDetailsPage() {
         <Card className="table-card">
           <CardHeader className="section-title-row">
             <div>
-              <CardTitle>Delivery Attempts</CardTitle>
-              <CardDescription>Driver attempts linked to this shipment.</CardDescription>
+              <CardTitle>{t('Delivery Attempts', { defaultValue: 'Delivery Attempts' })}</CardTitle>
+              <CardDescription>{t('Driver attempts linked to this shipment.', {
+                defaultValue: 'Driver attempts linked to this shipment.',
+              })}</CardDescription>
             </div>
             <Can permission={PERMISSIONS.DELIVERY_ATTEMPTS_CREATE}>
               <Button variant="secondary" onClick={() => setDeliveryAttemptOpen(true)}>
-                Add Delivery Attempt
+                {t('Add Delivery Attempt', { defaultValue: 'Add Delivery Attempt' })}
               </Button>
             </Can>
           </CardHeader>
           <CardContent>
-            {attemptsQuery.isLoading ? <LoadingState title="Loading delivery attempts" /> : null}
+            {attemptsQuery.isLoading ? <LoadingState title={t('Loading delivery attempts', { defaultValue: 'Loading delivery attempts' })} /> : null}
             {attemptsQuery.isError ? (
               <ErrorState
-                title="Unable to load delivery attempts"
+                title={t('Unable to load delivery attempts', { defaultValue: 'Unable to load delivery attempts' })}
                 message={getApiErrorMessage(attemptsQuery.error)}
                 onRetry={() => void attemptsQuery.refetch()}
               />
             ) : null}
             {!attemptsQuery.isLoading && !attemptsQuery.isError && !(attemptsQuery.data?.data.length) ? (
-              <EmptyState title="No delivery attempts" description="No delivery attempts have been recorded for this shipment." />
+              <EmptyState
+                title={t('No delivery attempts', { defaultValue: 'No delivery attempts' })}
+                description={t('No delivery attempts have been recorded for this shipment.', {
+                  defaultValue: 'No delivery attempts have been recorded for this shipment.',
+                })}
+              />
             ) : null}
             {attemptsQuery.data?.data.length ? (
               <TableContainer>
                 <Table variant="compact">
                   <thead>
                     <tr>
-                      <TableHead>Attempt #</TableHead>
-                      <TableHead>Driver</TableHead>
-                      <TableHead>Result</TableHead>
-                      <TableHead>Reason</TableHead>
-                      <TableHead>Next Action</TableHead>
-                      <TableHead>Next Attempt</TableHead>
-                      <TableHead>Created</TableHead>
+                      <TableHead>{t('Attempt #', { defaultValue: 'Attempt #' })}</TableHead>
+                      <TableHead>{t('Driver', { defaultValue: 'Driver' })}</TableHead>
+                      <TableHead>{t('Result', { defaultValue: 'Result' })}</TableHead>
+                      <TableHead>{t('Reason', { defaultValue: 'Reason' })}</TableHead>
+                      <TableHead>{t('Next Action', { defaultValue: 'Next Action' })}</TableHead>
+                      <TableHead>{t('Next Attempt', { defaultValue: 'Next Attempt' })}</TableHead>
+                      <TableHead>{t('Created', { defaultValue: 'Created' })}</TableHead>
                     </tr>
                   </thead>
                   <tbody>
@@ -930,7 +1002,11 @@ export function ShipmentDetailsPage() {
                       <tr key={attempt.id}>
                         <TableCell>{attempt.attempt_number}</TableCell>
                         <TableCell>{attempt.driver_name ?? '-'}</TableCell>
-                        <TableCell>{attempt.result}</TableCell>
+                        <TableCell>
+                          <StatusBadge value={attempt.result}>
+                            {attempt.result}
+                          </StatusBadge>
+                        </TableCell>
                         <TableCell>{attempt.reason}</TableCell>
                         <TableCell>
                           {attempt.next_action ?? '-'}
@@ -951,13 +1027,15 @@ export function ShipmentDetailsPage() {
       <Card className="table-card">
         <CardHeader className="section-title-row">
           <div>
-            <CardTitle>Complete Delivery</CardTitle>
-            <CardDescription>Item-level delivery results and returned/damaged warehouse handling.</CardDescription>
+            <CardTitle>{t('Complete Delivery', { defaultValue: 'Complete Delivery' })}</CardTitle>
+            <CardDescription>{t('Item-level delivery results and returned/damaged warehouse handling.', {
+              defaultValue: 'Item-level delivery results and returned/damaged warehouse handling.',
+            })}</CardDescription>
           </div>
           <Can permission={PERMISSIONS.SHIPMENTS_UPDATE_STATUS}>
             <ApprovalActionButtons
               complete={{
-                label: 'Complete Delivery',
+                label: t('Complete Delivery', { defaultValue: 'Complete Delivery' }),
                 onClick: () => setCompleteDeliveryOpen(true),
                 disabled: !canCompleteDelivery || !orderItems.length,
               }}
@@ -967,21 +1045,25 @@ export function ShipmentDetailsPage() {
         <CardContent>
           {orderQuery.isLoading ? (
             <LoadingState
-              title="Loading order items"
-              description="Fetching the linked order items for item-level delivery completion."
+              title={t('Loading order items', { defaultValue: 'Loading order items' })}
+              description={t('Fetching the linked order items for item-level delivery completion.', {
+                defaultValue: 'Fetching the linked order items for item-level delivery completion.',
+              })}
             />
           ) : null}
           {orderQuery.isError ? (
             <ErrorState
-              title="Unable to load linked order items"
+              title={t('Unable to load linked order items', { defaultValue: 'Unable to load linked order items' })}
               message={getApiErrorMessage(orderQuery.error)}
               onRetry={() => void orderQuery.refetch()}
             />
           ) : null}
           {!orderQuery.isLoading && !orderQuery.isError && !orderItems.length ? (
             <EmptyState
-              title="No order items available"
-              description="The linked order did not return items for item-level delivery completion."
+              title={t('No order items available', { defaultValue: 'No order items available' })}
+              description={t('The linked order did not return items for item-level delivery completion.', {
+                defaultValue: 'The linked order did not return items for item-level delivery completion.',
+              })}
             />
           ) : null}
           {shipment.item_results?.length ? (
@@ -989,21 +1071,31 @@ export function ShipmentDetailsPage() {
               <Table variant="compact">
                 <thead>
                   <tr>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Result</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Return Condition</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead>{t('Product')}</TableHead>
+                    <TableHead>{t('Result', { defaultValue: 'Result' })}</TableHead>
+                    <TableHead>{t('Quantity')}</TableHead>
+                    <TableHead>{t('Return Condition', { defaultValue: 'Return Condition' })}</TableHead>
+                    <TableHead>{t('Notes')}</TableHead>
+                    <TableHead>{t('Created', { defaultValue: 'Created' })}</TableHead>
                   </tr>
                 </thead>
                 <tbody>
                   {shipment.item_results.map((result) => (
                     <tr key={result.id}>
                       <TableCell>{result.product_name}</TableCell>
-                      <TableCell>{result.result_status}</TableCell>
+                      <TableCell>
+                        <StatusBadge value={result.result_status}>
+                          {result.result_status}
+                        </StatusBadge>
+                      </TableCell>
                       <TableCell>{result.quantity}</TableCell>
-                      <TableCell>{result.return_condition ?? '-'}</TableCell>
+                      <TableCell>
+                        {result.return_condition ? (
+                          <StatusBadge value={result.return_condition}>
+                            {result.return_condition}
+                          </StatusBadge>
+                        ) : '-'}
+                      </TableCell>
                       <TableCell>{result.notes ?? '-'}</TableCell>
                       <TableCell>{formatDate(result.created_at)}</TableCell>
                     </tr>
@@ -1014,8 +1106,10 @@ export function ShipmentDetailsPage() {
           ) : (
             !orderQuery.isLoading && !orderQuery.isError ? (
               <EmptyState
-                title="No item-level delivery results"
-                description="No complete-delivery item results have been recorded for this shipment yet."
+                title={t('No item-level delivery results', { defaultValue: 'No item-level delivery results' })}
+                description={t('No complete-delivery item results have been recorded for this shipment yet.', {
+                  defaultValue: 'No complete-delivery item results have been recorded for this shipment yet.',
+                })}
               />
             ) : null
           )}
@@ -1023,19 +1117,21 @@ export function ShipmentDetailsPage() {
       </Card>
 
       <Can permission={PERMISSIONS.AUDIT_LOGS_TIMELINE}>
-        {timelineQuery.isLoading ? <LoadingState title="Loading activity timeline" /> : null}
+        {timelineQuery.isLoading ? <LoadingState title={t('Loading activity timeline', { defaultValue: 'Loading activity timeline' })} /> : null}
         {timelineQuery.isError ? (
           <ErrorState
-            title="Unable to load shipment activity timeline"
+            title={t('Unable to load shipment activity timeline', { defaultValue: 'Unable to load shipment activity timeline' })}
             message={getApiErrorMessage(timelineQuery.error)}
             onRetry={() => void timelineQuery.refetch()}
           />
         ) : null}
         {!timelineQuery.isLoading && !timelineQuery.isError ? (
           <Timeline
-            title="Activity Timeline"
+            title={t('Activity Timeline', { defaultValue: 'Activity Timeline' })}
             items={timelineItems}
-            emptyDescription="No shipment activity timeline entries were returned."
+            emptyDescription={t('No shipment activity timeline entries were returned.', {
+              defaultValue: 'No shipment activity timeline entries were returned.',
+            })}
           />
         ) : null}
       </Can>
@@ -1045,34 +1141,36 @@ export function ShipmentDetailsPage() {
       </Can>
 
       {printData ? (
-        <PrintView title="Shipment Manifest">
+        <PrintView title={t('Shipment Manifest', { defaultValue: 'Shipment Manifest' })}>
           <Card>
             <CardHeader>
-              <CardTitle>Shipment Print View</CardTitle>
-              <CardDescription>Rendered from the documented shipment print-list response for the selected print date.</CardDescription>
+              <CardTitle>{t('Shipment Print View', { defaultValue: 'Shipment Print View' })}</CardTitle>
+              <CardDescription>{t('Rendered from the documented shipment print-list response for the selected print date.', {
+                defaultValue: 'Rendered from the documented shipment print-list response for the selected print date.',
+              })}</CardDescription>
             </CardHeader>
             <CardContent className="page-stack">
               <div className="stats-grid">
-                <StatTile label="Generated At" value={formatDate(printData.generated_at)} />
-                <StatTile label="Print Date" value={printData.filters.date} />
-                <StatTile label="Total Shipments" value={printData.summary.total_shipments} />
-                <StatTile label="Total COD" value={<MoneyDisplay value={printData.summary.total_cod_amount} />} />
-                <StatTile label="Total Shipping Fee" value={<MoneyDisplay value={printData.summary.total_shipping_fee} />} />
+                <StatTile label={t('Generated At', { defaultValue: 'Generated At' })} value={formatDate(printData.generated_at)} />
+                <StatTile label={t('Print Date', { defaultValue: 'Print Date' })} value={printData.filters.date} />
+                <StatTile label={t('Total Shipments', { defaultValue: 'Total Shipments' })} value={printData.summary.total_shipments} />
+                <StatTile label={t('Total COD', { defaultValue: 'Total COD' })} value={<MoneyDisplay value={printData.summary.total_cod_amount} />} />
+                <StatTile label={t('Total Shipping Fee', { defaultValue: 'Total Shipping Fee' })} value={<MoneyDisplay value={printData.summary.total_shipping_fee} />} />
               </div>
               <TableContainer>
                 <Table variant="compact">
                   <thead>
                     <tr>
-                      <TableHead>Shipment</TableHead>
-                      <TableHead>Merchant</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Governorate</TableHead>
-                      <TableHead>Area</TableHead>
-                      <TableHead>Address</TableHead>
-                      <TableHead>Driver</TableHead>
-                      <TableHead>Merchant Phone</TableHead>
-                      <TableHead>COD</TableHead>
+                      <TableHead>{t('Shipment', { defaultValue: 'Shipment' })}</TableHead>
+                      <TableHead>{t('Merchant')}</TableHead>
+                      <TableHead>{t('Customer')}</TableHead>
+                      <TableHead>{t('Phone')}</TableHead>
+                      <TableHead>{t('Governorate')}</TableHead>
+                      <TableHead>{t('Area')}</TableHead>
+                      <TableHead>{t('Address')}</TableHead>
+                      <TableHead>{t('Driver', { defaultValue: 'Driver' })}</TableHead>
+                      <TableHead>{t('Merchant Phone', { defaultValue: 'Merchant Phone' })}</TableHead>
+                      <TableHead>{t('COD')}</TableHead>
                     </tr>
                   </thead>
                   <tbody>
@@ -1138,6 +1236,32 @@ export function ShipmentDetailsPage() {
           setPrintOpen(false)
         }}
         open={printOpen}
+      />
+      <LabelDocumentDialog
+        defaultFormat="html"
+        fetchDocument={(options) => {
+          logShipmentLabelEntry('ShipmentDetailsPage label action invoked', {
+            shipmentId: shipment.id,
+            shipmentNumber: shipment.shipment_number,
+          })
+
+          return getShipmentPrintableLabelDocument({
+            fetchDocument: (requestOptions) => getShipmentLabel(shipment.id, requestOptions),
+            locale,
+            options,
+            shipment,
+            t,
+          })
+        }}
+        formats={['html', 'pdf']}
+        hideTrigger
+        onOpenChange={setShipmentLabelOpen}
+        open={shipmentLabelOpen}
+        title={t('Shipment Label - {{shipmentNumber}}', {
+          shipmentNumber: shipment.shipment_number,
+          defaultValue: `Shipment Label - ${shipment.shipment_number}`,
+        })}
+        triggerLabel={t('Label', { defaultValue: 'Label' })}
       />
       <CompleteDeliveryDialog
         error={completeDeliveryMutation.error}

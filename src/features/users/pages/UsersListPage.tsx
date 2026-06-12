@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { deleteUser, listUsers } from '../api/users.api'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
@@ -21,6 +21,7 @@ import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 
 export function UsersListPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [queryText, setQueryText] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
   const queryClient = useQueryClient()
@@ -132,16 +133,12 @@ export function UsersListPage() {
                     <DropdownMenu>
                       <DropdownTrigger>...</DropdownTrigger>
                       <DropdownContent>
-                        <DropdownItem>
-                          <Link className="table-link" to={`/admin/users/${user.id}`}>
-                            {t('View profile details')}
-                          </Link>
+                        <DropdownItem onClick={() => navigate(`/admin/users/${user.id}`)}>
+                          {t('View profile details')}
                         </DropdownItem>
                         <Can permission={PERMISSIONS.USERS_UPDATE}>
-                          <DropdownItem>
-                            <Link className="table-link" to={`/admin/users/${user.id}/edit`}>
-                              {t('Edit')}
-                            </Link>
+                          <DropdownItem onClick={() => navigate(`/admin/users/${user.id}/edit`)}>
+                            {t('Edit')}
                           </DropdownItem>
                         </Can>
                         <Can permission={PERMISSIONS.USERS_DELETE}>

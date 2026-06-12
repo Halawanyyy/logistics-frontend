@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { listAuditTimeline } from '../../../shared/api/audit.api'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { Attachments } from '../../../shared/components/attachments/Attachments'
@@ -56,6 +57,7 @@ const timelineTypeByKind: Partial<Record<FinanceKind, 'merchant_payout' | 'expen
 }
 
 export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
+  const { t } = useTranslation()
   const { recordId } = useParams()
   const entry = config[kind]
   const navigate = useNavigate()
@@ -87,7 +89,12 @@ export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
     },
   })
 
-  if (query.isLoading) return <LoadingState title={`Loading ${entry.title.toLowerCase()}`} />
+  if (query.isLoading) {
+    return <LoadingState title={t('Loading {{title}}', {
+      title: t(entry.title, { defaultValue: entry.title }).toLowerCase(),
+      defaultValue: `Loading ${entry.title.toLowerCase()}`,
+    })} />
+  }
   if (query.isError || !query.data) return <ErrorState message={getApiErrorMessage(query.error)} />
 
   const record = query.data.data as any
@@ -95,64 +102,134 @@ export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
   const timelineItems = (timelineQuery.data?.data ?? []).map((item: AuditLogItem) => ({
     id: item.id,
     title: `${item.event_type} - ${item.action}`,
-    subtitle: item.user?.name ?? 'System',
-    description: item.notes ?? 'No notes were recorded for this event.',
+    subtitle: item.user?.name ?? t('System'),
+    description: item.notes ?? t('No notes were recorded for this event.', {
+      defaultValue: 'No notes were recorded for this event.',
+    }),
     timestamp: item.created_at,
   }))
 
   return (
     <section className="page-section">
       <PageHeader
-        title={entry.title}
+        title={t(entry.title, { defaultValue: entry.title })}
         description={record.invoice_number ?? record.merchant_name ?? record.driver_name ?? record.category ?? `#${record.id}`}
-        actions={<div className="page-header__button-row"><Can permission={permissions.update}><Link className="ui-link-reset" to={`${entry.back}/${record.id}/edit`}><Button variant="secondary">Edit</Button></Link></Can>{kind === 'invoices' && permissions.download ? <Can permission={permissions.download}><Button variant="secondary" loading={downloadMutation.isPending} onClick={() => downloadMutation.mutate()}>Download</Button></Can> : null}<Can permission={permissions.remove}><Button variant="danger" loading={deleteMutation.isPending} onClick={() => { if (window.confirm('Delete this record?')) deleteMutation.mutate() }}>Delete</Button></Can><Link className="ui-link-reset" to={entry.back}><Button variant="secondary">Back</Button></Link></div>}
+        actions={(
+          <div className="page-header__button-row">
+            <Can permission={permissions.update}>
+              <Link className="ui-link-reset" to={`${entry.back}/${record.id}/edit`}>
+                <Button variant="secondary">{t('Edit')}</Button>
+              </Link>
+            </Can>
+            {kind === 'invoices' && permissions.download ? (
+              <Can permission={permissions.download}>
+                <Button variant="secondary" loading={downloadMutation.isPending} onClick={() => downloadMutation.mutate()}>
+                  {t('Download')}
+                </Button>
+              </Can>
+            ) : null}
+            <Can permission={permissions.remove}>
+              <Button
+                variant="danger"
+                loading={deleteMutation.isPending}
+                onClick={() => {
+                  if (window.confirm(t('Delete this record?', { defaultValue: 'Delete this record?' }))) {
+                    deleteMutation.mutate()
+                  }
+                }}
+              >
+                {t('Delete')}
+              </Button>
+            </Can>
+            <Link className="ui-link-reset" to={entry.back}>
+              <Button variant="secondary">{t('Back')}</Button>
+            </Link>
+          </div>
+        )}
       />
       {deleteMutation.error ? <div className="form-error">{getApiErrorMessage(deleteMutation.error)}</div> : null}
       {downloadMutation.error ? <div className="form-error">{getApiErrorMessage(downloadMutation.error)}</div> : null}
       <Card>
-        <CardHeader><CardTitle>Details</CardTitle></CardHeader>
-        <CardContent><dl className="detail-list">{Object.entries(record).filter(([, value]) => typeof value !== 'object').map(([key, value]) => <div key={key}><dt>{labelize(key)}</dt><dd>{formatValue(key, value)}</dd></div>)}</dl></CardContent>
+        <CardHeader><CardTitle>{t('Details')}</CardTitle></CardHeader>
+        <CardContent>
+          <dl className="detail-list">
+            {Object.entries(record)
+              .filter(([, value]) => typeof value !== 'object')
+              .map(([key, value]) => (
+                <div key={key}>
+                  <dt>{labelize(key, t)}</dt>
+                  <dd>{formatValue(key, value)}</dd>
+                </div>
+              ))}
+          </dl>
+        </CardContent>
       </Card>
       {kind === 'invoices' && previewQuery.data ? (
         <Card>
-          <CardHeader><CardTitle>Invoice Preview</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t('Invoice Preview', { defaultValue: 'Invoice Preview' })}</CardTitle></CardHeader>
           <CardContent>
             <div className="stats-grid">
-              <div className="insight-tile"><span className="eyebrow">Total COD</span><strong>{formatMoney(previewQuery.data.data.totals.total_cod)}</strong></div>
-              <div className="insight-tile"><span className="eyebrow">Shipping Fees</span><strong>{formatMoney(previewQuery.data.data.totals.total_shipping_fees)}</strong></div>
-              <div className="insight-tile"><span className="eyebrow">Warehouse Charges</span><strong>{formatMoney(previewQuery.data.data.totals.total_warehouse_charges)}</strong></div>
-              <div className="insight-tile"><span className="eyebrow">Payable</span><strong>{formatMoney(previewQuery.data.data.totals.total_payable)}</strong></div>
+              <div className="insight-tile"><span className="eyebrow">{t('Total COD', { defaultValue: 'Total COD' })}</span><strong>{formatMoney(previewQuery.data.data.totals.total_cod)}</strong></div>
+              <div className="insight-tile"><span className="eyebrow">{t('Shipping Fees', { defaultValue: 'Shipping Fees' })}</span><strong>{formatMoney(previewQuery.data.data.totals.total_shipping_fees)}</strong></div>
+              <div className="insight-tile"><span className="eyebrow">{t('Warehouse Charges', { defaultValue: 'Warehouse Charges' })}</span><strong>{formatMoney(previewQuery.data.data.totals.total_warehouse_charges)}</strong></div>
+              <div className="insight-tile"><span className="eyebrow">{t('Payable', { defaultValue: 'Payable' })}</span><strong>{formatMoney(previewQuery.data.data.totals.total_payable)}</strong></div>
             </div>
-            <TableContainer><Table variant="compact"><thead><tr><TableHead>Shipment</TableHead><TableHead>Customer</TableHead><TableHead>COD</TableHead><TableHead>Delivered</TableHead></tr></thead><tbody>{previewQuery.data.data.shipments.map((shipment) => <tr key={shipment.shipment_id}><TableCell>{shipment.shipment_number}</TableCell><TableCell>{shipment.customer_name}</TableCell><TableCell>{formatMoney(shipment.cod_amount)}</TableCell><TableCell>{formatDate(shipment.delivered_at)}</TableCell></tr>)}</tbody></Table></TableContainer>
+            <TableContainer>
+              <Table variant="compact">
+                <thead>
+                  <tr>
+                    <TableHead>{t('Shipment', { defaultValue: 'Shipment' })}</TableHead>
+                    <TableHead>{t('Customer')}</TableHead>
+                    <TableHead>{t('COD')}</TableHead>
+                    <TableHead>{t('Delivered', { defaultValue: 'Delivered' })}</TableHead>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewQuery.data.data.shipments.map((shipment) => (
+                    <tr key={shipment.shipment_id}>
+                      <TableCell>{shipment.shipment_number}</TableCell>
+                      <TableCell>{shipment.customer_name}</TableCell>
+                      <TableCell>{formatMoney(shipment.cod_amount)}</TableCell>
+                      <TableCell>{formatDate(shipment.delivered_at)}</TableCell>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableContainer>
           </CardContent>
         </Card>
       ) : null}
       <Can permission={PERMISSIONS.AUDIT_LOGS_TIMELINE}>
         {timelineType ? (
           <>
-            {timelineQuery.isLoading ? <LoadingState title="Loading activity timeline" /> : null}
+            {timelineQuery.isLoading ? <LoadingState title={t('Loading activity timeline', { defaultValue: 'Loading activity timeline' })} /> : null}
             {timelineQuery.isError ? (
               <ErrorState
-                title="Unable to load activity timeline"
+                title={t('Unable to load activity timeline', { defaultValue: 'Unable to load activity timeline' })}
                 message={getApiErrorMessage(timelineQuery.error)}
                 onRetry={() => void timelineQuery.refetch()}
               />
             ) : null}
             {!timelineQuery.isLoading && !timelineQuery.isError ? (
               <Timeline
-                title="Activity Timeline"
+                title={t('Activity Timeline')}
                 items={timelineItems}
-                emptyDescription={`No ${entry.title.toLowerCase()} activity timeline entries were returned.`}
+                emptyDescription={t('No {{title}} activity timeline entries were returned.', {
+                  title: t(entry.title, { defaultValue: entry.title }).toLowerCase(),
+                  defaultValue: `No ${entry.title.toLowerCase()} activity timeline entries were returned.`,
+                })}
               />
             ) : null}
           </>
         ) : (
           <Card>
-            <CardHeader><CardTitle>Activity Timeline</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t('Activity Timeline')}</CardTitle></CardHeader>
             <CardContent>
               <EmptyState
-                title="Timeline not available for this entity"
-                description="This finance entity does not have a documented audit timeline auditable type."
+                title={t('Timeline not available for this entity', { defaultValue: 'Timeline not available for this entity' })}
+                description={t('This finance entity does not have a documented audit timeline auditable type.', {
+                  defaultValue: 'This finance entity does not have a documented audit timeline auditable type.',
+                })}
               />
             </CardContent>
           </Card>
@@ -166,12 +243,28 @@ export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
 
 function formatValue(key: string, value: unknown) {
   if (value == null) return '-'
-  if (key === 'status') return <StatusBadge value={String(value)} />
+  if (
+    key === 'status'
+    || key === 'type'
+    || key === 'direction'
+    || key === 'source_type'
+    || key === 'transaction_type'
+    || key === 'payment_type'
+    || key === 'fulfillment_type'
+    || key === 'condition'
+    || key.endsWith('_status')
+  ) {
+    return <StatusBadge value={String(value)} />
+  }
   if (key.includes('amount') || key.includes('total')) return formatMoney(String(value))
   if (key.includes('_at') || key.includes('date')) return formatDate(String(value))
   return String(value)
 }
 
-function labelize(value: string) {
-  return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+function labelize(
+  value: string,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  const label = value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+  return t(label, { defaultValue: label })
 }
