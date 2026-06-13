@@ -104,11 +104,6 @@ export function RoleForm({
       <div className="form-section">
         <div className="section-title-row">
           <h3>{t('Permissions')}</h3>
-          <p className="table-meta">
-            {t('Search and assign permissions grouped by backend module.', {
-              defaultValue: 'Search and assign permissions grouped by backend module.',
-            })}
-          </p>
         </div>
         <PermissionMultiSelect
           disabled={defaultValues?.slug === 'super_admin'}

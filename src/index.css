@@ -896,7 +896,8 @@ select {
 
 .form-grid .form-actions,
 .form-grid .form-error,
-.form-grid .form-success {
+.form-grid .form-success,
+.form-grid .form-section {
   grid-column: 1 / -1;
 }
 
@@ -2786,6 +2787,23 @@ select {
   color: var(--content);
 }
 
+.permission-multi-select__global-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-elevated);
+}
+
+.permission-multi-select__chips-container {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  max-height: 8.5rem;
+  overflow-y: auto;
+  background: rgba(148, 163, 184, 0.04);
+}
+
 .permission-multi-select__groups {
   display: grid;
   gap: 0.75rem;
@@ -2804,6 +2822,27 @@ select {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.5rem;
+  margin: -0.5rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.15s ease;
+}
+
+.permission-multi-select__group-header:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.permission-multi-select__group-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.permission-multi-select__group-chevron {
+  color: var(--muted);
+  margin-top: 0.15rem;
 }
 
 .permission-multi-select__group-header h4 {
@@ -2813,14 +2852,7 @@ select {
 .permission-multi-select__group-actions {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.permission-multi-select__group-actions button {
-  border: 0;
-  background: transparent;
-  color: var(--brand);
-  padding: 0;
+  gap: 0.75rem;
 }
 
 .permission-multi-select__options {

@@ -1,4 +1,4 @@
-import { Check, Search, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GroupedPermissionsEntry } from '../types/role.types'
@@ -24,6 +24,7 @@ export function PermissionMultiSelect({
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -62,6 +63,12 @@ export function PermissionMultiSelect({
       }))
       .filter((group) => group.permissions.length > 0)
   }, [groups, query])
+
+  useEffect(() => {
+    if (query.trim()) {
+      setExpandedGroups(filteredGroups.map((g) => g.module))
+    }
+  }, [query, filteredGroups])
 
   useEffect(() => {
     if (!open) {
@@ -112,6 +119,16 @@ export function PermissionMultiSelect({
     updateSelection(value.filter((permissionId) => !permissionIds.includes(permissionId)))
   }
 
+  function selectAll() {
+    updateSelection(allPermissions.map((p) => p.id))
+  }
+
+  function toggleGroupExpansion(module: string) {
+    setExpandedGroups((prev) =>
+      prev.includes(module) ? prev.filter((m) => m !== module) : [...prev, module],
+    )
+  }
+
   function handleTriggerKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
     if (disabled) {
       return
@@ -155,29 +172,6 @@ export function PermissionMultiSelect({
         <span className="table-meta">{selectedPermissions.length}/{allPermissions.length}</span>
       </button>
 
-      {selectedPermissions.length ? (
-        <div className="permission-multi-select__chips">
-          {selectedPermissions.map((permission) => (
-            <button
-              key={permission.id}
-              className="permission-multi-select__chip"
-              type="button"
-              onClick={() => togglePermission(permission.id)}
-            >
-              <span>{permission.name}</span>
-              <X size={12} />
-            </button>
-          ))}
-          <button
-            className="permission-multi-select__clear"
-            type="button"
-            onClick={() => updateSelection([])}
-          >
-            {t('Clear all', { defaultValue: 'Clear all' })}
-          </button>
-        </div>
-      ) : null}
-
       {open ? (
         <div className="permission-multi-select__content" role="dialog" aria-label={t('Permission selector', { defaultValue: 'Permission selector' })}>
           <div className="permission-multi-select__search">
@@ -193,56 +187,111 @@ export function PermissionMultiSelect({
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
+
+          <div className="permission-multi-select__global-actions">
+            <button type="button" onClick={selectAll} className="ui-button ui-button--sm ui-button--primary">
+              {t('Select all', { defaultValue: 'Select all' })}
+            </button>
+            <button type="button" onClick={() => updateSelection([])} className="ui-button ui-button--sm ui-button--danger">
+              {t('Clear all', { defaultValue: 'Clear all' })}
+            </button>
+          </div>
+
+          {selectedPermissions.length > 0 ? (
+            <div className="permission-multi-select__chips-container">
+              <div className="permission-multi-select__chips">
+                {selectedPermissions.map((permission) => (
+                  <button
+                    key={permission.id}
+                    className="permission-multi-select__chip"
+                    type="button"
+                    onClick={() => togglePermission(permission.id)}
+                  >
+                    <span>{permission.name}</span>
+                    <X size={12} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="permission-multi-select__groups">
             {filteredGroups.length ? (
               filteredGroups.map((group) => {
                 const groupPermissionIds = group.permissions.map((permission) => permission.id)
                 const selectedInGroup = groupPermissionIds.filter((permissionId) => value.includes(permissionId)).length
+                const isExpanded = expandedGroups.includes(group.module)
 
                 return (
                   <section className="permission-multi-select__group" key={group.module}>
-                    <header className="permission-multi-select__group-header">
-                      <div>
-                        <h4>{group.module}</h4>
-                        <p className="table-meta">
-                          {t('{{count}} selected', {
-                            count: selectedInGroup,
-                            defaultValue: `${selectedInGroup} selected`,
-                          })}
-                        </p>
+                    <header 
+                      className="permission-multi-select__group-header"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => toggleGroupExpansion(group.module)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          toggleGroupExpansion(group.module)
+                        }
+                      }}
+                    >
+                      <div className="permission-multi-select__group-title">
+                        <div className="permission-multi-select__group-chevron">
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </div>
+                        <div>
+                          <h4>{group.module}</h4>
+                        </div>
                       </div>
                       <div className="permission-multi-select__group-actions">
-                        <button type="button" onClick={() => selectGroup(groupPermissionIds)}>
+                        <button 
+                          type="button" 
+                          className="ui-button ui-button--sm ui-button--primary"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            selectGroup(groupPermissionIds)
+                          }}
+                        >
                           {t('Select group', { defaultValue: 'Select group' })}
                         </button>
-                        <button type="button" onClick={() => clearGroup(groupPermissionIds)}>
+                        <button 
+                          type="button" 
+                          className="ui-button ui-button--sm ui-button--danger"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            clearGroup(groupPermissionIds)
+                          }}
+                        >
                           {t('Clear group', { defaultValue: 'Clear group' })}
                         </button>
                       </div>
                     </header>
-                    <div className="permission-multi-select__options">
-                      {group.permissions.map((permission) => {
-                        const isSelected = value.includes(permission.id)
+                    {isExpanded && (
+                      <div className="permission-multi-select__options">
+                        {group.permissions.map((permission) => {
+                          const isSelected = value.includes(permission.id)
 
-                        return (
-                          <button
-                            key={permission.id}
-                            className={cn(
-                              'permission-multi-select__option',
-                              isSelected && 'permission-multi-select__option--selected',
-                            )}
-                            type="button"
-                            onClick={() => togglePermission(permission.id)}
-                          >
-                            <div>
-                              <strong>{permission.name}</strong>
-                              <p className="table-meta">{permission.slug}</p>
-                            </div>
-                            {isSelected ? <Check size={14} /> : null}
-                          </button>
-                        )
-                      })}
-                    </div>
+                          return (
+                            <button
+                              key={permission.id}
+                              className={cn(
+                                'permission-multi-select__option',
+                                isSelected && 'permission-multi-select__option--selected',
+                              )}
+                              type="button"
+                              onClick={() => togglePermission(permission.id)}
+                            >
+                              <div>
+                                <strong>{permission.name}</strong>
+                                <p className="table-meta">{permission.slug}</p>
+                              </div>
+                              {isSelected ? <Check size={14} /> : null}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                   </section>
                 )
               })
