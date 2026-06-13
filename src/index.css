@@ -351,9 +351,8 @@ select {
   font-size: 0.78rem;
   font-weight: 600;
   line-height: 1.2;
-  overflow-wrap: anywhere;
   text-align: center;
-  white-space: normal;
+  white-space: nowrap;
 }
 
 .ui-badge--success {
@@ -491,6 +490,7 @@ select {
 .ui-table__container {
   overflow-x: auto;
   max-width: 100%;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 1.25rem;
   background: var(--surface);
@@ -510,7 +510,7 @@ select {
   text-align: left;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
 .ui-table__head {
@@ -3007,26 +3007,39 @@ select {
 
   .app-topbar {
     height: auto;
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
+    row-gap: 1rem;
+    padding: 1rem;
+  }
+
+  .app-topbar__intro {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .app-topbar__title {
+    display: none;
   }
 
   .app-topbar__actions {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
-  .app-topbar__intro,
-  .app-topbar__brand-chip,
-  .app-topbar__profile {
+  .app-topbar__brand-chip {
+    display: none;
+  }
+
+  .app-topbar__profile > div:last-child {
+    display: none;
+  }
+
+  .app-topbar__search-wrap {
+    order: 10;
     width: 100%;
   }
 
   .app-topbar__search {
-    width: 100%;
-  }
-
-  .app-topbar__search-wrap {
     width: 100%;
   }
 
