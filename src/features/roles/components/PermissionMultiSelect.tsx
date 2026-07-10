@@ -219,7 +219,6 @@ export function PermissionMultiSelect({
             {filteredGroups.length ? (
               filteredGroups.map((group) => {
                 const groupPermissionIds = group.permissions.map((permission) => permission.id)
-                const selectedInGroup = groupPermissionIds.filter((permissionId) => value.includes(permissionId)).length
                 const isExpanded = expandedGroups.includes(group.module)
 
                 return (

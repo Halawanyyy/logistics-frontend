@@ -43,13 +43,14 @@ import type {
   WarehouseCharge,
 } from '../../warehouse/types/warehouse.types'
 import {
-  MerchantActivityTimelinePanel,
+  
   MerchantIntegrationTokensPanel,
   MerchantInvoicesPanel,
   MerchantOrdersPanel,
   MerchantShipmentsPanel,
   MerchantWalletPanel,
 } from '../components/MerchantProfilePanels'
+import { MerchantShopPreviewPanel } from '../components/MerchantShopPreviewPanel'
 import { MerchantPortalUsersPanel } from '../components/MerchantPortalUsersPanel'
 import { Attachments } from '../../../shared/components/attachments/Attachments'
 
@@ -63,7 +64,8 @@ type MerchantTabId =
   | 'integration-tokens'
   | 'portal-users'
   | 'attachments'
-  | 'activity-timeline'
+  | 'shop-preview'
+  
 
 type MerchantTab = {
   id: MerchantTabId
@@ -417,7 +419,7 @@ export function MerchantDetailsPage() {
   const dateFilters = useMemo(() => compactDateFilters(overviewFilters), [overviewFilters])
   const requestedTab = searchParams.get('tab') as MerchantTabId | null
   const legacyTab = getLegacyTabAlias(location.pathname)
-  const canViewWallet = hasAnyPermission(user, [PERMISSIONS.MERCHANT_WALLET_VIEW, PERMISSIONS.FINANCE_VIEW])
+  const canViewWallet = hasPermission(user, PERMISSIONS.MERCHANT_WALLET_VIEW)
 
   const merchantQuery = useQuery({
     queryKey: ['merchants', merchantId],
@@ -432,18 +434,28 @@ export function MerchantDetailsPage() {
     {
       id: 'wallet',
       label: t('Wallet'),
-      allowed: canViewWallet,
+      allowed: hasPermission(user, PERMISSIONS.MERCHANT_WALLET_VIEW),
     },
-    { id: 'invoices', label: t('Invoices'), allowed: hasPermission(user, PERMISSIONS.INVOICES_VIEW) },
+    { id: 'invoices', label: t('Invoices'), allowed: hasPermission(user, PERMISSIONS.FINANCE_INVOICES_VIEW) },
     {
       id: 'warehouse',
       label: t('Warehouse'),
-      allowed: hasAnyPermission(user, [PERMISSIONS.INVENTORY_VIEW, PERMISSIONS.WAREHOUSE_CHARGES_VIEW]),
+      allowed: hasAnyPermission(user, [
+        PERMISSIONS.INVENTORY_VIEW,
+        PERMISSIONS.WAREHOUSE_PRODUCTS_VIEW,
+        PERMISSIONS.WAREHOUSE_CHARGES_VIEW,
+        PERMISSIONS.WAREHOUSE_RETURNS_VIEW,
+      ]),
     },
     {
       id: 'integration-tokens',
       label: t('Integration Tokens', { defaultValue: 'Integration Tokens' }),
       allowed: hasPermission(user, PERMISSIONS.MERCHANT_INTEGRATIONS_VIEW),
+    },
+    {
+      id: 'shop-preview',
+      label: t('Shop Preview', { defaultValue: 'Shop Preview' }),
+      allowed: hasPermission(user, PERMISSIONS.MERCHANT_SHOP_VIEW),
     },
     {
       id: 'portal-users',
@@ -455,17 +467,21 @@ export function MerchantDetailsPage() {
       label: t('Attachments'),
       allowed: hasPermission(user, PERMISSIONS.ATTACHMENTS_VIEW),
     },
-    {
-      id: 'activity-timeline',
-      label: t('Activity Timeline', { defaultValue: 'Activity Timeline' }),
-      allowed: hasPermission(user, PERMISSIONS.AUDIT_LOGS_TIMELINE),
-    },
+
+    
   ]
 
   const visibleTabs = allTabs.filter((tab) => tab.allowed)
   const currentTab = visibleTabs.find((tab) => tab.id === (requestedTab ?? legacyTab))?.id
     ?? visibleTabs[0]?.id
     ?? 'overview'
+
+  if (import.meta.env.DEV) {
+    const hiddenTabs = allTabs.filter((tab) => !tab.allowed).map((tab) => tab.id)
+    if (hiddenTabs.length > 0) {
+      console.debug('[Permissions Diagnostic] Merchant Profile Hidden Tabs:', hiddenTabs)
+    }
+  }
 
   const [dashboardQuery, financeQuery, inventoryQuery, movementsQuery, chargesQuery] = useQueries({
     queries: [
@@ -584,7 +600,8 @@ export function MerchantDetailsPage() {
       {currentTab === 'attachments' ? (
         <Attachments attachableType="merchants" attachableId={merchantId} />
       ) : null}
-      {currentTab === 'activity-timeline' ? <MerchantActivityTimelinePanel merchantId={merchantId} /> : null}
+      {currentTab === 'shop-preview' ? <MerchantShopPreviewPanel merchantId={merchantId} /> : null}
+      
     </section>
   )
 }

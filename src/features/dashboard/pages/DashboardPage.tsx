@@ -282,7 +282,7 @@ export function DashboardPage() {
 
       {dashboardSummaryQuery.isError ? (
         <ErrorState
-          title="Dashboard summary failed"
+          title={t('Dashboard summary failed', { defaultValue: 'Dashboard summary failed' })}
           message={getApiErrorMessage(dashboardSummaryQuery.error)}
           onRetry={() => void dashboardSummaryQuery.refetch()}
         />
@@ -290,7 +290,7 @@ export function DashboardPage() {
 
       {financeOverviewQuery.isError ? (
         <ErrorState
-          title="Finance overview failed"
+          title={t('Finance overview failed', { defaultValue: 'Finance overview failed' })}
           message={getApiErrorMessage(financeOverviewQuery.error)}
           onRetry={() => void financeOverviewQuery.refetch()}
         />
@@ -301,7 +301,7 @@ export function DashboardPage() {
       !dashboardSummaryQuery.isError &&
       !financeOverviewQuery.isError &&
       !hasDashboardData ? (
-        <EmptyState title="No dashboard data" description="The API returned no dashboard metrics." />
+        <EmptyState title={t('No dashboard data', { defaultValue: 'No dashboard data' })} description={t('The API returned no dashboard metrics.', { defaultValue: 'The API returned no dashboard metrics.' })} />
       ) : null}
 
       {hasDashboardData ? (

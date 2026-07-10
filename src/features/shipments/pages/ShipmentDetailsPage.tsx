@@ -23,7 +23,6 @@ import type {
   ShipmentItemResultStatus,
   ShipmentStatus,
 } from '../types/shipment.types'
-import { listAuditTimeline } from '../../../shared/api/audit.api'
 import { getApiErrorMessage, isApiNotFound } from '../../../shared/api/api-error'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
@@ -36,7 +35,6 @@ import { DriverSelector } from '../../../shared/components/selectors/DriverSelec
 import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../shared/components/states/LoadingState'
-import { Timeline } from '../../../shared/components/timeline/Timeline'
 import { Button } from '../../../shared/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
 import { Dialog } from '../../../shared/components/ui/Dialog'
@@ -626,8 +624,7 @@ export function ShipmentDetailsPage() {
   const [successMessage, setSuccessMessage] = useState('')
   const queryClient = useQueryClient()
   const canViewDeliveryAttempts = hasPermission(user, PERMISSIONS.DELIVERY_ATTEMPTS_VIEW)
-  const canViewTimeline = hasPermission(user, PERMISSIONS.AUDIT_LOGS_TIMELINE)
-  const query = useQuery({
+    const query = useQuery({
     queryKey: ['shipments', shipmentId],
     queryFn: () => getShipment(shipmentId!),
     enabled: Boolean(shipmentId),
@@ -643,12 +640,7 @@ export function ShipmentDetailsPage() {
     queryFn: () => listDeliveryAttempts({ shipment_id: shipmentId! }),
     enabled: Boolean(shipmentId) && canViewDeliveryAttempts,
   })
-  const timelineQuery = useQuery({
-    queryKey: ['shipments', shipmentId, 'timeline'],
-    queryFn: () => listAuditTimeline({ auditable_type: 'shipment', auditable_id: shipmentId! }),
-    enabled: Boolean(shipmentId) && canViewTimeline,
-  })
-
+  
   async function invalidateShipment() {
     await queryClient.invalidateQueries({ queryKey: ['shipments'] })
     await queryClient.invalidateQueries({ queryKey: ['shipments', shipmentId] })
@@ -752,13 +744,7 @@ export function ShipmentDetailsPage() {
   const orderItems = order?.items ?? []
   const canAssignDriver = !['delivered', 'cancelled'].includes(shipment.status)
   const canCompleteDelivery = !['delivered', 'partially_delivered', 'failed', 'cancelled', 'returned', 'returned_to_hub', 'returned_to_warehouse'].includes(shipment.status)
-  const timelineItems = (timelineQuery.data?.data ?? []).map((item) => ({
-    id: item.id,
-    title: `${item.event_type} - ${item.action}`,
-    subtitle: item.user?.name ?? 'System',
-    description: item.notes ?? 'No notes were recorded for this event.',
-    timestamp: item.created_at,
-  }))
+  
 
   const defaultPrintDate = shipment.histories[shipment.histories.length - 1]?.created_at?.slice(0, 10)
     ?? shipment.created_at.slice(0, 10)
@@ -931,16 +917,14 @@ export function ShipmentDetailsPage() {
               <thead>
                 <tr>
                   <TableHead>{t('Status')}</TableHead>
-                  <TableHead>{t('Notes')}</TableHead>
                   <TableHead>{t('Changed By', { defaultValue: 'Changed By' })}</TableHead>
                   <TableHead>{t('Changed At', { defaultValue: 'Changed At' })}</TableHead>
                 </tr>
               </thead>
               <tbody>
-                {shipment.histories.map((history) => (
+                {[...shipment.histories].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((history) => (
                   <tr key={history.id}>
                     <TableCell><StatusBadge value={history.status} /></TableCell>
-                    <TableCell>{history.notes ?? '-'}</TableCell>
                     <TableCell>{history.changed_by_name}</TableCell>
                     <TableCell>{formatDate(history.created_at)}</TableCell>
                   </tr>
@@ -1116,25 +1100,9 @@ export function ShipmentDetailsPage() {
         </CardContent>
       </Card>
 
-      <Can permission={PERMISSIONS.AUDIT_LOGS_TIMELINE}>
-        {timelineQuery.isLoading ? <LoadingState title={t('Loading activity timeline', { defaultValue: 'Loading activity timeline' })} /> : null}
-        {timelineQuery.isError ? (
-          <ErrorState
-            title={t('Unable to load shipment activity timeline', { defaultValue: 'Unable to load shipment activity timeline' })}
-            message={getApiErrorMessage(timelineQuery.error)}
-            onRetry={() => void timelineQuery.refetch()}
-          />
-        ) : null}
-        {!timelineQuery.isLoading && !timelineQuery.isError ? (
-          <Timeline
-            title={t('Activity Timeline', { defaultValue: 'Activity Timeline' })}
-            items={timelineItems}
-            emptyDescription={t('No shipment activity timeline entries were returned.', {
-              defaultValue: 'No shipment activity timeline entries were returned.',
-            })}
-          />
-        ) : null}
-      </Can>
+
+
+
 
       <Can permission={PERMISSIONS.ATTACHMENTS_VIEW}>
         <Attachments attachableType="shipments" attachableId={shipment.id} />

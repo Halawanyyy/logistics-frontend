@@ -336,7 +336,7 @@ export function WarehouseReceiptsPage() {
   const formMutation = receiptInForm?.id ? updateMutation : createMutation
 
   return (
-    <section className="page-section">
+    <section className="page-section page-section--with-sidebar">
       <PageHeader
         title={t('Warehouse Receipts')}
         description={t('Inbound merchant receipts, draft review, and stock-in confirmation.')}
@@ -347,12 +347,13 @@ export function WarehouseReceiptsPage() {
         }
       />
 
-      <Card variant="flat" className="dashboard-filter-card">
-        <CardHeader>
-          <CardTitle>{t('Filters')}</CardTitle>
-          <CardDescription>{t('Backend receipt filters for merchant, warehouse, status, number, and date range.')}</CardDescription>
-        </CardHeader>
-        <CardContent className="dashboard-filters">
+      <aside className="page-sidebar-filters">
+        <Card variant="flat" className="dashboard-filter-card">
+          <CardHeader>
+            <CardTitle>{t('Filters')}</CardTitle>
+            <CardDescription>{t('Backend receipt filters for merchant, warehouse, status, number, and date range.')}</CardDescription>
+          </CardHeader>
+          <CardContent className="dashboard-filters dashboard-filters--sidebar">
           <label className="field">
             <span>{t('Merchant')}</span>
             <MerchantSelector
@@ -396,7 +397,9 @@ export function WarehouseReceiptsPage() {
           </div>
         </CardContent>
       </Card>
+      </aside>
 
+      <main className="page-main-content">
       <Card className="table-card">
         <CardHeader className="table-card__header">
           <CardTitle>{t('Receipts')}</CardTitle>
@@ -505,6 +508,7 @@ export function WarehouseReceiptsPage() {
           }
         }}
       />
+      </main>
     </section>
   )
 }

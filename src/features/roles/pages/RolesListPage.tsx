@@ -41,12 +41,12 @@ export function RolesListPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Roles"
-        description="Internal roles and their grouped permissions."
+        title={t('Roles', { defaultValue: 'Roles' })}
+        description={t('Internal roles and their grouped permissions.', { defaultValue: 'Internal roles and their grouped permissions.' })}
         actions={
           <Can permission={PERMISSIONS.ROLES_CREATE}>
             <Link className="ui-link-reset" to="/admin/roles/create">
-              <Button>Create Role</Button>
+              <Button>{t('Create Role', { defaultValue: 'Create Role' })}</Button>
             </Link>
           </Can>
         }
@@ -58,13 +58,13 @@ export function RolesListPage() {
         </CardHeader>
         <CardContent>
           {deleteMutation.error ? <div className="form-error">{getApiErrorMessage(deleteMutation.error)}</div> : null}
-          {!roles.length ? <EmptyState title="No roles found" description="The API returned no roles." /> : null}
+          {!roles.length ? <EmptyState title={t('No roles found', { defaultValue: 'No roles found' })} description={t('The API returned no roles.', { defaultValue: 'The API returned no roles.' })} /> : null}
           {roles.length ? (
             <TableContainer>
               <Table>
                 <thead>
                   <tr>
-                    <TableHead>Name</TableHead>
+                    <TableHead>{t('Name', { defaultValue: 'Name' })}</TableHead>
                     <TableHead>{t('Slug')}</TableHead>
                     <TableHead>{t('Status')}</TableHead>
                     <TableHead>{t('Type')}</TableHead>

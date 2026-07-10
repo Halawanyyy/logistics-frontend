@@ -862,6 +862,21 @@ Global:
 - Manual build passed after the latest UI enhancement and responsive layout pass. Vite chunk-size warning remains as performance optimization, not a blocker.
 - Manual build also passed after the shared create/edit form layout migration. The same non-blocking Vite chunk-size warning remains.
 
+## P0 Company Catalog + Order Packaging Sync
+
+- [x] Company Catalog API client/types implemented for documented CRUD endpoints
+- [x] Company Catalog admin list page added at `/admin/company-catalog`
+- [x] Company Catalog create/edit pages added with existing form shell
+- [x] Company Catalog delete confirmation added from list actions
+- [x] Sidebar and router wired behind `company_catalog.*` permissions
+- [x] Order form payload supports `packaging_items[]`
+- [x] Order create/edit packaging UI added behind `requires_packaging`
+- [x] Packaging product selector limited to active `packaging_product` items
+- [x] Order details render `requires_packaging`, `package_notes`, `packaging_items`, and `total_packaging_fee`
+- [x] Localization strings added for Company Catalog + packaging flow
+- [x] `npm run build` passed
+- [ ] Manual browser smoke test performed
+
 ### Next Steps
 - Smoke test the dashboard, users, pricing, shipment print-list, finance reports, finance timelines, Warehouse group sidebar visibility, and Arabic/RTL rendering on older admin pages.
 

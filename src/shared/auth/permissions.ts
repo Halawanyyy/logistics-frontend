@@ -10,6 +10,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.ORDERS_VIEW,
     PERMISSIONS.ORDERS_CREATE,
     PERMISSIONS.ORDERS_UPDATE,
+    PERMISSIONS.ORDER_PACKAGING_VIEW,
+    PERMISSIONS.ORDER_PACKAGING_MANAGE,
     PERMISSIONS.SHIPMENTS_VIEW,
     PERMISSIONS.SHIPMENTS_CREATE,
     PERMISSIONS.SHIPMENTS_UPDATE_STATUS,
@@ -53,6 +55,13 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.WAREHOUSE_KPIS_VIEW,
     PERMISSIONS.MERCHANT_INBOUND_REQUESTS_VIEW,
     PERMISSIONS.MERCHANT_INBOUND_REQUESTS_MANAGE,
+    PERMISSIONS.COMPANY_CATALOG_VIEW,
+    PERMISSIONS.COMPANY_CATALOG_CREATE,
+    PERMISSIONS.COMPANY_CATALOG_UPDATE,
+    PERMISSIONS.COMPANY_CATALOG_DELETE,
+    PERMISSIONS.MERCHANT_SHOP_VIEW,
+    PERMISSIONS.ORDER_PACKAGING_VIEW,
+    PERMISSIONS.ORDER_PACKAGING_MANAGE,
     PERMISSIONS.ORDERS_RESERVE_STOCK,
     PERMISSIONS.ORDERS_RELEASE_STOCK,
     PERMISSIONS.ORDERS_FULFILL_WAREHOUSE,
@@ -78,11 +87,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.FINANCE_EXPENSES_APPROVE,
     PERMISSIONS.FINANCE_EXPENSES_REJECT,
     PERMISSIONS.FINANCE_EXPENSES_PAY,
-    PERMISSIONS.INVOICES_VIEW,
-    PERMISSIONS.INVOICES_CREATE,
-    PERMISSIONS.INVOICES_UPDATE,
-    PERMISSIONS.INVOICES_DELETE,
-    PERMISSIONS.INVOICES_DOWNLOAD,
+    PERMISSIONS.FINANCE_INVOICES_VIEW,
+    PERMISSIONS.FINANCE_INVOICES_CREATE,
+    PERMISSIONS.FINANCE_INVOICES_UPDATE,
+    PERMISSIONS.FINANCE_INVOICES_DELETE,
+    PERMISSIONS.FINANCE_INVOICES_DOWNLOAD,
     PERMISSIONS.FINANCE_TREASURY_VIEW,
     PERMISSIONS.FINANCE_TREASURY_CREATE,
     PERMISSIONS.FINANCE_TREASURY_UPDATE,
@@ -126,9 +135,8 @@ function getEffectivePermissions(user: AuthUser | null | undefined) {
     return []
   }
 
-  const backendPermissions = getBackendPermissionSlugs(user)
-  if (backendPermissions.length > 0) {
-    return backendPermissions
+  if (user.permissions !== undefined) {
+    return getBackendPermissionSlugs(user)
   }
 
   if (isElevatedAdminRole(user.role) || isElevatedAdminRole(user.role_slug)) {
@@ -178,6 +186,10 @@ export function canAll(
 }
 
 export function getDefaultRouteForUser(user: AuthUser | null | undefined): string {
+  if (user?.role === 'merchant') {
+    return '/merchant/dashboard'
+  }
+
   if (hasPermission(user, PERMISSIONS.DASHBOARD_VIEW)) {
     return '/admin/dashboard'
   }
@@ -200,3 +212,4 @@ export function getDefaultRouteForUser(user: AuthUser | null | undefined): strin
 
   return '/admin/403'
 }
+

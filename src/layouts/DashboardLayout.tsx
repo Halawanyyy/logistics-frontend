@@ -38,7 +38,7 @@ const navigationItems: Array<{
   },
   { to: adminPath('/finance/merchant-payouts'), label: 'Payouts', permission: PERMISSIONS.PAYOUTS_VIEW },
   { to: adminPath('/finance/expenses'), label: 'Expenses', permission: PERMISSIONS.EXPENSES_VIEW },
-  { to: adminPath('/finance/merchant-invoices'), label: 'Invoices', permission: PERMISSIONS.INVOICES_VIEW },
+  { to: adminPath('/finance/merchant-invoices'), label: 'Invoices', permission: PERMISSIONS.FINANCE_INVOICES_VIEW },
   { to: adminPath('/finance/treasury/accounts'), label: 'Treasury Accounts', permission: PERMISSIONS.FINANCE_TREASURY_VIEW },
   { to: adminPath('/finance/treasury/transactions'), label: 'Treasury Transactions', permission: PERMISSIONS.FINANCE_TREASURY_VIEW },
   {
@@ -57,6 +57,7 @@ const navigationItems: Array<{
   },
   { to: adminPath('/warehouses'), label: 'Warehouses', permission: PERMISSIONS.WAREHOUSE_VIEW },
   { to: adminPath('/warehouse-products'), label: 'Products', permission: PERMISSIONS.INVENTORY_VIEW },
+  { to: adminPath('/company-catalog'), label: 'Company Catalog', permission: PERMISSIONS.COMPANY_CATALOG_VIEW },
   { to: adminPath('/inventory-stocks'), label: 'Inventory Stocks', permission: PERMISSIONS.INVENTORY_VIEW },
   { to: adminPath('/stock-movements'), label: 'Stock Movements', permission: PERMISSIONS.STOCK_MOVEMENTS_VIEW },
   { to: adminPath('/stock-reservations'), label: 'Stock Reservations', permission: PERMISSIONS.INVENTORY_VIEW },

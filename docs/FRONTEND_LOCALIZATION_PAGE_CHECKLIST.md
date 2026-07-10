@@ -277,3 +277,17 @@ Status legend:
 - Sidebar readability was improved with stronger inactive text contrast, clearer group labels, and more obvious active/hover states while preserving the existing brand palette and dark mode.
 - Settings long-value handling and lower-section layout were also cleaned up, but the broader admin surface still needs manual Arabic desktop/mobile visual QA.
 - Standalone create/edit form pages now share a centered header-and-card shell with split footer actions that stack safely on mobile. RTL handling for the form section header and cancel/save footer was also tightened so Arabic create/edit pages read more naturally.
+
+## P0 Company Catalog + Order Packaging Localization
+
+- `src/features/company-catalog/pages/CompanyCatalogListPage.tsx`
+  Company Catalog page title, description, type chips, filters, table headings, and action copy were added to the shared translation map.
+- `src/features/company-catalog/pages/CompanyCatalogFormPage.tsx`
+  Create/edit page header and form-section copy were localized through the shared i18n system.
+- `src/features/company-catalog/components/CompanyCatalogItemForm.tsx`
+  Catalog form field labels and enum display labels now use shared translations.
+- `src/features/orders/components/OrderForm.tsx`
+  Packaging subsection labels, helper copy, loading/empty states, and add/remove controls were localized.
+- `src/features/orders/pages/OrderDetailsPage.tsx`
+  Packaging summary and packaging-items table labels were localized.
+- Manual Arabic browser QA for the new Company Catalog and packaging surfaces is still pending.

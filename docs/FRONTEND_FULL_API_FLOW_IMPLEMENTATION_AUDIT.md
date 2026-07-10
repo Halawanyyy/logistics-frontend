@@ -1,4 +1,4 @@
-# Frontend Full API + Flow Implementation Audit
+﻿# Frontend Full API + Flow Implementation Audit
 
 Source of truth:
 - `docs/api-documentation.md`
@@ -412,3 +412,66 @@ Implemented in this pass:
 - Company branding now resolves from shared public settings query state so company name/logo refresh globally across the sidebar, topbar company display, auth layout, login copy, and public settings preview after settings saves invalidate shared queries.
 - The documented backend settings contract still exposes `company_logo` as a normal settings value/public setting, not a documented binary upload field; frontend Company Settings now uses an honest URL/path-based logo input with preview and field-level `422` handling instead of faking a file upload flow.
 - `npm run build` passed after the redesign changes. Vite still reports a non-blocking large-chunk warning.
+
+## P0 Company Catalog + Order Packaging Sync
+
+- Company Catalog API client/types: `OK`
+  Added frontend types and CRUD client wrappers for `GET/POST/GET by id/PUT/DELETE /api/company-catalog-items` using the existing `apiClient` + `{ data: ... }` response pattern.
+- Company Catalog admin page: `OK`
+  Added `/admin/company-catalog` with list filters, type chips, status/visibility controls, badges, and permission-gated create/edit/delete actions.
+- Company Catalog create/edit/delete actions: `OK`
+  Added create/edit form pages under `/admin/company-catalog/create` and `/admin/company-catalog/:companyCatalogItemId/edit`, plus delete confirmation from the list page.
+- Sidebar/RBAC integration: `OK`
+  Added permission keys for `company_catalog.view/create/update/delete` and linked the new page into the admin router, dashboard navigation map, and Warehouse sidebar group.
+- Order packaging selection: `OK`
+  Order create/edit now keeps `requires_packaging` + `package_notes`, adds frontend-managed `packaging_items[]`, and loads only active `packaging_product` catalog items in a separate packaging section.
+- Order packaging payload mapping: `OK`
+  Submit logic now sends `packaging_items` only when `requires_packaging` is true and clears packaging lines when packaging is turned off.
+- Order packaging response mapping: `OK`
+  Order types now include `total_packaging_fee` and `packaging_items`, edit pages preload backend packaging snapshots, and Order Details renders packaging summary plus a read-only packaging-items table.
+- Localization: `OK`
+  Added Company Catalog and packaging strings to the shared translation map and preserved existing Arabic/English + RTL/LTR behavior.
+- Build result: `OK`
+  `npm run build` passed after implementation. The existing non-blocking Vite chunk-size warning remains.
+- Needs Browser QA: `Needs Browser QA`
+  No manual browser smoke test was performed in this pass.
+
+## P1/P2 Merchant Shop Preview + Settings + Audit/Export Sync
+
+- Merchant Shop Preview tab visibility: \OK\ (Fixed the missing tab by ensuring it uses \PERMISSIONS.MERCHANT_SHOP_VIEW\ and is visible in the profile tabs array)
+- Merchant Shop Preview API client and types: \OK\ (Wired accurately to GET /api/merchants/{merchant}/shop-preview)
+- Merchant Shop Preview admin UI pages: \OK\
+- Settings support/labels for merchant shop and packaging settings: \OK\
+- Audit log labels for new backend events: \OK\
+- Export type support for company_catalog_items: \OK\
+- Localization for new events: \OK\ (Added Shop Preview translation keys to Arabic resources)
+- Permission/RBAC behavior: \OK\ (Follows standard backend permission fallback; users must have merchant_shop.view, or be admin)
+- Build result: \OK\ (npm run build passed successfully)
+- Needs Browser QA: \Needs Browser QA\ (The tab should now be visible and the temporary marker 'MERCHANT_SHOP_PREVIEW_V1' should appear inside the panel header.)
+
+
+
+## Merchant Shop Preview UI Polish
+
+Statuses:
+- Debug marker removed: `OK`
+- Preview header card: `OK`
+- Product cards for packaging products: `OK`
+- Pricing cards for storage/pick-pack sections: `OK`
+- Professional empty states: `OK`
+- Read-only behavior preserved: `OK`
+- Localization: `OK`
+- Responsive layout: `OK`
+- Build result: `OK`
+- Needs Browser QA: `Needs Browser QA`
+
+
+## Merchant Profile Permissions Fix
+
+- Audited all Merchant Profile tabs for explicit backend permission coverage.
+- Added constants for `DASHBOARD_MERCHANT_VIEW`, `WAREHOUSE_PRODUCTS_VIEW`, and renamed invoice permissions to `FINANCE_INVOICES_*`.
+- Fixed `getEffectivePermissions` in frontend RBAC helper to prioritize explicit arrays correctly.
+- Wrapped 'Requires Packaging' section in OrderForm with `ORDER_PACKAGING_MANAGE` Can component.
+- Documented explicit matrix in `MERCHANT_PROFILE_PERMISSION_MATRIX.md`.
+- Build Result: \OK\ (npm run build passed successfully)
+- Needs Browser QA: \Needs Browser QA\ (Verify Admin vs other roles behavior)

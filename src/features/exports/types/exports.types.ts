@@ -7,6 +7,7 @@ export type ExportType =
   | 'warehouse_inventory'
   | 'treasury_transactions'
   | 'audit_logs'
+  | 'company_catalog_items'
 
 export type ExportLogFilters = {
   export_type?: ExportType | string

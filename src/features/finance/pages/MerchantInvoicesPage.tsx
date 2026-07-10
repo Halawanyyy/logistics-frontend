@@ -29,7 +29,7 @@ export function MerchantInvoicesPage() {
       description={t('Merchant invoice records and payable totals.', {
         defaultValue: 'Merchant invoice records and payable totals.',
       })}
-      actions={<Can permission={PERMISSIONS.INVOICES_CREATE}><Link className="ui-link-reset" to={adminPath('/finance/merchant-invoices/create')}><Button>{t('Create Invoice', { defaultValue: 'Create Invoice' })}</Button></Link></Can>}
+      actions={<Can permission={PERMISSIONS.FINANCE_INVOICES_CREATE}><Link className="ui-link-reset" to={adminPath('/finance/merchant-invoices/create')}><Button>{t('Create Invoice', { defaultValue: 'Create Invoice' })}</Button></Link></Can>}
       queryKey={['merchant-invoices', params]}
       queryFn={() => listMerchantInvoices(params)}
       filters={
@@ -62,7 +62,7 @@ export function MerchantInvoicesPage() {
         { header: t('Status'), render: (invoice) => <StatusBadge value={invoice.status} /> },
         { header: t('Period', { defaultValue: 'Period' }), render: (invoice) => `${invoice.period_start} ${t('to', { defaultValue: 'to' })} ${invoice.period_end}` },
         { header: t('Created'), render: (invoice) => formatDate(invoice.created_at) },
-        { header: t('Actions'), render: (invoice) => <Can permission={PERMISSIONS.INVOICES_UPDATE}><Link className="table-link" to={adminPath(`/finance/merchant-invoices/${invoice.id}/edit`)}>{t('Edit')}</Link></Can> },
+        { header: t('Actions'), render: (invoice) => <Can permission={PERMISSIONS.FINANCE_INVOICES_UPDATE}><Link className="table-link" to={adminPath(`/finance/merchant-invoices/${invoice.id}/edit`)}>{t('Edit')}</Link></Can> },
       ]}
     />
   )

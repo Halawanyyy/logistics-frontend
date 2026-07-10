@@ -31,6 +31,21 @@ import {
 import type { SettingRecord } from '../types/settings.types'
 import { cn } from '../../../shared/utils/cn'
 
+import type { TFunction } from 'i18next'
+
+const SETTINGS_LABEL_MAP: Record<string, string> = {
+  packaging_fee_auto_charge: 'Packaging Fee Auto Charge',
+  merchant_shop_enabled: 'Merchant Shop Enabled',
+  merchant_shop_show_storage_fees: 'Show Storage Fees in Merchant Shop',
+  merchant_shop_show_pick_pack_fees: 'Show Pick & Pack Fees in Merchant Shop',
+  merchant_shop_show_packaging_products: 'Show Packaging Products in Merchant Shop',
+}
+
+function getSettingLabel(setting: SettingRecord, t: TFunction) {
+  const mapped = SETTINGS_LABEL_MAP[setting.key]
+  return mapped ? t(mapped, { defaultValue: mapped }) : setting.label
+}
+
 function getFieldValue(value: unknown) {
   if (typeof value === 'boolean') {
     return value ? 'true' : 'false'
@@ -351,7 +366,7 @@ export function SettingsPage() {
 
                               return (
                                 <label className={logoField ? 'field field--logo-setting' : 'field'} key={setting.id}>
-                                  <span>{setting.label}</span>
+                                  <span>{getSettingLabel(setting, t)}</span>
                                   {setting.options?.length ? (
                                     <Select
                                       disabled={!setting.is_editable}
@@ -463,8 +478,8 @@ export function SettingsPage() {
                       <LabelDocumentDialog
                         defaultFormat="html"
                         fetchDocument={(options) => previewLabelDocument({ label_type: 'shipment', ...options })}
-                        title="Label Preview"
-                        triggerLabel="Open Preview"
+                        title={t('Label Preview', { defaultValue: 'Label Preview' })}
+                        triggerLabel={t('Open Preview', { defaultValue: 'Open Preview' })}
                       />
                     </CardContent>
                   </Card>
@@ -482,8 +497,8 @@ export function SettingsPage() {
                       <LabelDocumentDialog
                         defaultFormat="html"
                         fetchDocument={(options) => testLabelDocument({ label_type: 'shipment', ...options })}
-                        title="Label Test"
-                        triggerLabel="Run Test"
+                        title={t('Label Test', { defaultValue: 'Label Test' })}
+                        triggerLabel={t('Run Test', { defaultValue: 'Run Test' })}
                       />
                     </CardContent>
                   </Card>
@@ -547,7 +562,7 @@ export function SettingsPage() {
                   <div className="detail-list">
                     {publicSettings.map((setting) => (
                       <div key={setting.key}>
-                        <dt>{setting.label}</dt>
+                        <dt>{getSettingLabel(setting as SettingRecord, t)}</dt>
                         <dd className="settings-public-value">
                           {isLogoSetting(setting.key, setting.label) && typeof setting.value === 'string' && setting.value && isImageLikeValue(setting.value) ? (
                             <BrandMark className="settings-public-logo" logoUrl={setting.value} name={branding.companyName} size="md" />

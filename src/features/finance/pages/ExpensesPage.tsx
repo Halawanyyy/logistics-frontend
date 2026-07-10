@@ -233,8 +233,8 @@ export function ExpensesPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Expenses"
-        description="Approve, reject, and mark expenses paid through documented finance actions."
+        title={t('Expenses', { defaultValue: 'Expenses' })}
+        description={t('Approve, reject, and mark expenses paid through documented finance actions.', { defaultValue: 'Approve, reject, and mark expenses paid through documented finance actions.' })}
         actions={(
           <Can permission={PERMISSIONS.EXPENSES_CREATE}>
             <Link className="ui-link-reset" to={adminPath('/finance/expenses/create')}>

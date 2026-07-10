@@ -1,21 +1,15 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { listAuditTimeline } from '../../../shared/api/audit.api'
-import type { AuditLogItem } from '../../../shared/types/audit.types'
 import { listTreasuryTransactions } from '../api/finance.api'
 import type { FinanceFilters } from '../types/finance.types'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
-import { Can } from '../../../shared/auth/Can'
-import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
 import { TreasuryAccountSelector } from '../../../shared/components/selectors/TreasuryAccountSelector'
 import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../shared/components/states/LoadingState'
-import { Timeline } from '../../../shared/components/timeline/Timeline'
-import { Button } from '../../../shared/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
 import { Dialog } from '../../../shared/components/ui/Dialog'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
@@ -24,7 +18,6 @@ import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
 import { formatDate } from '../../../shared/utils/formatters'
-
 type TreasuryFiltersState = {
   treasury_account_id: string
   direction: string
@@ -61,18 +54,6 @@ export function TreasuryTransactionsPage() {
   })
   const transactions = treasuryTransactionsQuery.data?.data ?? []
   const selectedTransaction = transactions.find((transaction) => transaction.id === selectedTransactionId) ?? null
-  const timelineQuery = useQuery({
-    queryKey: ['treasury-transactions', selectedTransactionId, 'timeline'],
-    queryFn: () => listAuditTimeline({ auditable_type: 'treasury_transaction', auditable_id: selectedTransactionId! }),
-    enabled: Boolean(selectedTransactionId),
-  })
-  const timelineItems = (timelineQuery.data?.data ?? []).map((item: AuditLogItem) => ({
-    id: item.id,
-    title: `${item.event_type} - ${item.action}`,
-    subtitle: item.user?.name ?? 'System',
-    description: item.notes ?? 'No notes were recorded for this event.',
-    timestamp: item.created_at,
-  }))
 
   return (
     <section className="page-section">
@@ -179,11 +160,7 @@ export function TreasuryTransactionsPage() {
                       <TableCell>{transaction.created_by_name ?? '-'}</TableCell>
                       <TableCell>{formatDate(transaction.created_at)}</TableCell>
                       <TableCell>
-                        <Can permission={PERMISSIONS.AUDIT_LOGS_TIMELINE}>
-                          <Button type="button" variant="secondary" onClick={() => setSelectedTransactionId(transaction.id)}>
-                            {t('View')}
-                          </Button>
-                        </Can>
+                        
                       </TableCell>
                     </tr>
                   ))}
@@ -226,23 +203,7 @@ export function TreasuryTransactionsPage() {
               <div><dt>{t('Created By')}</dt><dd>{selectedTransaction.created_by_name ?? '-'}</dd></div>
               <div><dt>{t('Created At')}</dt><dd>{formatDate(selectedTransaction.created_at)}</dd></div>
             </dl>
-            <Can permission={PERMISSIONS.AUDIT_LOGS_TIMELINE}>
-              {timelineQuery.isLoading ? <LoadingState title={t('Loading activity timeline')} /> : null}
-              {timelineQuery.isError ? (
-                <ErrorState
-                  title={t('Unable to load activity timeline', { defaultValue: 'Unable to load activity timeline' })}
-                  message={getApiErrorMessage(timelineQuery.error)}
-                  onRetry={() => void timelineQuery.refetch()}
-                />
-              ) : null}
-              {!timelineQuery.isLoading && !timelineQuery.isError ? (
-                <Timeline
-                  title={t('Activity Timeline')}
-                  items={timelineItems}
-                  emptyDescription={t('No treasury transaction activity timeline entries were returned.', { defaultValue: 'No treasury transaction activity timeline entries were returned.' })}
-                />
-              ) : null}
-            </Can>
+            
           </div>
         ) : null}
       </Dialog>

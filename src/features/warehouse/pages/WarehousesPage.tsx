@@ -31,8 +31,8 @@ export function WarehousesPage() {
   return (
     <>
       <ResourceListPage<Warehouse>
-        title="Warehouses"
-        description="Warehouse locations configured for inventory operations."
+        title={t('Warehouses', { defaultValue: 'Warehouses' })}
+        description={t('Warehouse locations configured for inventory operations.', { defaultValue: 'Warehouse locations configured for inventory operations.' })}
         actions={(
           <Can permission={PERMISSIONS.WAREHOUSE_CREATE}>
             <Link className="ui-link-reset" to={adminPath('/warehouses/create')}>

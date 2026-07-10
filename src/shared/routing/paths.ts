@@ -16,3 +16,13 @@ export function legacyPathFromAdmin(path: string) {
   const legacyPath = path.slice(ADMIN_PREFIX.length)
   return legacyPath || '/'
 }
+
+export const MERCHANT_PREFIX = '/merchant'
+
+export function merchantPath(path = '') {
+  if (!path || path === '/') {
+    return MERCHANT_PREFIX
+  }
+
+  return `${MERCHANT_PREFIX}${path.startsWith('/') ? path : `/${path}`}`
+}

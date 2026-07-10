@@ -45,6 +45,7 @@ import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFil
 import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
+import { StringMultiSelect } from '../../../shared/components/ui/StringMultiSelect'
 import { LoadingState } from '../../../shared/components/states/LoadingState'
 import { DriverSelector } from '../../../shared/components/selectors/DriverSelector'
 import { GovernorateAreaSelector } from '../../../shared/components/selectors/GovernorateAreaSelector'
@@ -1178,7 +1179,7 @@ export function MerchantInvoicesPanel({ merchantId }: { merchantId: string }) {
                           <Button type="button" variant="secondary" onClick={() => setPreviewInvoice(invoice)}>
                             {t('Preview', { defaultValue: 'Preview' })}
                           </Button>
-                          <Can permission={PERMISSIONS.INVOICES_DOWNLOAD}>
+                          <Can permission={PERMISSIONS.FINANCE_INVOICES_DOWNLOAD}>
                             <Button
                               type="button"
                               variant="secondary"
@@ -1304,12 +1305,7 @@ function CreateTokenModal({
     validate: (value) => (value?.length ? true : 'Select at least one permission.'),
   })
 
-  function togglePermission(permission: string) {
-    const nextPermissions = selectedPermissions.includes(permission)
-      ? selectedPermissions.filter((item) => item !== permission)
-      : [...selectedPermissions, permission]
-    setValue('permissions', nextPermissions, { shouldValidate: true })
-  }
+
 
   return (
     <Dialog open={open} onClose={onClose} title={<CardTitle>{t('Create Integration Token', { defaultValue: 'Create Integration Token' })}</CardTitle>}>
@@ -1339,16 +1335,12 @@ function CreateTokenModal({
         <div className="field">
           <span>{t('Permissions')}</span>
           <div className="form-grid">
-            {tokenPermissionOptions.map((permission) => (
-              <label className="field field--inline" key={permission}>
-                <input
-                  checked={selectedPermissions.includes(permission)}
-                  type="checkbox"
-                  onChange={() => togglePermission(permission)}
-                />
-                <span>{permission}</span>
-              </label>
-            ))}
+            <StringMultiSelect
+              options={tokenPermissionOptions}
+              value={selectedPermissions}
+              onChange={(values) => setValue('permissions', values, { shouldValidate: true })}
+              placeholder={t('Select permissions', { defaultValue: 'Select permissions' })}
+            />
           </div>
           <FieldError error={getFieldError('permissions')} />
         </div>
@@ -1661,51 +1653,6 @@ export function MerchantIntegrationTokensPanel({ merchantId }: { merchantId: str
   )
 }
 
-export function MerchantActivityTimelinePanel({ merchantId }: { merchantId: string }) {
-  const { t } = useTranslation()
-  const timelineQuery = useQuery({
-    queryKey: ['merchant-profile', merchantId, 'activity-timeline'],
-    queryFn: () => listAuditTimeline({
-      auditable_type: 'merchant',
-      auditable_id: merchantId,
-    }),
-  })
-
-  if (timelineQuery.isLoading) {
-    return <LoadingState title={t('Loading activity timeline', { defaultValue: 'Loading activity timeline' })} />
-  }
-
-  if (timelineQuery.isError) {
-    return (
-      <ErrorState
-        title={t('Unable to load activity timeline', { defaultValue: 'Unable to load activity timeline' })}
-        message={getApiErrorMessage(timelineQuery.error)}
-        onRetry={() => void timelineQuery.refetch()}
-      />
-    )
-  }
-
-  const items = (timelineQuery.data?.data ?? []).map((item: AuditLogItem) => ({
-    id: item.id,
-    title: `${item.event_type} - ${item.action}`,
-    subtitle: item.user?.name ?? t('System', { defaultValue: 'System' }),
-    description: item.notes ?? t('No notes were recorded for this event.', {
-      defaultValue: 'No notes were recorded for this event.',
-    }),
-    meta: safeMetaSummary(item.metadata) ?? safeMetaSummary(item.new_values) ?? null,
-    timestamp: item.created_at,
-  }))
-
-  return (
-    <Timeline
-      title={t('Activity Timeline', { defaultValue: 'Activity Timeline' })}
-      items={items}
-      emptyDescription={t('No merchant activity timeline entries were returned.', {
-        defaultValue: 'No merchant activity timeline entries were returned.',
-      })}
-    />
-  )
-}
 
 function StatTile({ label, value }: { label: string; value: ReactNode }) {
   return (

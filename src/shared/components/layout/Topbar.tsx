@@ -1,4 +1,5 @@
 import { Bell, Menu, Moon, Sun } from 'lucide-react'
+import { MerchantNotificationBell } from '../../../features/merchant-portal/notifications/components/MerchantNotificationBell'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../ui/Button'
 import { useLocale } from '../../i18n/useLocale'
@@ -12,6 +13,7 @@ type TopbarProps = {
   companyName: string
   isSidebarVisible: boolean
   onToggleSidebar: () => void
+  portalType?: 'admin' | 'merchant'
   user: AuthUser | null | undefined
   userName: string
   userRole: string
@@ -22,6 +24,7 @@ export function Topbar({
   companyName,
   isSidebarVisible,
   onToggleSidebar,
+  portalType = 'admin',
   user,
   userName,
   userRole,
@@ -29,6 +32,12 @@ export function Topbar({
   const { t } = useTranslation()
   const { theme, toggleTheme } = useTheme()
   const { locale, toggleLocale } = useLocale()
+  const topbarEyebrow = portalType === 'merchant'
+    ? t('Merchant Portal', { defaultValue: 'Merchant Portal' })
+    : t('Dashboard', { defaultValue: 'Dashboard' })
+  const topbarTitle = portalType === 'merchant'
+    ? t('Merchant Operations Workspace', { defaultValue: 'Merchant Operations Workspace' })
+    : t('Logistics & Warehouse Admin', { defaultValue: 'Logistics & Warehouse Admin' })
 
   return (
     <header className="app-topbar">
@@ -44,8 +53,8 @@ export function Topbar({
           <Menu size={18} />
         </Button>
         <div>
-          <p className="eyebrow">{t('Dashboard')}</p>
-          <h2 className="app-topbar__title">{t('Logistics & Warehouse Admin')}</h2>
+          <p className="eyebrow">{topbarEyebrow}</p>
+          <h2 className="app-topbar__title">{topbarTitle}</h2>
         </div>
       </div>
 
@@ -59,9 +68,13 @@ export function Topbar({
         >
           {locale === 'en' ? 'AR' : 'EN'}
         </Button>
-        <Button aria-label={t('Notifications')} className="app-topbar__icon-button" variant="icon">
-          <Bell size={18} />
-        </Button>
+        {portalType === 'merchant' ? (
+          <MerchantNotificationBell />
+        ) : (
+          <Button aria-label={t('Notifications')} className="app-topbar__icon-button" variant="icon">
+            <Bell size={18} />
+          </Button>
+        )}
         <Button
           aria-label={t('Toggle dark mode')}
           className="app-topbar__icon-button"

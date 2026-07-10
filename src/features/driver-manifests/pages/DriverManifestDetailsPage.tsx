@@ -3,8 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { listAuditTimeline } from '../../../shared/api/audit.api'
-import type { AuditLogItem } from '../../../shared/types/audit.types'
 import { closeDriverManifest, getDriverManifest } from '../api/driver-manifests.api'
 import type { DriverManifest } from '../types/driver-manifest.types'
 import { getApiErrorMessage, isApiNotFound } from '../../../shared/api/api-error'
@@ -17,7 +15,6 @@ import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../shared/components/states/LoadingState'
 import { NotFoundState } from '../../../shared/components/states/NotFoundState'
-import { Timeline } from '../../../shared/components/timeline/Timeline'
 import { Button } from '../../../shared/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
 import { Dialog } from '../../../shared/components/ui/Dialog'
@@ -29,7 +26,6 @@ import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
 import { DriverManifestPrintDialog } from '../components/DriverManifestPrintDialog'
-
 type CloseManifestFormValues = {
   actual_received_amount: number
   notes: string
@@ -110,13 +106,7 @@ export function DriverManifestDetailsPage() {
   const [printOpen, setPrintOpen] = useState(false)
   const query = useQuery({
     queryKey: ['driver-manifests', manifestId],
-    queryFn: () => getDriverManifest(manifestId!),
-    enabled: Boolean(manifestId),
-  })
-  const timelineQuery = useQuery({
-    queryKey: ['driver-manifests', manifestId, 'timeline'],
-    queryFn: () => listAuditTimeline({ auditable_type: 'driver_manifest', auditable_id: manifestId! }),
-    enabled: Boolean(manifestId),
+    queryFn: () => getDriverManifest(manifestId!)
   })
   const closeMutation = useMutation({
     mutationFn: (values: CloseManifestFormValues) => closeDriverManifest(manifestId!, {
@@ -299,33 +289,7 @@ export function DriverManifestDetailsPage() {
 
       <Attachments attachableType="driver_manifests" attachableId={manifest.id} />
 
-      <Can permission={PERMISSIONS.AUDIT_LOGS_TIMELINE}>
-        {timelineQuery.isLoading ? <LoadingState title={t('Loading activity timeline', { defaultValue: 'Loading activity timeline' })} /> : null}
-        {timelineQuery.isError ? (
-          <ErrorState
-            title={t('Unable to load activity timeline', { defaultValue: 'Unable to load activity timeline' })}
-            message={getApiErrorMessage(timelineQuery.error)}
-            onRetry={() => void timelineQuery.refetch()}
-          />
-        ) : null}
-        {!timelineQuery.isLoading && !timelineQuery.isError ? (
-          <Timeline
-            title={t('Activity Timeline')}
-            items={(timelineQuery.data?.data ?? []).map((item: AuditLogItem) => ({
-              id: item.id,
-              title: `${item.event_type} - ${item.action}`,
-              subtitle: item.user?.name ?? t('System'),
-              description: item.notes ?? t('No notes were recorded for this event.', {
-                defaultValue: 'No notes were recorded for this event.',
-              }),
-              timestamp: item.created_at,
-            }))}
-            emptyDescription={t('No driver manifest activity timeline entries were returned.', {
-              defaultValue: 'No driver manifest activity timeline entries were returned.',
-            })}
-          />
-        ) : null}
-      </Can>
+      
 
       <CloseManifestDialog
         error={closeMutation.error}

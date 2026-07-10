@@ -50,17 +50,17 @@ export function UsersListPage() {
     return (
       <section className="page-section">
         <PageHeader
-          title="Users"
-          description="Internal users returned by `/api/users`."
+          title={t('Users', { defaultValue: 'Users' })}
+          description={t('Internal users returned by `/api/users`.', { defaultValue: 'Internal users returned by `/api/users`.' })}
           actions={
             <Can permission={PERMISSIONS.USERS_CREATE}>
               <Link className="ui-link-reset" to="/admin/users/create">
-                <Button>Create User</Button>
+                <Button>{t('Create User', { defaultValue: 'Create User' })}</Button>
               </Link>
             </Can>
           }
         />
-        <EmptyState title="No users found" description="The API returned an empty users list." />
+        <EmptyState title={t('No users found', { defaultValue: 'No users found' })} description={t('The API returned an empty users list.', { defaultValue: 'The API returned an empty users list.' })} />
       </section>
     )
   }
@@ -76,19 +76,19 @@ export function UsersListPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Users"
-        description="Internal users ordered by newest first."
+        title={t('Users', { defaultValue: 'Users' })}
+        description={t('Internal users ordered by newest first.', { defaultValue: 'Internal users ordered by newest first.' })}
         actions={
           <Can permission={PERMISSIONS.USERS_CREATE}>
             <Link className="ui-link-reset" to="/admin/users/create">
-              <Button>Create User</Button>
+              <Button>{t('Create User', { defaultValue: 'Create User' })}</Button>
             </Link>
           </Can>
         }
       />
       <Card className="table-card">
         <CardHeader className="table-card__header">
-          <CardTitle>Users Directory</CardTitle>
+          <CardTitle>{t('Users Directory', { defaultValue: 'Users Directory' })}</CardTitle>
           <CardDescription>{t('Internal company accounts returned from the API.', { defaultValue: 'Internal company accounts returned from the API.' })}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -108,7 +108,7 @@ export function UsersListPage() {
         <Table>
           <thead>
             <tr>
-              <TableHead>Name</TableHead>
+              <TableHead>{t('Name', { defaultValue: 'Name' })}</TableHead>
               <TableHead>{t('Email')}</TableHead>
               <TableHead>{t('Role')}</TableHead>
               <TableHead>{t('Created At')}</TableHead>

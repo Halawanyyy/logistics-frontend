@@ -147,18 +147,19 @@ export function ShipmentsListPage() {
   }, [searchText])
 
   return (
-    <section className="page-section shipments-page">
+    <section className="page-section page-section--with-sidebar shipments-page">
       <PageHeader
-        title="Shipments"
-        description="Shipments with merchant, delivery, driver, and current operational status."
+        title={t('Shipments', { defaultValue: 'Shipments' })}
+        description={t('Shipments with merchant, delivery, driver, and current operational status.', { defaultValue: 'Shipments with merchant, delivery, driver, and current operational status.' })}
       />
 
-      <Card variant="flat" className="dashboard-filter-card no-print">
-        <CardHeader>
-          <CardTitle>{t('Filters')}</CardTitle>
-          <CardDescription>{t('Filters are applied with local state and backend query params without reloading the page.', { defaultValue: 'Filters are applied with local state and backend query params without reloading the page.' })}</CardDescription>
-        </CardHeader>
-        <CardContent className="dashboard-filters">
+      <aside className="page-sidebar-filters">
+        <Card variant="flat" className="dashboard-filter-card no-print">
+          <CardHeader>
+            <CardTitle>{t('Filters')}</CardTitle>
+            <CardDescription>{t('Filters are applied with local state and backend query params without reloading the page.', { defaultValue: 'Filters are applied with local state and backend query params without reloading the page.' })}</CardDescription>
+          </CardHeader>
+          <CardContent className="dashboard-filters dashboard-filters--sidebar">
           <label className="field">
             <span>{t('Status')}</span>
             <Select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
@@ -327,8 +328,10 @@ export function ShipmentsListPage() {
           {printValidation ? <div className="form-error">{printValidation}</div> : null}
           {printMutation.error ? <div className="form-error">{getApiErrorMessage(printMutation.error)}</div> : null}
         </CardContent>
-      </Card>
+        </Card>
+      </aside>
 
+      <main className="page-main-content">
       <Card className="table-card no-print">
         <CardHeader className="table-card__header">
           <CardTitle>{t('Shipments')}</CardTitle>
@@ -561,6 +564,7 @@ export function ShipmentsListPage() {
           </Card>
         </PrintView>
       ) : null}
+      </main>
     </section>
   )
 }

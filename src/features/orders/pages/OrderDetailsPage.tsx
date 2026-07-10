@@ -23,11 +23,9 @@ import type { Order } from '../types/order.types'
 import { createShipmentFromOrder } from '../../shipments/api/shipments.api'
 import { listWarehouseProducts, listWarehouses } from '../../warehouse/api/warehouse.api'
 import { getOrderLabel } from '../../../shared/api/labels.api'
-import { listAuditTimeline } from '../../../shared/api/audit.api'
 import { getApiErrorMessage, isApiNotFound } from '../../../shared/api/api-error'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
-import { hasPermission } from '../../../shared/auth/permissions'
 import { Attachments } from '../../../shared/components/attachments/Attachments'
 import { FieldError } from '../../../shared/components/forms/FieldError'
 import { LabelDocumentDialog } from '../../../shared/components/labels/LabelDocumentDialog'
@@ -37,7 +35,6 @@ import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../shared/components/states/LoadingState'
 import { NotFoundState } from '../../../shared/components/states/NotFoundState'
-import { Timeline } from '../../../shared/components/timeline/Timeline'
 import { Button } from '../../../shared/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
 import { Dialog } from '../../../shared/components/ui/Dialog'
@@ -51,9 +48,7 @@ import { pickDisplayLabel } from '../../../shared/i18n/locale'
 import { useLocale } from '../../../shared/i18n/useLocale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
-import { useAuthStore } from '../../auth/store/auth.store'
 import { getOrderPrintableLabelDocument } from '../utils/orderLabel'
-
 const reserveStockSchema = z.object({
   warehouse_id: z.number().min(1, 'Warehouse is required.'),
   items: z.array(
@@ -199,8 +194,7 @@ export function OrderDetailsPage() {
   const { t } = useTranslation()
   const { locale } = useLocale()
   const { orderId } = useParams()
-  const user = useAuthStore((state) => state.user)
-  const [reserveOpen, setReserveOpen] = useState(false)
+    const [reserveOpen, setReserveOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const queryClient = useQueryClient()
@@ -210,16 +204,10 @@ export function OrderDetailsPage() {
     queryFn: () => getOrder(orderId!),
     enabled: Boolean(orderId),
   })
-  const canViewTimeline = hasPermission(user, PERMISSIONS.AUDIT_LOGS_TIMELINE)
   const reservationsQuery = useQuery({
     queryKey: ['orders', orderId, 'stock-reservations'],
     queryFn: () => listOrderStockReservations(orderId!),
     enabled: Boolean(orderId),
-  })
-  const timelineQuery = useQuery({
-    queryKey: ['orders', orderId, 'timeline'],
-    queryFn: () => listAuditTimeline({ auditable_type: 'order', auditable_id: orderId! }),
-    enabled: Boolean(orderId) && canViewTimeline,
   })
 
   async function invalidateOrder() {
@@ -335,13 +323,6 @@ export function OrderDetailsPage() {
     && order.status === 'confirmed'
     && !hasShipment
     && order.warehouse_fulfillment_status !== 'fulfilled'
-  const timelineItems = (timelineQuery.data?.data ?? []).map((item) => ({
-    id: item.id,
-    title: `${item.event_type} - ${item.action}`,
-    subtitle: item.user?.name ?? 'System',
-    description: item.notes ?? 'No notes were recorded for this event.',
-    timestamp: item.created_at,
-  }))
 
   return (
     <section className="page-section">
@@ -536,6 +517,35 @@ export function OrderDetailsPage() {
             </dl>
           </CardContent>
         </Card>
+
+        <Card className="detail-card">
+          <CardHeader>
+            <CardTitle>{t('Packaging', { defaultValue: 'Packaging' })}</CardTitle>
+            <CardDescription>{t('Packaging requirement, notes, and company catalog packaging fees for this order.', {
+              defaultValue: 'Packaging requirement, notes, and company catalog packaging fees for this order.',
+            })}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <dl className="detail-list">
+              <div>
+                <dt>{t('Requires Packaging', { defaultValue: 'Requires Packaging' })}</dt>
+                <dd>{order.requires_packaging ? t('Yes', { defaultValue: 'Yes' }) : t('No', { defaultValue: 'No' })}</dd>
+              </div>
+              <div>
+                <dt>{t('Package Notes', { defaultValue: 'Package Notes' })}</dt>
+                <dd>{order.package_notes ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>{t('Total Packaging Fee', { defaultValue: 'Total Packaging Fee' })}</dt>
+                <dd>{order.total_packaging_fee ? <MoneyDisplay value={order.total_packaging_fee} /> : '—'}</dd>
+              </div>
+              <div>
+                <dt>{t('Packaging Items', { defaultValue: 'Packaging Items' })}</dt>
+                <dd>{order.packaging_items?.length ?? 0}</dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="table-card">
@@ -580,6 +590,51 @@ export function OrderDetailsPage() {
           </TableContainer>
         </CardContent>
       </Card>
+
+      {order.packaging_items?.length ? (
+        <Card className="table-card">
+          <CardHeader className="section-title-row">
+            <div>
+              <CardTitle>{t('Packaging Items', { defaultValue: 'Packaging Items' })}</CardTitle>
+              <CardDescription>{t('Backend-calculated packaging snapshot rows selected from the company catalog.', {
+                defaultValue: 'Backend-calculated packaging snapshot rows selected from the company catalog.',
+              })}</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <TableContainer>
+              <Table variant="compact">
+                <thead>
+                  <tr>
+                    <TableHead>{t('Packaging Product', { defaultValue: 'Packaging Product' })}</TableHead>
+                    <TableHead>{t('SKU', { defaultValue: 'SKU' })}</TableHead>
+                    <TableHead>{t('Category', { defaultValue: 'Category' })}</TableHead>
+                    <TableHead>{t('Size Label', { defaultValue: 'Size Label' })}</TableHead>
+                    <TableHead>{t('Packaging Quantity', { defaultValue: 'Packaging Quantity' })}</TableHead>
+                    <TableHead>{t('Unit Price', { defaultValue: 'Unit Price' })}</TableHead>
+                    <TableHead>{t('Total', { defaultValue: 'Total' })}</TableHead>
+                    <TableHead>{t('Packaging Notes', { defaultValue: 'Packaging Notes' })}</TableHead>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.packaging_items.map((item) => (
+                    <tr key={item.id}>
+                      <TableCell>{item.item_name}</TableCell>
+                      <TableCell>{item.item_sku ?? '—'}</TableCell>
+                      <TableCell>{item.category ?? '—'}</TableCell>
+                      <TableCell>{item.size_label ?? '—'}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell><MoneyDisplay value={item.unit_price} /></TableCell>
+                      <TableCell><MoneyDisplay value={item.total_price} /></TableCell>
+                      <TableCell>{item.notes ?? '—'}</TableCell>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {isWarehouseFulfillment ? (
         <Card className="table-card">
@@ -745,23 +800,9 @@ export function OrderDetailsPage() {
         </Card>
       ) : null}
 
-      <Can permission={PERMISSIONS.AUDIT_LOGS_TIMELINE}>
-        {timelineQuery.isLoading ? <LoadingState title={t('Loading activity timeline', { defaultValue: 'Loading activity timeline' })} /> : null}
-        {timelineQuery.isError ? (
-          <ErrorState
-            title={t('Unable to load order activity timeline', { defaultValue: 'Unable to load order activity timeline' })}
-            message={getApiErrorMessage(timelineQuery.error)}
-            onRetry={() => void timelineQuery.refetch()}
-          />
-        ) : null}
-        {!timelineQuery.isLoading && !timelineQuery.isError ? (
-          <Timeline
-            title={t('Activity Timeline', { defaultValue: 'Activity Timeline' })}
-            items={timelineItems}
-            emptyDescription={t('No order activity timeline entries were returned.', { defaultValue: 'No order activity timeline entries were returned.' })}
-          />
-        ) : null}
-      </Can>
+
+
+      
 
       <Can permission={PERMISSIONS.ATTACHMENTS_VIEW}>
         <Attachments attachableType="orders" attachableId={order.id} />

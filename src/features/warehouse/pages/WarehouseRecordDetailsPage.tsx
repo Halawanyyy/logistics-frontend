@@ -21,7 +21,6 @@ import {
   restockWarehouseReturn,
 } from '../api/warehouse.api'
 import { getWarehouseProductLabel } from '../../../shared/api/labels.api'
-import { listAuditTimeline } from '../../../shared/api/audit.api'
 import { getApiErrorMessage, isApiNotFound } from '../../../shared/api/api-error'
 import { Attachments } from '../../../shared/components/attachments/Attachments'
 import { LabelDocumentDialog } from '../../../shared/components/labels/LabelDocumentDialog'
@@ -39,12 +38,8 @@ import { adminPath } from '../../../shared/routing/paths'
 import { formatDate, formatMoney } from '../../../shared/utils/formatters'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
-import { useAuthStore } from '../../auth/store/auth.store'
-import { hasPermission } from '../../../shared/auth/permissions'
 import { NotFoundState } from '../../../shared/components/states/NotFoundState'
-import { Timeline } from '../../../shared/components/timeline/Timeline'
 import { getProductPrintableLabelDocument } from '../utils/productLabel'
-
 type WarehouseDetailsKind = 'warehouse' | 'product' | 'inventory-stock' | 'stock-movement' | 'return' | 'charge'
 
 const detailsConfig = {
@@ -112,24 +107,13 @@ export function WarehouseRecordDetailsPage({ kind }: { kind: WarehouseDetailsKin
   const { t } = useTranslation()
   const { locale } = useLocale()
   const { recordId } = useParams()
-  const user = useAuthStore((state) => state.user)
-  const [pendingReturnAction, setPendingReturnAction] = useState<'receive' | 'inspect' | 'restock' | 'mark-damaged' | 'reject' | 'close' | null>(null)
+    const [pendingReturnAction, setPendingReturnAction] = useState<'receive' | 'inspect' | 'restock' | 'mark-damaged' | 'reject' | 'close' | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const entry = detailsConfig[kind]
-  const canViewTimeline = hasPermission(user, PERMISSIONS.AUDIT_LOGS_TIMELINE)
   const query = useQuery<any>({
     queryKey: [entry.queryKey, recordId],
-    queryFn: () => entry.get(recordId!) as Promise<any>,
-    enabled: Boolean(recordId),
-  })
-  const timelineQuery = useQuery({
-    queryKey: ['warehouse-details', kind, recordId, 'timeline'],
-    queryFn: () => listAuditTimeline({
-      auditable_type: kind === 'product' ? 'warehouse_product' : kind,
-      auditable_id: recordId!,
-    }),
-    enabled: Boolean(recordId) && canViewTimeline && (kind === 'product'),
+    queryFn: () => entry.get(recordId!) as Promise<any>
   })
   const deleteMutation = useMutation({
     mutationFn: () => ('delete' in entry ? entry.delete(recordId!) : Promise.reject(new Error('Delete is not available for this record.'))) as Promise<any>,
@@ -180,15 +164,6 @@ export function WarehouseRecordDetailsPage({ kind }: { kind: WarehouseDetailsKin
   const record = query.data.data as any
   const canEdit = 'updatePermission' in entry && entry.updatePermission
   const canDelete = 'deletePermission' in entry && 'delete' in entry && entry.deletePermission
-  const timelineItems = (timelineQuery.data?.data ?? []).map((item) => ({
-    id: item.id,
-    title: `${item.event_type} - ${item.action}`,
-    subtitle: item.user?.name ?? t('System'),
-    description: item.notes ?? t('No notes were recorded for this event.', {
-      defaultValue: 'No notes were recorded for this event.',
-    }),
-    timestamp: item.created_at,
-  }))
   const returnActionButtons = kind === 'return' ? getReturnActionButtons(record.status as string | undefined) : []
   return (
     <section className="page-section">
@@ -341,29 +316,6 @@ export function WarehouseRecordDetailsPage({ kind }: { kind: WarehouseDetailsKin
         </Card>
       ) : null}
       {kind === 'return' ? <Attachments attachableType="warehouse_returns" attachableId={record.id} /> : null}
-      {kind === 'product' && canViewTimeline ? (
-        <>
-          {timelineQuery.isLoading ? <LoadingState title={t('Loading activity timeline', { defaultValue: 'Loading activity timeline' })} /> : null}
-          {timelineQuery.isError ? (
-            <ErrorState
-              title={t('Unable to load warehouse product activity timeline', {
-                defaultValue: 'Unable to load warehouse product activity timeline',
-              })}
-              message={getApiErrorMessage(timelineQuery.error)}
-              onRetry={() => void timelineQuery.refetch()}
-            />
-          ) : null}
-          {!timelineQuery.isLoading && !timelineQuery.isError ? (
-            <Timeline
-              title={t('Activity Timeline')}
-              items={timelineItems}
-              emptyDescription={t('No warehouse product activity timeline entries were returned.', {
-                defaultValue: 'No warehouse product activity timeline entries were returned.',
-              })}
-            />
-          ) : null}
-        </>
-      ) : null}
       <ConfirmActionModal
         open={Boolean(pendingReturnAction)}
         title={pendingReturnAction ? t(pendingReturnAction.replace('-', ' '), {

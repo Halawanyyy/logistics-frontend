@@ -112,6 +112,7 @@ function CreateZoneDialog({
   onSubmit: (values: ZoneFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const warehousesQuery = useQuery({
     queryKey: ['warehouses', 'locations-zone'],
     queryFn: listWarehouses,
@@ -205,6 +206,7 @@ function CreateShelfDialog({
   onSubmit: (values: ShelfFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const warehousesQuery = useQuery({
     queryKey: ['warehouses', 'locations-shelf'],
     queryFn: listWarehouses,
@@ -336,6 +338,7 @@ function CreateBinDialog({
   onSubmit: (values: BinFormValues) => void
   open: boolean
 }) {
+  const { t } = useTranslation()
   const warehousesQuery = useQuery({
     queryKey: ['warehouses', 'locations-bin'],
     queryFn: listWarehouses,

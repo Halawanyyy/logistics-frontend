@@ -1,6 +1,7 @@
 export const PERMISSIONS = {
   ALL: '*',
   DASHBOARD_VIEW: 'dashboard.view',
+  DASHBOARD_MERCHANT_VIEW: 'dashboard.merchant_view',
 
   USERS_VIEW: 'users.view',
   USERS_CREATE: 'users.create',
@@ -61,6 +62,8 @@ export const PERMISSIONS = {
   ORDERS_RESERVE_STOCK: 'orders.reserve_stock',
   ORDERS_RELEASE_STOCK: 'orders.release_stock',
   ORDERS_FULFILL_WAREHOUSE: 'orders.fulfill_warehouse',
+  ORDER_PACKAGING_VIEW: 'order_packaging.view',
+  ORDER_PACKAGING_MANAGE: 'order_packaging.manage',
 
   SHIPMENTS_VIEW: 'shipments.view',
   SHIPMENTS_CREATE: 'shipments.create',
@@ -101,11 +104,11 @@ export const PERMISSIONS = {
   FINANCE_EXPENSES_APPROVE: 'finance.expenses.approve',
   FINANCE_EXPENSES_REJECT: 'finance.expenses.reject',
   FINANCE_EXPENSES_PAY: 'finance.expenses.pay',
-  INVOICES_VIEW: 'finance.invoices.view',
-  INVOICES_CREATE: 'finance.invoices.create',
-  INVOICES_UPDATE: 'finance.invoices.update',
-  INVOICES_DELETE: 'finance.invoices.delete',
-  INVOICES_DOWNLOAD: 'finance.invoices.download',
+  FINANCE_INVOICES_VIEW: 'finance.invoices.view',
+  FINANCE_INVOICES_CREATE: 'finance.invoices.create',
+  FINANCE_INVOICES_UPDATE: 'finance.invoices.update',
+  FINANCE_INVOICES_DELETE: 'finance.invoices.delete',
+  FINANCE_INVOICES_DOWNLOAD: 'finance.invoices.download',
   FINANCE_TREASURY_VIEW: 'finance.treasury.view',
   FINANCE_TREASURY_CREATE: 'finance.treasury.create',
   FINANCE_TREASURY_UPDATE: 'finance.treasury.update',
@@ -135,6 +138,7 @@ export const PERMISSIONS = {
   WAREHOUSE_CREATE: 'warehouse.create',
   WAREHOUSE_UPDATE: 'warehouse.update',
   WAREHOUSE_DELETE: 'warehouse.delete',
+  WAREHOUSE_PRODUCTS_VIEW: 'warehouse_products.view',
   INVENTORY_VIEW: 'inventory.view',
   INVENTORY_CREATE: 'inventory.create',
   INVENTORY_UPDATE: 'inventory.update',
@@ -165,6 +169,11 @@ export const PERMISSIONS = {
   WAREHOUSE_KPIS_VIEW: 'warehouse_kpis.view',
   MERCHANT_INBOUND_REQUESTS_VIEW: 'merchant_inbound_requests.view',
   MERCHANT_INBOUND_REQUESTS_MANAGE: 'merchant_inbound_requests.manage',
+  COMPANY_CATALOG_VIEW: 'company_catalog.view',
+  COMPANY_CATALOG_CREATE: 'company_catalog.create',
+  COMPANY_CATALOG_UPDATE: 'company_catalog.update',
+  COMPANY_CATALOG_DELETE: 'company_catalog.delete',
+  MERCHANT_SHOP_VIEW: 'merchant_shop.view',
 } as const
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

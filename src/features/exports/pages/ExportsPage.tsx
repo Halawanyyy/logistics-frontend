@@ -64,7 +64,26 @@ const exportTypes: ExportType[] = [
   'warehouse_inventory',
   'treasury_transactions',
   'audit_logs',
+  'company_catalog_items',
 ]
+
+const EXPORT_TYPE_LABEL_MAP: Record<string, string> = {
+  orders: 'Orders',
+  shipments: 'Shipments',
+  driver_manifests: 'Driver Manifests',
+  merchant_wallet_transactions: 'Merchant Wallet Transactions',
+  finance_reports: 'Finance Reports',
+  warehouse_inventory: 'Warehouse Inventory',
+  treasury_transactions: 'Treasury Transactions',
+  audit_logs: 'Audit Logs',
+  company_catalog_items: 'Company Catalog Items',
+}
+
+function getExportTypeLabel(type: string | null | undefined, t: any) {
+  if (!type) return '-'
+  const mapped = EXPORT_TYPE_LABEL_MAP[type]
+  return mapped ? t(mapped, { defaultValue: mapped }) : type
+}
 
 function triggerBlobDownload(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob)
@@ -115,7 +134,7 @@ function GenerateExportDialog({
           <span>{t('Export Type')}</span>
           <Select {...register('type')}>
             {exportTypes.map((type) => (
-              <option key={type} value={type}>{type}</option>
+              <option key={type} value={type}>{getExportTypeLabel(type, t)}</option>
             ))}
           </Select>
         </label>
@@ -227,7 +246,7 @@ export function ExportsPage() {
   const exportLogs = exportsQuery.data?.data ?? []
 
   return (
-    <section className="page-section">
+    <section className="page-section page-section--with-sidebar">
       <PageHeader
         title={t('Exports')}
         description={t('Asynchronous-ready export history and CSV generation.', {
@@ -240,8 +259,9 @@ export function ExportsPage() {
         )}
       />
 
-      <Card variant="flat" className="dashboard-filter-card">
-        <CardContent className="dashboard-filters">
+      <aside className="page-sidebar-filters">
+        <Card variant="flat" className="dashboard-filter-card">
+          <CardContent className="dashboard-filters dashboard-filters--sidebar">
           <label className="field">
             <span>{t('Export Type')}</span>
             <Select
@@ -250,7 +270,7 @@ export function ExportsPage() {
             >
               <option value="">{t('All types')}</option>
               {exportTypes.map((type) => (
-                <option key={type} value={type}>{type}</option>
+                <option key={type} value={type}>{getExportTypeLabel(type, t)}</option>
               ))}
             </Select>
           </label>
@@ -305,7 +325,9 @@ export function ExportsPage() {
           </div>
         </CardContent>
       </Card>
+      </aside>
 
+      <main className="page-main-content">
       <Card className="table-card">
         <CardHeader>
           <CardTitle>{t('Export History')}</CardTitle>
@@ -347,7 +369,7 @@ export function ExportsPage() {
                     <tr key={exportLog.id}>
                       <TableCell>
                         <Link className="table-link" to={adminPath(`/exports/${exportLog.id}`)}>
-                          {exportLog.export_type}
+                          {getExportTypeLabel(String(exportLog.export_type), t)}
                         </Link>
                       </TableCell>
                       <TableCell>{exportLog.format}</TableCell>
@@ -401,6 +423,7 @@ export function ExportsPage() {
         onSubmit={(values) => generateMutation.mutate(values)}
         open={generateOpen}
       />
+      </main>
     </section>
   )
 }

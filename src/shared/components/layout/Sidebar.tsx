@@ -27,7 +27,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { cn } from '../../utils/cn'
-import { adminPath } from '../../routing/paths'
+import { adminPath, merchantPath } from '../../routing/paths'
 import { BrandMark } from '../branding/BrandMark'
 
 export type SidebarItem = {
@@ -56,6 +56,7 @@ type SidebarProps = {
   supportPhone?: string
   userName: string
   userRole: string
+  portalType?: 'admin' | 'merchant'
 }
 
 export function Sidebar({
@@ -69,6 +70,7 @@ export function Sidebar({
   supportPhone,
   userName,
   userRole,
+  portalType = 'admin',
 }: SidebarProps) {
   const { t } = useTranslation()
   const location = useLocation()
@@ -88,10 +90,10 @@ export function Sidebar({
   const itemMap = useMemo(() => new Map(items.map((item) => [item.to, item])), [items])
   const visibleGroups = useMemo(
     () =>
-      buildNavigationGroups(itemMap, t).filter((group) =>
+      buildNavigationGroups(itemMap, portalType, t).filter((group) =>
         group.items.some((item) => itemMap.has(item.to)),
       ),
-    [itemMap, t],
+    [itemMap, portalType, t],
   )
 
   useEffect(() => {
@@ -221,8 +223,100 @@ function pick(
 
 function buildNavigationGroups(
   itemMap: Map<string, SidebarItem>,
+  portalType: 'admin' | 'merchant',
   t: (key: string, options?: { defaultValue?: string }) => string,
 ): SidebarGroup[] {
+  if (portalType === 'merchant') {
+    return [
+      {
+        id: 'main',
+        label: t('Dashboard'),
+        kind: 'link' as const,
+        linkTo: merchantPath('/dashboard'),
+        icon: LayoutDashboard,
+        items: [...pick(itemMap, merchantPath('/dashboard'), LayoutDashboard)],
+      },
+      {
+        id: 'orders-shipments',
+        label: t('Orders & Shipments', { defaultValue: 'Orders & Shipments' }),
+        collapsible: true,
+        items: [
+          ...pick(itemMap, merchantPath('/orders'), Package),
+          ...pick(itemMap, merchantPath('/shipments'), Truck),
+        ],
+      },
+      {
+        id: 'warehouse',
+        label: t('Warehouse'),
+        collapsible: true,
+        items: [
+          ...pick(itemMap, merchantPath('/warehouse/products'), Package, t('Products')),
+          ...pick(itemMap, merchantPath('/warehouse/inventory'), Boxes, t('Inventory Stocks')),
+          ...pick(itemMap, merchantPath('/warehouse/inventory/low-stock'), Store, t('Low Stock')),
+          ...pick(itemMap, merchantPath('/warehouse/movements'), ClipboardList, t('Stock Movements')),
+          ...pick(itemMap, merchantPath('/warehouse/charges'), Receipt, t('Warehouse Charges')),
+          ...pick(itemMap, merchantPath('/warehouse/inbound-requests'), Warehouse, t('Inbound Requests')),
+        ],
+      },
+      {
+        id: 'finance',
+        label: t('Finance'),
+        collapsible: true,
+        items: [
+          ...pick(itemMap, merchantPath('/finance'), LayoutDashboard, t('Overview')),
+          ...pick(itemMap, merchantPath('/finance/wallet'), Wallet, t('Wallet Summary')),
+          ...pick(itemMap, merchantPath('/finance/wallet/transactions'), Receipt, t('Wallet Transactions')),
+          ...pick(itemMap, merchantPath('/finance/invoices'), FileSpreadsheet, t('Invoices')),
+          ...pick(itemMap, merchantPath('/finance/payouts'), Landmark, t('Payouts')),
+        ],
+      },
+      {
+        id: 'integrations',
+        label: t('Integrations'),
+        kind: 'link' as const,
+        linkTo: merchantPath('/integrations'),
+        icon: ScanLine,
+        items: [...pick(itemMap, merchantPath('/integrations'), ScanLine)],
+      },
+      {
+        id: 'exports',
+        label: t('Exports'),
+        kind: 'link' as const,
+        linkTo: merchantPath('/exports'),
+        icon: FileSpreadsheet,
+        items: [...pick(itemMap, merchantPath('/exports'), FileSpreadsheet)],
+      },
+      {
+        id: 'attachments',
+        label: t('Attachments'),
+        kind: 'link' as const,
+        linkTo: merchantPath('/attachments'),
+        icon: Archive,
+        items: [...pick(itemMap, merchantPath('/attachments'), Archive)],
+      },
+      {
+        id: 'notifications',
+        label: t('Notifications'),
+        kind: 'link' as const,
+        linkTo: merchantPath('/notifications'),
+        icon: ClipboardList,
+        items: [...pick(itemMap, merchantPath('/notifications'), ClipboardList)],
+      },
+      {
+        id: 'account',
+        label: t('Account'),
+        collapsible: true,
+        items: [
+          ...pick(itemMap, merchantPath('/profile'), UserRoundCheck, t('Profile')),
+          ...pick(itemMap, merchantPath('/settings'), Settings, t('Settings')),
+        ],
+      },
+    ].map((group) => ({
+      ...group,
+      items: group.items.filter((item, index, all) => all.findIndex((child) => child.to === item.to) === index),
+    }))
+  }
+
   return [
     {
       id: 'main',

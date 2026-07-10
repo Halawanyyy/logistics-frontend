@@ -6,9 +6,13 @@ import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { User, MapPin, CreditCard, Package, Info } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
+import { listCompanyCatalogItems } from '../../company-catalog/api/companyCatalog.api'
+import { getMerchantPortalProducts } from '../../merchant-portal/api/merchantPortal.api'
 import { listWarehouseProducts } from '../../warehouse/api/warehouse.api'
 import type { WarehouseProduct } from '../../warehouse/types/warehouse.types'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
+import { Can } from '../../../shared/auth/Can'
+import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { FormActionsBar } from '../../../shared/components/forms/FormActionsBar'
 import { FieldError } from '../../../shared/components/forms/FieldError'
 import { GovernorateAreaSelector } from '../../../shared/components/selectors/GovernorateAreaSelector'
@@ -55,11 +59,17 @@ const orderSchema = z.object({
   cod_amount: z.number().min(0, 'COD amount must be zero or more.'),
   fulfillment_type: z.enum(['pickup_from_merchant', 'from_warehouse', 'pickup_from_customer']),
   allow_inspection: z.boolean(),
+  requires_packaging: z.boolean().optional(),
+  package_notes: z.string().optional(),
   notes: z.string().optional(),
   shipping_fee: z.number().or(z.nan()).optional(),
   status: z.string().optional(),
   items: z.array(orderItemSchema),
   warehouse_items: z.array(warehouseOrderItemSchema).optional(),
+  packaging_items: z.array(z.object({
+    company_catalog_item_id: z.number().min(1, 'Item is required'),
+    quantity: z.number().min(1, 'Quantity is required'),
+  })).optional(),
 }).superRefine((values, context) => {
   if (values.order_type === 'swap' && !Number.isFinite(values.original_order_id)) {
     context.addIssue({
@@ -112,6 +122,7 @@ type OrderFormProps = {
   secondaryAction?: ReactNode
   submitLabel: string
   onSubmit: (values: OrderFormValues) => void
+  isMerchantPortal?: boolean
 }
 
 function optionalNumber(value: number | undefined) {
@@ -124,6 +135,10 @@ function emptyOrderItem() {
 
 function emptyWarehouseItem() {
   return { warehouse_product_id: 0, quantity: 1, unit_price: 0 }
+}
+
+function emptyPackagingItem() {
+  return { company_catalog_item_id: 0, quantity: 1 }
 }
 
 function productStockLabel(product: WarehouseProduct) {
@@ -141,6 +156,7 @@ export function OrderForm({
   secondaryAction,
   onSubmit,
   submitLabel,
+  isMerchantPortal = false,
 }: OrderFormProps) {
   const { t } = useTranslation()
   const { formError, getFieldError } = useFormApiErrors(error)
@@ -192,10 +208,15 @@ export function OrderForm({
               unit_price: Number(item.unit_price),
             }))
           : [],
+      requires_packaging: false,
+      package_notes: '',
+      packaging_items: [],
     },
   })
   const manualItems = useFieldArray({ control, name: 'items' })
   const warehouseItems = useFieldArray({ control, name: 'warehouse_items' })
+  const packagingItems = useFieldArray({ control, name: 'packaging_items' })
+  const requiresPackaging = watch('requires_packaging')
   const selectedGovernorateId = watch('delivery_governorate_id')
   const selectedFulfillmentType = watch('fulfillment_type')
   const selectedMerchantId = watch('merchant_id')
@@ -203,10 +224,22 @@ export function OrderForm({
   const selectedOrderType = watch('order_type')
   const selectedDeliveryAreaId = watch('delivery_area_id')
   const warehouseProductsQuery = useQuery({
-    queryKey: ['warehouse-products', 'order-form', selectedMerchantId, selectedFulfillmentType],
-    queryFn: () => listWarehouseProducts({ merchant_id: selectedMerchantId, status: 'active' }),
-    enabled: selectedFulfillmentType === 'from_warehouse' && selectedMerchantId > 0,
+    queryKey: ['warehouse-products', 'order-form', isMerchantPortal ? 'merchant-portal' : selectedMerchantId, selectedFulfillmentType],
+    queryFn: () => isMerchantPortal
+      ? getMerchantPortalProducts()
+      : listWarehouseProducts({ merchant_id: selectedMerchantId, status: 'active' }),
+    enabled: selectedFulfillmentType === 'from_warehouse' && (isMerchantPortal || selectedMerchantId > 0),
   })
+
+  const packagingProductsQuery = useQuery({
+    queryKey: ['company-catalog-packaging'],
+    queryFn: () => listCompanyCatalogItems({ category: 'packaging', status: 'active' }),
+  })
+  
+  const packagingOptions = (packagingProductsQuery.data?.data ?? []).map(p => ({
+    label: p.name,
+    value: String(p.id)
+  }))
 
   useEffect(() => {
     if (selectedPaymentType === 'prepaid') {
@@ -227,7 +260,7 @@ export function OrderForm({
   }, [selectedOrderType, setValue])
 
   function getWarehouseProduct(productId: number) {
-    return (warehouseProductsQuery.data?.data ?? []).find((product) => product.id === productId)
+    return (warehouseProductsQuery.data?.data ?? []).find((product: any) => product.id === productId)
   }
 
   function handleValidSubmit(values: OrderFormValues) {
@@ -286,21 +319,23 @@ export function OrderForm({
           <span className="form-section__icon" aria-hidden="true"><Info size={18} /></span>
         </div>
         <div className="form-section__body form-grid">
-          <label className="field">
-            <span>{t('Merchant')}</span>
-            <Controller
-              control={control}
-              name="merchant_id"
-              render={({ field }) => (
-                <MerchantSelector
-                  value={field.value ? String(field.value) : ''}
-                  disabled={isEdit}
-                  onChange={(merchantId) => field.onChange(merchantId ? Number(merchantId) : 0)}
-                />
-              )}
-            />
-            <FieldError error={errors.merchant_id?.message ?? getFieldError('merchant_id')} />
-          </label>
+          {!isMerchantPortal ? (
+            <label className="field">
+              <span>{t('Merchant')}</span>
+              <Controller
+                control={control}
+                name="merchant_id"
+                render={({ field }) => (
+                  <MerchantSelector
+                    value={field.value ? String(field.value) : ''}
+                    disabled={isEdit}
+                    onChange={(merchantId) => field.onChange(merchantId ? Number(merchantId) : 0)}
+                  />
+                )}
+              />
+              <FieldError error={errors.merchant_id?.message ?? getFieldError('merchant_id')} />
+            </label>
+          ) : null}
 
           <label className="field">
             <span>{t('Order Type', { defaultValue: 'Order Type' })}</span>
@@ -514,6 +549,97 @@ export function OrderForm({
         </div>
       </div>
 
+      <Can permission={PERMISSIONS.ORDER_PACKAGING_MANAGE}>
+        <div className="form-section form-section--panel">
+          <div className="form-section__header">
+            <div className="form-section__header-copy">
+              <h3 className="form-section__title">{t('Packaging', { defaultValue: 'Packaging' })}</h3>
+              <p className="form-section__description">
+                {t('Choose company-owned packaging products separately from warehouse order items when this order needs packing.', {
+                  defaultValue: 'Choose company-owned packaging products separately from warehouse order items when this order needs packing.',
+                })}
+              </p>
+            </div>
+            <span className="form-section__icon" aria-hidden="true"><Package size={18} /></span>
+          </div>
+          <div className="form-section__body">
+            <label className="field field--inline">
+              <input type="checkbox" {...register('requires_packaging')} />
+              <span>{t('Requires Packaging', { defaultValue: 'Requires Packaging' })}</span>
+            </label>
+
+            {requiresPackaging ? (
+              <>
+                <label className="field field--full">
+                  <span>{t('Package Notes', { defaultValue: 'Package Notes' })}</span>
+                  <Input {...register('package_notes')} />
+                  <FieldError error={errors.package_notes?.message ?? getFieldError('package_notes')} />
+                </label>
+
+                <div className="form-section__body" style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={packagingProductsQuery.isLoading || !(packagingProductsQuery.data?.data.length || defaultValues?.packaging_items?.length)}
+                    onClick={() => packagingItems.append(emptyPackagingItem())}
+                  >
+                    {t('Add Packaging Item', { defaultValue: 'Add Packaging Item' })}
+                  </Button>
+                </div>
+
+                {packagingProductsQuery.isLoading ? (
+                  <div className="empty-state-inline">{t('Loading packaging products...', { defaultValue: 'Loading packaging products...' })}</div>
+                ) : null}
+                {!packagingProductsQuery.isLoading && !packagingOptions.length ? (
+                  <div className="empty-state-inline">{t('No active packaging products found in the company catalog.', {
+                    defaultValue: 'No active packaging products found in the company catalog.',
+                  })}</div>
+                ) : null}
+
+                <div className="order-items-list">
+                  {packagingItems.fields.map((field, index) => (
+                    <div className="order-item-row" key={field.id}>
+                      <label className="field">
+                        <span>{t('Packaging Item', { defaultValue: 'Packaging Item' })}</span>
+                        <Controller
+                          control={control}
+                          name={`packaging_items.${index}.company_catalog_item_id`}
+                          render={({ field: selectField }) => (
+                            <SearchableSelect
+                              value={String(selectField.value ?? '')}
+                              onChange={(val) => selectField.onChange(val ? Number(val) : undefined)}
+                              options={packagingOptions}
+                              placeholder={t('Select item', { defaultValue: 'Select item' })}
+                            />
+                          )}
+                        />
+                        <FieldError error={errors.packaging_items?.[index]?.company_catalog_item_id?.message} />
+                      </label>
+
+                      <label className="field">
+                        <span>{t('Quantity')}</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          {...register(`packaging_items.${index}.quantity`, { valueAsNumber: true })}
+                        />
+                        <FieldError error={errors.packaging_items?.[index]?.quantity?.message} />
+                      </label>
+
+                      <div className="order-item-row__actions">
+                        <Button type="button" variant="danger" onClick={() => packagingItems.remove(index)}>
+                          {t('Remove', { defaultValue: 'Remove' })}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </div>
+        </div>
+      </Can>
+
       <div className="form-section form-section--panel">
         <div className="form-section__header">
           <div className="form-section__header-copy">
@@ -543,7 +669,7 @@ export function OrderForm({
             >
               {t('Add Item', { defaultValue: 'Add Item' })}
             </Button>
-          ) : selectedMerchantId > 0 ? (
+          ) : (isMerchantPortal || selectedMerchantId > 0) ? (
             <Button
               type="button"
               variant="secondary"
@@ -558,13 +684,13 @@ export function OrderForm({
         <div className="form-section__body">
           {showWarehouseItems ? (
             <>
-              {!selectedMerchantId ? (
+              {!isMerchantPortal && !selectedMerchantId ? (
                 <div className="empty-state-inline">{t('Select a merchant first to load warehouse products.', { defaultValue: 'Select a merchant first to load warehouse products.' })}</div>
               ) : null}
-              {selectedMerchantId > 0 && warehouseProductsQuery.isLoading ? (
+              {(isMerchantPortal || selectedMerchantId > 0) && warehouseProductsQuery.isLoading ? (
                 <div className="empty-state-inline">{t('Loading warehouse products...', { defaultValue: 'Loading warehouse products...' })}</div>
               ) : null}
-              {selectedMerchantId > 0 && !warehouseProductsQuery.isLoading && !(warehouseProductsQuery.data?.data.length) ? (
+              {(isMerchantPortal || selectedMerchantId > 0) && !warehouseProductsQuery.isLoading && !(warehouseProductsQuery.data?.data.length) ? (
                 <div className="empty-state-inline">{t('No warehouse products found for this merchant.', { defaultValue: 'No warehouse products found for this merchant.' })}</div>
               ) : null}
               <div className="order-items-list">
@@ -583,7 +709,7 @@ export function OrderForm({
                             onChange={(warehouse_product_id) => warehouseField.onChange(Number(warehouse_product_id || 0))}
                             options={[
                               { label: t('Select product', { defaultValue: 'Select product' }), value: '0' },
-                              ...((warehouseProductsQuery.data?.data ?? []).map((product) => ({
+                              ...((warehouseProductsQuery.data?.data ?? []).map((product: any) => ({
                                 label: productStockLabel(product),
                                 value: String(product.id),
                                 keywords: [product.name, product.sku, product.barcode ?? '', product.merchant_name ?? ''],

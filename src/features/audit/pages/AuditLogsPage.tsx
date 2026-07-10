@@ -48,7 +48,25 @@ const sensitiveKeys = new Set([
   'api_token',
   'api_key',
   'secret',
+  'secret',
 ])
+
+const AUDIT_ACTION_MAP: Record<string, string> = {
+  created: 'Created',
+  updated: 'Updated',
+  deleted: 'Deleted',
+  company_catalog_item_created: 'Company Catalog Item Created',
+  company_catalog_item_updated: 'Company Catalog Item Updated',
+  company_catalog_item_deleted: 'Company Catalog Item Deleted',
+  merchant_shop_previewed: 'Merchant Shop Previewed',
+  settings_updated: 'Settings Updated',
+}
+
+function getAuditActionLabel(action: string | null | undefined, t: any) {
+  if (!action) return '-'
+  const mapped = AUDIT_ACTION_MAP[action]
+  return mapped ? t(mapped, { defaultValue: mapped }) : action
+}
 
 function sanitizeRecordPayload(value: Record<string, unknown> | null | undefined) {
   if (!value) {
@@ -109,14 +127,15 @@ export function AuditLogsPage() {
   const logs = auditLogsQuery.data?.data ?? []
 
   return (
-    <section className="page-section">
+    <section className="page-section page-section--with-sidebar">
       <PageHeader
-        title="Audit Logs"
-        description="Global operational, finance, and security audit records."
+        title={t('Audit Logs', { defaultValue: 'Audit Logs' })}
+        description={t('Global operational, finance, and security audit records.', { defaultValue: 'Global operational, finance, and security audit records.' })}
       />
 
-      <Card variant="flat" className="dashboard-filter-card">
-        <CardContent className="dashboard-filters">
+      <aside className="page-sidebar-filters">
+        <Card variant="flat" className="dashboard-filter-card">
+          <CardContent className="dashboard-filters dashboard-filters--sidebar">
           <label className="field">
             <span>{t('User ID')}</span>
             <Input
@@ -184,7 +203,9 @@ export function AuditLogsPage() {
           </div>
         </CardContent>
       </Card>
+      </aside>
 
+      <main className="page-main-content">
       <Card className="table-card">
         <CardHeader>
           <CardTitle>{t('Global Audit History')}</CardTitle>
@@ -196,15 +217,15 @@ export function AuditLogsPage() {
           {auditLogsQuery.isLoading ? <LoadingState title={t('Loading audit logs')} /> : null}
           {auditLogsQuery.isError ? (
             <ErrorState
-              title="Unable to load audit logs"
+              title={t('Unable to load audit logs', { defaultValue: 'Unable to load audit logs' })}
               message={getApiErrorMessage(auditLogsQuery.error)}
               onRetry={() => void auditLogsQuery.refetch()}
             />
           ) : null}
           {!auditLogsQuery.isLoading && !auditLogsQuery.isError && !logs.length ? (
             <EmptyState
-              title="No audit logs found"
-              description="No audit events matched the selected filters."
+              title={t('No audit logs found', { defaultValue: 'No audit logs found' })}
+              description={t('No audit events matched the selected filters.', { defaultValue: 'No audit events matched the selected filters.' })}
             />
           ) : null}
           {logs.length ? (
@@ -227,7 +248,7 @@ export function AuditLogsPage() {
                     <tr key={log.id}>
                       <TableCell>{log.user?.name ?? t('System')}</TableCell>
                       <TableCell>{log.event_type}</TableCell>
-                      <TableCell>{log.action}</TableCell>
+                      <TableCell>{getAuditActionLabel(log.action, t)}</TableCell>
                       <TableCell>
                         {log.auditable_type}
                         <p className="table-meta">#{log.auditable_id}</p>
@@ -259,7 +280,7 @@ export function AuditLogsPage() {
             <dl className="detail-list">
               <div><dt>{t('User')}</dt><dd>{selectedLog.user?.name ?? t('System')}</dd></div>
               <div><dt>{t('Event Type')}</dt><dd>{selectedLog.event_type}</dd></div>
-              <div><dt>{t('Action')}</dt><dd>{selectedLog.action}</dd></div>
+              <div><dt>{t('Action')}</dt><dd>{getAuditActionLabel(selectedLog.action, t)}</dd></div>
               <div><dt>{t('Auditable Type')}</dt><dd>{selectedLog.auditable_type}</dd></div>
               <div><dt>{t('Auditable ID')}</dt><dd>{selectedLog.auditable_id}</dd></div>
               <div><dt>{t('Notes')}</dt><dd>{selectedLog.notes ?? '-'}</dd></div>
@@ -272,6 +293,7 @@ export function AuditLogsPage() {
           </div>
         ) : null}
       </Dialog>
+      </main>
     </section>
   )
 }

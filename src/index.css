@@ -578,6 +578,8 @@ select {
   padding: 0.35rem;
   z-index: 60;
   text-align: start;
+  display: flex;
+  flex-direction: column;
 }
 
 .ui-dropdown__content--right {
@@ -1007,6 +1009,10 @@ select {
   grid-template-columns: minmax(14rem, 1.65fr) minmax(5.5rem, 0.75fr) minmax(7rem, 0.9fr) auto;
 }
 
+.order-item-row--packaging {
+  grid-template-columns: minmax(14rem, 1.6fr) minmax(6rem, 0.8fr) minmax(10rem, 1.2fr) auto;
+}
+
 .dark .order-item-row {
   background: rgba(15, 23, 42, 0.6);
 }
@@ -1020,15 +1026,21 @@ select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .order-item-row--packaging {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .order-item-row > .ui-button,
-  .order-item-row--warehouse > .ui-button {
+  .order-item-row--warehouse > .ui-button,
+  .order-item-row--packaging > .ui-button {
     grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 480px) {
   .order-item-row,
-  .order-item-row--warehouse {
+  .order-item-row--warehouse,
+  .order-item-row--packaging {
     grid-template-columns: 1fr;
   }
 }
@@ -1866,6 +1878,10 @@ select {
   grid-column: span 6;
 }
 
+.dashboard-grid__quarter {
+  grid-column: span 3;
+}
+
 .dashboard-panel-card__header {
   display: flex;
   align-items: flex-start;
@@ -2326,7 +2342,7 @@ select {
 
 .detail-card,
 .table-card {
-  align-self: start;
+  align-self: stretch;
 }
 
 .detail-card .ui-card__content,
@@ -2374,6 +2390,13 @@ select {
   gap: 0.75rem;
   margin-bottom: 1rem;
   align-items: end;
+}
+
+.filters-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .api-filter-bar {
@@ -2896,7 +2919,6 @@ select {
 [dir='rtl'] .page-header__actions,
 [dir='rtl'] .page-header__button-row,
 [dir='rtl'] .activity-row,
-[dir='rtl'] .dashboard-panel-card__header,
 [dir='rtl'] .dashboard-coverage-card__actions,
 [dir='rtl'] .settings-quick-links,
 [dir='rtl'] .app-topbar__profile,
@@ -2992,6 +3014,7 @@ select {
   .settings-form-grid,
   .filters-bar,
   .api-filter-bar,
+  .filters-chip-row,
   .form-grid--two,
   .form-grid--three,
   .order-item-row {
@@ -3163,6 +3186,59 @@ select {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.page-section--with-sidebar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .page-section--with-sidebar {
+    grid-template-columns: 20rem minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.page-section--with-sidebar .page-header {
+  grid-column: 1 / -1;
+}
+
+.page-sidebar-filters {
+  min-width: 0;
+}
+
+.page-main-content {
+  min-width: 0;
+}
+
+.dashboard-filters--sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.dashboard-filters--sidebar .field {
+  width: 100%;
+}
+
+.dashboard-filters--sidebar .ui-select,
+.dashboard-filters--sidebar .ui-input,
+.dashboard-filters--sidebar .ui-searchable-select__trigger,
+.dashboard-filters--sidebar .permission-multi-select__trigger {
+  width: 100%;
+}
+
+/* Override existing form actions for sidebar to stack buttons and stretch them */
+.page-sidebar-filters .dashboard-filter-card .form-actions {
+  flex-direction: column;
+  width: 100%;
+}
+
+.page-sidebar-filters .dashboard-filter-card .form-actions button {
+  width: 100%;
 }
 
 @media print {

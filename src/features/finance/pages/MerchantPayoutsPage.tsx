@@ -260,8 +260,8 @@ export function MerchantPayoutsPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Merchant Payouts"
-        description="Approve, reject, and complete merchant payouts using backend-owned balances."
+        title={t('Merchant Payouts', { defaultValue: 'Merchant Payouts' })}
+        description={t('Approve, reject, and complete merchant payouts using backend-owned balances.', { defaultValue: 'Approve, reject, and complete merchant payouts using backend-owned balances.' })}
         actions={(
           <Can permission={PERMISSIONS.PAYOUTS_CREATE}>
             <Link className="ui-link-reset" to={adminPath('/finance/merchant-payouts/create')}>

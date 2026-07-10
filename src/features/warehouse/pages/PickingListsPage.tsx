@@ -120,14 +120,14 @@ function GeneratePickingListDialog({
           {ordersQuery.isLoading ? <LoadingState title={t('Loading warehouse orders')} /> : null}
           {ordersQuery.isError ? (
             <ErrorState
-              title="Unable to load warehouse orders"
+              title={t('Unable to load warehouse orders', { defaultValue: 'Unable to load warehouse orders' })}
               message={getApiErrorMessage(ordersQuery.error)}
             />
           ) : null}
           {!ordersQuery.isLoading && !ordersQuery.isError && !(ordersQuery.data?.data.length) ? (
             <EmptyState
-              title="No warehouse orders found"
-              description="No from_warehouse orders were returned for picking list generation."
+              title={t('No warehouse orders found', { defaultValue: 'No warehouse orders found' })}
+              description={t('No from_warehouse orders were returned for picking list generation.', { defaultValue: 'No from_warehouse orders were returned for picking list generation.' })}
             />
           ) : null}
           {ordersQuery.data?.data.length ? (
@@ -178,6 +178,7 @@ function GeneratePickingListDialog({
 }
 
 export function PickingListsPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [generateOpen, setGenerateOpen] = useState(false)
   const [pickingListPendingCancel, setPickingListPendingCancel] = useState<PickingList | null>(null)
@@ -213,12 +214,12 @@ export function PickingListsPage() {
   return (
     <section className="page-section">
       <PageHeader
-        title="Picking Lists"
-        description="Generate and manage warehouse picking lists for from_warehouse orders."
+        title={t('Picking Lists', { defaultValue: 'Picking Lists' })}
+        description={t('Generate and manage warehouse picking lists for from_warehouse orders.', { defaultValue: 'Generate and manage warehouse picking lists for from_warehouse orders.' })}
         actions={(
           <Can permission={PERMISSIONS.PICKING_LISTS_CREATE}>
             <Button type="button" onClick={() => setGenerateOpen(true)}>
-              Generate Picking List
+              {t('Generate Picking List', { defaultValue: 'Generate Picking List' })}
             </Button>
           </Can>
         )}
@@ -226,22 +227,22 @@ export function PickingListsPage() {
 
       <Card className="table-card">
         <CardHeader>
-          <CardTitle>Picking Lists</CardTitle>
-          <CardDescription>Picking batches returned by the documented warehouse list endpoint.</CardDescription>
+          <CardTitle>{t('Picking Lists', { defaultValue: 'Picking Lists' })}</CardTitle>
+          <CardDescription>{t('Picking batches returned by the documented warehouse list endpoint.', { defaultValue: 'Picking batches returned by the documented warehouse list endpoint.' })}</CardDescription>
         </CardHeader>
         <CardContent>
-          {pickingListsQuery.isLoading ? <LoadingState title="Loading picking lists" /> : null}
+          {pickingListsQuery.isLoading ? <LoadingState title={t('Loading picking lists', { defaultValue: 'Loading picking lists' })} /> : null}
           {pickingListsQuery.isError ? (
             <ErrorState
-              title="Unable to load picking lists"
+              title={t('Unable to load picking lists', { defaultValue: 'Unable to load picking lists' })}
               message={getApiErrorMessage(pickingListsQuery.error)}
               onRetry={() => void pickingListsQuery.refetch()}
             />
           ) : null}
           {!pickingListsQuery.isLoading && !pickingListsQuery.isError && !pickingLists.length ? (
             <EmptyState
-              title="No picking lists"
-              description="No picking lists were returned from the warehouse API."
+              title={t('No picking lists', { defaultValue: 'No picking lists' })}
+              description={t('No picking lists were returned from the warehouse API.', { defaultValue: 'No picking lists were returned from the warehouse API.' })}
             />
           ) : null}
           {pickingLists.length ? (
@@ -307,9 +308,9 @@ export function PickingListsPage() {
       />
       <ConfirmActionModal
         open={Boolean(pickingListPendingCancel)}
-        title="Cancel picking list"
-        description={pickingListPendingCancel ? `Cancel ${pickingListPendingCancel.picking_number ?? pickingListPendingCancel.picking_list_number ?? `#${pickingListPendingCancel.id}`}?` : ''}
-        confirmLabel="Cancel picking list"
+        title={t('Cancel picking list', { defaultValue: 'Cancel picking list' })}
+        description={pickingListPendingCancel ? t('Cancel {{pickingList}}?', { pickingList: pickingListPendingCancel.picking_number ?? pickingListPendingCancel.picking_list_number ?? `#${pickingListPendingCancel.id}`, defaultValue: `Cancel ${pickingListPendingCancel.picking_number ?? pickingListPendingCancel.picking_list_number ?? `#${pickingListPendingCancel.id}`}?` }) : ''}
+        confirmLabel={t('Cancel picking list', { defaultValue: 'Cancel picking list' })}
         variant="danger"
         loading={cancelMutation.isPending}
         onCancel={() => setPickingListPendingCancel(null)}

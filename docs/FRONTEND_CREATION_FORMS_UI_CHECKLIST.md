@@ -31,3 +31,9 @@
 | Expenses create/edit | `/admin/expenses/create` | `FinanceRecordFormPage.tsx`, `FinanceForms.tsx` | Standalone | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | Pending | Pending | |
 | Payouts create/edit | `/admin/merchant-payouts/create` | `FinanceRecordFormPage.tsx`, `FinanceForms.tsx` | Standalone | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | Pending | Pending | |
 | Treasury Account create/edit | `/admin/treasury-accounts/create` | `TreasuryAccountFormPage.tsx` | Standalone | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | Pending | Pending | |
+
+## P0 Company Catalog + Order Packaging Sync Notes
+
+- Order create/edit continues to use the shared standalone form shell, and the new packaging subsection was added inside `OrderForm.tsx` without changing the surrounding approved create/edit layout system.
+- The packaging subsection is now a distinct panel with localized title/description, `requires_packaging` toggle, notes field, repeatable packaging-item rows, and responsive add/remove controls.
+- Browser visual QA for desktop/mobile/RTL packaging layout is still pending.

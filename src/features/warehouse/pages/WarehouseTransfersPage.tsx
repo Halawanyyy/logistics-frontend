@@ -320,19 +320,20 @@ export function WarehouseTransfersPage() {
   const formMutation = transferInForm?.id ? updateMutation : createMutation
 
   return (
-    <section className="page-section">
+    <section className="page-section page-section--with-sidebar">
       <PageHeader
         title={t('Warehouse Transfers')}
         description={t('Inter-warehouse transfer drafts, dispatch, receiving, and cancellation.')}
         actions={<Button type="button" onClick={() => setTransferInForm({} as WarehouseTransfer)}>{t('Create Transfer')}</Button>}
       />
 
-      <Card variant="flat" className="dashboard-filter-card">
-        <CardHeader>
-          <CardTitle>{t('Filters')}</CardTitle>
-          <CardDescription>{t('Backend transfer filters for source/destination warehouses, status, number, and date range.')}</CardDescription>
-        </CardHeader>
-        <CardContent className="dashboard-filters">
+      <aside className="page-sidebar-filters">
+        <Card variant="flat" className="dashboard-filter-card">
+          <CardHeader>
+            <CardTitle>{t('Filters')}</CardTitle>
+            <CardDescription>{t('Backend transfer filters for source/destination warehouses, status, number, and date range.')}</CardDescription>
+          </CardHeader>
+          <CardContent className="dashboard-filters dashboard-filters--sidebar">
           <label className="field">
             <span>{t('Source Warehouse')}</span>
             <WarehouseSelector
@@ -378,7 +379,9 @@ export function WarehouseTransfersPage() {
           </div>
         </CardContent>
       </Card>
+      </aside>
 
+      <main className="page-main-content">
       <Card className="table-card">
         <CardHeader className="table-card__header">
           <CardTitle>{t('Transfers')}</CardTitle>
@@ -519,6 +522,7 @@ export function WarehouseTransfersPage() {
           }
         }}
       />
+      </main>
     </section>
   )
 }

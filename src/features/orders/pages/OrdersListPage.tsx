@@ -145,7 +145,7 @@ export function OrdersListPage() {
   }, [searchText])
 
   return (
-    <section className="page-section">
+    <section className="page-section page-section--with-sidebar">
       <PageHeader
         title={t('Orders')}
         description={t('Orders with merchant, customer, commercial, and shipment state details.', {
@@ -160,24 +160,25 @@ export function OrdersListPage() {
         }
       />
 
-      <Card variant="flat" className="dashboard-filter-card">
-        <CardHeader>
-          <CardTitle>{t('Filters')}</CardTitle>
-          <CardDescription>{t('Filters are applied with local state and backend query params without reloading the page.', { defaultValue: 'Filters are applied with local state and backend query params without reloading the page.' })}</CardDescription>
-        </CardHeader>
-        <CardContent className="dashboard-filters">
+      <aside className="page-sidebar-filters">
+        <Card variant="flat" className="dashboard-filter-card">
+          <CardHeader>
+            <CardTitle>{t('Filters')}</CardTitle>
+            <CardDescription>{t('Filters are applied with local state and backend query params without reloading the page.', { defaultValue: 'Filters are applied with local state and backend query params without reloading the page.' })}</CardDescription>
+          </CardHeader>
+          <CardContent className="dashboard-filters dashboard-filters--sidebar">
           <label className="field">
             <span>{t('Status')}</span>
             <Select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
               <option value="">{t('All statuses')}</option>
-              <option value="draft">draft</option>
-              <option value="pending_review">pending_review</option>
-              <option value="confirmed">confirmed</option>
-              <option value="shipment_created">shipment_created</option>
-              <option value="delivered">delivered</option>
-              <option value="partially_delivered">partially_delivered</option>
-              <option value="failed">failed</option>
-              <option value="cancelled">cancelled</option>
+              <option value="draft">{t('draft', { defaultValue: 'draft' })}</option>
+              <option value="pending_review">{t('pending_review', { defaultValue: 'pending_review' })}</option>
+              <option value="confirmed">{t('confirmed', { defaultValue: 'confirmed' })}</option>
+              <option value="shipment_created">{t('shipment_created', { defaultValue: 'shipment_created' })}</option>
+              <option value="delivered">{t('delivered', { defaultValue: 'delivered' })}</option>
+              <option value="partially_delivered">{t('partially_delivered', { defaultValue: 'partially_delivered' })}</option>
+              <option value="failed">{t('failed', { defaultValue: 'failed' })}</option>
+              <option value="cancelled">{t('cancelled', { defaultValue: 'cancelled' })}</option>
             </Select>
           </label>
 
@@ -185,9 +186,9 @@ export function OrdersListPage() {
             <span>{t('Order Type', { defaultValue: 'Order Type' })}</span>
             <Select value={filters.order_type} onChange={(event) => setFilters((current) => ({ ...current, order_type: event.target.value }))}>
               <option value="">{t('All order types', { defaultValue: 'All order types' })}</option>
-              <option value="delivery">delivery</option>
-              <option value="swap">swap</option>
-              <option value="return">return</option>
+              <option value="delivery">{t('delivery', { defaultValue: 'delivery' })}</option>
+              <option value="swap">{t('swap', { defaultValue: 'swap' })}</option>
+              <option value="return">{t('return', { defaultValue: 'return' })}</option>
             </Select>
           </label>
 
@@ -195,9 +196,9 @@ export function OrdersListPage() {
             <span>{t('Fulfillment Type', { defaultValue: 'Fulfillment Type' })}</span>
             <Select value={filters.fulfillment_type} onChange={(event) => setFilters((current) => ({ ...current, fulfillment_type: event.target.value }))}>
               <option value="">{t('All fulfillment types', { defaultValue: 'All fulfillment types' })}</option>
-              <option value="pickup_from_merchant">pickup_from_merchant</option>
-              <option value="from_warehouse">from_warehouse</option>
-              <option value="pickup_from_customer">pickup_from_customer</option>
+              <option value="pickup_from_merchant">{t('pickup_from_merchant', { defaultValue: 'pickup_from_merchant' })}</option>
+              <option value="from_warehouse">{t('from_warehouse', { defaultValue: 'from_warehouse' })}</option>
+              <option value="pickup_from_customer">{t('pickup_from_customer', { defaultValue: 'pickup_from_customer' })}</option>
             </Select>
           </label>
 
@@ -205,8 +206,8 @@ export function OrdersListPage() {
             <span>{t('Payment Type', { defaultValue: 'Payment Type' })}</span>
             <Select value={filters.payment_type} onChange={(event) => setFilters((current) => ({ ...current, payment_type: event.target.value }))}>
               <option value="">{t('All payment types', { defaultValue: 'All payment types' })}</option>
-              <option value="cod">cod</option>
-              <option value="prepaid">prepaid</option>
+              <option value="cod">{t('cod', { defaultValue: 'cod' })}</option>
+              <option value="prepaid">{t('prepaid', { defaultValue: 'prepaid' })}</option>
             </Select>
           </label>
 
@@ -214,14 +215,14 @@ export function OrdersListPage() {
             <span>{t('Delivery Status', { defaultValue: 'Delivery Status' })}</span>
             <Select value={filters.delivery_status} onChange={(event) => setFilters((current) => ({ ...current, delivery_status: event.target.value }))}>
               <option value="">{t('All delivery statuses', { defaultValue: 'All delivery statuses' })}</option>
-              <option value="pending">pending</option>
-              <option value="reserved">reserved</option>
-              <option value="fulfilled">fulfilled</option>
-              <option value="partially_delivered">partially_delivered</option>
-              <option value="delivered">delivered</option>
-              <option value="returned">returned</option>
-              <option value="damaged">damaged</option>
-              <option value="cancelled">cancelled</option>
+              <option value="pending">{t('pending', { defaultValue: 'pending' })}</option>
+              <option value="reserved">{t('reserved', { defaultValue: 'reserved' })}</option>
+              <option value="fulfilled">{t('fulfilled', { defaultValue: 'fulfilled' })}</option>
+              <option value="partially_delivered">{t('partially_delivered', { defaultValue: 'partially_delivered' })}</option>
+              <option value="delivered">{t('delivered', { defaultValue: 'delivered' })}</option>
+              <option value="returned">{t('returned', { defaultValue: 'returned' })}</option>
+              <option value="damaged">{t('damaged', { defaultValue: 'damaged' })}</option>
+              <option value="cancelled">{t('cancelled', { defaultValue: 'cancelled' })}</option>
             </Select>
           </label>
 
@@ -229,16 +230,16 @@ export function OrdersListPage() {
             <span>{t('Warehouse Fulfillment', { defaultValue: 'Warehouse Fulfillment' })}</span>
             <Select value={filters.warehouse_fulfillment_status} onChange={(event) => setFilters((current) => ({ ...current, warehouse_fulfillment_status: event.target.value }))}>
               <option value="">{t('All warehouse states', { defaultValue: 'All warehouse states' })}</option>
-              <option value="not_required">not_required</option>
-              <option value="pending_reservation">pending_reservation</option>
-              <option value="reserved">reserved</option>
-              <option value="picking">picking</option>
-              <option value="picked">picked</option>
-              <option value="packing">packing</option>
-              <option value="packed">packed</option>
-              <option value="ready_for_dispatch">ready_for_dispatch</option>
-              <option value="fulfilled">fulfilled</option>
-              <option value="cancelled">cancelled</option>
+              <option value="not_required">{t('not_required', { defaultValue: 'not_required' })}</option>
+              <option value="pending_reservation">{t('pending_reservation', { defaultValue: 'pending_reservation' })}</option>
+              <option value="reserved">{t('reserved', { defaultValue: 'reserved' })}</option>
+              <option value="picking">{t('picking', { defaultValue: 'picking' })}</option>
+              <option value="picked">{t('picked', { defaultValue: 'picked' })}</option>
+              <option value="packing">{t('packing', { defaultValue: 'packing' })}</option>
+              <option value="packed">{t('packed', { defaultValue: 'packed' })}</option>
+              <option value="ready_for_dispatch">{t('ready_for_dispatch', { defaultValue: 'ready_for_dispatch' })}</option>
+              <option value="fulfilled">{t('fulfilled', { defaultValue: 'fulfilled' })}</option>
+              <option value="cancelled">{t('cancelled', { defaultValue: 'cancelled' })}</option>
             </Select>
           </label>
 
@@ -273,14 +274,7 @@ export function OrdersListPage() {
             }}
           />
 
-          <label className="field">
-            <span>{t('Customer Phone', { defaultValue: 'Customer Phone' })}</span>
-            <Input
-              value={filters.customer_phone}
-              onChange={(event) => setFilters((current) => ({ ...current, customer_phone: event.target.value }))}
-              placeholder={t('Exact or partial phone', { defaultValue: 'Exact or partial phone' })}
-            />
-          </label>
+
 
           <label className="field">
             <span>{t('Order Number', { defaultValue: 'Order Number' })}</span>
@@ -291,23 +285,7 @@ export function OrdersListPage() {
             />
           </label>
 
-          <label className="field">
-            <span>{t('Has Shipment', { defaultValue: 'Has Shipment' })}</span>
-            <Select value={filters.has_shipment} onChange={(event) => setFilters((current) => ({ ...current, has_shipment: event.target.value }))}>
-              <option value="">{t('All orders', { defaultValue: 'All orders' })}</option>
-              <option value="1">{t('Yes', { defaultValue: 'Yes' })}</option>
-              <option value="0">{t('No', { defaultValue: 'No' })}</option>
-            </Select>
-          </label>
 
-          <label className="field">
-            <span>{t('Search')}</span>
-            <Input
-              value={filters.search}
-              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              placeholder={t('Order number, customer, or phone', { defaultValue: 'Order number, customer, or phone' })}
-            />
-          </label>
 
           <DateRangeFilter
             dateFrom={filters.date_from}
@@ -323,7 +301,9 @@ export function OrdersListPage() {
           </div>
         </CardContent>
       </Card>
+      </aside>
 
+      <main className="page-main-content">
       <Card className="table-card">
         <CardHeader className="table-card__header">
           <CardTitle>{t('Orders')}</CardTitle>
@@ -534,6 +514,7 @@ export function OrdersListPage() {
         })}
         triggerLabel={t('Label', { defaultValue: 'Label' })}
       />
+      </main>
     </section>
   )
 }

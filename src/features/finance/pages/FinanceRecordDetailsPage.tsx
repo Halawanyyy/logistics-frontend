@@ -1,19 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { listAuditTimeline } from '../../../shared/api/audit.api'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { Attachments } from '../../../shared/components/attachments/Attachments'
-import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/feedback/ErrorState'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
-import { Timeline } from '../../../shared/components/timeline/Timeline'
 import { Button } from '../../../shared/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
-import type { AuditLogItem } from '../../../shared/types/audit.types'
 import { formatDate, formatMoney } from '../../../shared/utils/formatters'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS, type Permission } from '../../../shared/auth/permission-keys'
@@ -45,16 +41,12 @@ const actionPermissions: Record<FinanceKind, { update: Permission; remove: Permi
   'cash-closures': { update: PERMISSIONS.CASH_CLOSURES_UPDATE, remove: PERMISSIONS.CASH_CLOSURES_DELETE },
   expenses: { update: PERMISSIONS.EXPENSES_UPDATE, remove: PERMISSIONS.EXPENSES_DELETE },
   invoices: {
-    update: PERMISSIONS.INVOICES_UPDATE,
-    remove: PERMISSIONS.INVOICES_DELETE,
-    download: PERMISSIONS.INVOICES_DOWNLOAD,
+    update: PERMISSIONS.FINANCE_INVOICES_UPDATE,
+    remove: PERMISSIONS.FINANCE_INVOICES_DELETE,
+    download: PERMISSIONS.FINANCE_INVOICES_DOWNLOAD,
   },
 }
 
-const timelineTypeByKind: Partial<Record<FinanceKind, 'merchant_payout' | 'expense'>> = {
-  payouts: 'merchant_payout',
-  expenses: 'expense',
-}
 
 export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
   const { t } = useTranslation()
@@ -64,12 +56,7 @@ export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
   const queryClient = useQueryClient()
   const query = useQuery<any>({ queryKey: [entry.queryKey, recordId], queryFn: () => entry.get(recordId!) as Promise<any>, enabled: Boolean(recordId) })
   const previewQuery = useQuery({ queryKey: ['merchant-invoices', recordId, 'preview'], queryFn: () => getMerchantInvoicePreview(recordId!), enabled: kind === 'invoices' && Boolean(recordId) })
-  const timelineType = timelineTypeByKind[kind]
-  const timelineQuery = useQuery({
-    queryKey: ['finance-record', kind, recordId, 'timeline'],
-    queryFn: () => listAuditTimeline({ auditable_type: timelineType!, auditable_id: recordId! }),
-    enabled: Boolean(recordId && timelineType),
-  })
+    
   const deleteMutation = useMutation({
     mutationFn: () => entry.remove(recordId!),
     onSuccess: async () => {
@@ -99,15 +86,6 @@ export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
 
   const record = query.data.data as any
   const permissions = actionPermissions[kind]
-  const timelineItems = (timelineQuery.data?.data ?? []).map((item: AuditLogItem) => ({
-    id: item.id,
-    title: `${item.event_type} - ${item.action}`,
-    subtitle: item.user?.name ?? t('System'),
-    description: item.notes ?? t('No notes were recorded for this event.', {
-      defaultValue: 'No notes were recorded for this event.',
-    }),
-    timestamp: item.created_at,
-  }))
 
   return (
     <section className="page-section">
@@ -199,42 +177,7 @@ export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
           </CardContent>
         </Card>
       ) : null}
-      <Can permission={PERMISSIONS.AUDIT_LOGS_TIMELINE}>
-        {timelineType ? (
-          <>
-            {timelineQuery.isLoading ? <LoadingState title={t('Loading activity timeline', { defaultValue: 'Loading activity timeline' })} /> : null}
-            {timelineQuery.isError ? (
-              <ErrorState
-                title={t('Unable to load activity timeline', { defaultValue: 'Unable to load activity timeline' })}
-                message={getApiErrorMessage(timelineQuery.error)}
-                onRetry={() => void timelineQuery.refetch()}
-              />
-            ) : null}
-            {!timelineQuery.isLoading && !timelineQuery.isError ? (
-              <Timeline
-                title={t('Activity Timeline')}
-                items={timelineItems}
-                emptyDescription={t('No {{title}} activity timeline entries were returned.', {
-                  title: t(entry.title, { defaultValue: entry.title }).toLowerCase(),
-                  defaultValue: `No ${entry.title.toLowerCase()} activity timeline entries were returned.`,
-                })}
-              />
-            ) : null}
-          </>
-        ) : (
-          <Card>
-            <CardHeader><CardTitle>{t('Activity Timeline')}</CardTitle></CardHeader>
-            <CardContent>
-              <EmptyState
-                title={t('Timeline not available for this entity', { defaultValue: 'Timeline not available for this entity' })}
-                description={t('This finance entity does not have a documented audit timeline auditable type.', {
-                  defaultValue: 'This finance entity does not have a documented audit timeline auditable type.',
-                })}
-              />
-            </CardContent>
-          </Card>
-        )}
-      </Can>
+      
       {kind === 'expenses' ? <Attachments attachableType="expenses" attachableId={record.id} /> : null}
       {kind === 'invoices' ? <Attachments attachableType="merchant_invoices" attachableId={record.id} /> : null}
     </section>

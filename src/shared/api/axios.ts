@@ -2,7 +2,7 @@ import axios, { type AxiosError } from 'axios'
 import { appConfig, getTenantHeader } from '../../app/config'
 import { useAuthStore } from '../../features/auth/store/auth.store'
 import { getLocalePreference } from '../i18n/locale'
-import { adminPath } from '../routing/paths'
+import { adminPath, merchantPath } from '../routing/paths'
 
 let isHandlingUnauthorized = false
 let isHandlingForbidden = false
@@ -42,12 +42,15 @@ apiClient.interceptors.request.use((requestConfig) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    const isMerchant = window.location.pathname.startsWith('/merchant')
+
     if (error.response?.status === 401 && !isHandlingUnauthorized) {
       isHandlingUnauthorized = true
       useAuthStore.getState().logout()
 
-      if (window.location.pathname !== adminPath('/login')) {
-        window.location.replace(adminPath('/login'))
+      const loginRedirect = isMerchant ? merchantPath('/login') : adminPath('/login')
+      if (window.location.pathname !== loginRedirect) {
+        window.location.replace(loginRedirect)
       }
 
       window.setTimeout(() => {
@@ -58,8 +61,9 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 403 && !isHandlingForbidden) {
       isHandlingForbidden = true
 
-      if (window.location.pathname !== adminPath('/403')) {
-        window.location.replace(adminPath('/403'))
+      const forbiddenRedirect = isMerchant ? merchantPath('/403') : adminPath('/403')
+      if (window.location.pathname !== forbiddenRedirect) {
+        window.location.replace(forbiddenRedirect)
       }
 
       window.setTimeout(() => {

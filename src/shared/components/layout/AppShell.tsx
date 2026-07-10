@@ -8,6 +8,7 @@ type AppShellProps = PropsWithChildren<{
   fallbackAppName: string
   items: SidebarItem[]
   onLogout: () => void
+  portalType?: 'admin' | 'merchant'
   user: AuthUser | null | undefined
   userName: string
   userRole: string
@@ -18,6 +19,7 @@ export function AppShell({
   children,
   items,
   onLogout,
+  portalType = 'admin',
   user,
   userName,
   userRole,
@@ -89,6 +91,7 @@ export function AppShell({
         onNavigate={() => {
           closeMobileSidebar()
         }}
+        portalType={portalType}
         sidebarOpen={sidebarVisible}
         supportEmail={branding.supportEmail}
         supportPhone={branding.supportPhone}
@@ -101,6 +104,7 @@ export function AppShell({
           companyName={companyName}
           isSidebarVisible={sidebarVisible}
           onToggleSidebar={handleToggleSidebar}
+          portalType={portalType}
           user={user}
           userName={userName}
           userRole={userRole}

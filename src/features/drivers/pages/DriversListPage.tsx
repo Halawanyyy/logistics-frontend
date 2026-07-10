@@ -22,7 +22,7 @@ export function DriversListPage() {
 
   return (
     <ResourceListPage<Driver>
-      title="Drivers"
+      title={t('Drivers', { defaultValue: 'Drivers' })}
       description={t('Operational drivers available for shipment assignment.', { defaultValue: 'Operational drivers available for shipment assignment.' })}
       actions={
         <Can permission={PERMISSIONS.DRIVERS_CREATE}>

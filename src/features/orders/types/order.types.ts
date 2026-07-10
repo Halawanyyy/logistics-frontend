@@ -1,3 +1,8 @@
+import type {
+  OrderPackagingItem,
+  OrderPackagingItemRequest,
+} from '../../company-catalog/types/companyCatalog.types'
+
 export type OrderItem = {
   id: number
   product_name: string
@@ -79,6 +84,8 @@ export type Order = {
   allow_inspection: boolean
   requires_packaging: boolean
   package_notes: string | null
+  total_packaging_fee?: string | null
+  packaging_items?: OrderPackagingItem[]
   source: string
   external_source: string | null
   external_order_id: string | null
@@ -176,6 +183,7 @@ export type CreateOrderRequest = {
   allow_inspection: boolean
   requires_packaging?: boolean
   package_notes?: string
+  packaging_items?: OrderPackagingItemRequest[]
   notes?: string
   items: CreateOrderItemRequest[]
 }
@@ -204,6 +212,9 @@ export type UpdateOrderRequest = {
   shipping_fee?: number
   fulfillment_type?: FulfillmentType
   allow_inspection?: boolean
+  requires_packaging?: boolean
+  package_notes?: string
+  packaging_items?: OrderPackagingItemRequest[]
   status?: string
   notes?: string
   items?: UpdateOrderItemRequest[]
