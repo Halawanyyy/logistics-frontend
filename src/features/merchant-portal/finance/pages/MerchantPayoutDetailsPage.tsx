@@ -10,7 +10,7 @@ import { PageHeader } from '../../../../shared/components/ui/PageHeader'
 import { merchantPath } from '../../../../shared/routing/paths'
 import { formatDate } from '../../../../shared/utils/formatters'
 import { getMerchantPortalPayout } from '../api/merchantPortalFinance.api'
-import { MoneyDisplay } from '../../../../shared/components/ui/MoneyDisplay'
+import { MoneyDisplay } from '../../../../shared/components/display/MoneyDisplay'
 import { StatusBadge } from '../../../../shared/components/ui/StatusBadge'
 
 export function MerchantPayoutDetailsPage() {
@@ -35,7 +35,7 @@ export function MerchantPayoutDetailsPage() {
             {t('Back to Payouts')}
           </Link>
         }
-        message={getApiErrorMessage(error, t('Failed to load payout details.'))}
+        message={getApiErrorMessage(error)}
         onRetry={refetch}
       />
     )
@@ -95,7 +95,7 @@ export function MerchantPayoutDetailsPage() {
                 <div>
                   <dt className="text-sm font-medium text-muted">{t('Amount')}</dt>
                   <dd className="mt-1 text-lg font-bold">
-                    <MoneyDisplay amount={payout.amount} currency={payout.currency} />
+                    <MoneyDisplay value={payout.amount} currency={payout.currency} />
                   </dd>
                 </div>
                 <div>

@@ -359,6 +359,14 @@ const arTranslations = {
   'All warehouse states': 'كل حالات المخزن',
   'Partially Delivered': 'تم التسليم جزئيًا',
   'All orders': 'كل الطلبات',
+  'All payments': 'كل طرق الدفع',
+  'Current Date': 'التاريخ الحالي',
+  'Search status...': 'ابحث في الحالات...',
+  'Search order type...': 'ابحث في أنواع الطلبات...',
+  'Search payment type...': 'ابحث في طرق الدفع...',
+  'No status found.': 'لم يتم العثور على حالة.',
+  'No order type found.': 'لم يتم العثور على نوع طلب.',
+  'No payment type found.': 'لم يتم العثور على طريقة دفع.',
   'Yes': 'نعم',
   'No': 'لا',
   'Exact or partial phone': 'رقم هاتف كامل أو جزئي',
@@ -1431,7 +1439,7 @@ const arTranslations = {
   'Print Waybill': 'طباعة البوليصة',
   'Pending Pickup': 'في انتظار الاستلام',
   'Picked Up': 'تم الاستلام',
-  'Search tracking number, order, phone...': 'بحث برقم التتبع، الطلب، الهاتف...'
+  'Search tracking number, order, phone...': 'بحث برقم التتبع، الطلب، الهاتف...',
   'API Tokens': 'مفاتيح API',
   'API Documentation': 'توثيق API',
   'Test Integration': 'اختبار التكامل',
@@ -1475,7 +1483,6 @@ const arTranslations = {
   'Endpoint / Action (Optional)': 'نقطة النهاية / الإجراء (اختياري)',
   'Payload (JSON Optional)': 'البيانات (JSON اختياري)',
   'Run a test to see the results here.': 'قم بتشغيل اختبار لرؤية النتائج هنا.',
-} as const satisfies Record<string, string>
   'Create and download exports for your merchant data.': 'قم بإنشاء وتنزيل صادرات لبيانات التاجر الخاصة بك.',
   'Export Status': 'حالة التصدير',
   'File Name': 'اسم الملف',
@@ -1534,7 +1541,7 @@ const arTranslations = {
   'Loading notifications...': 'جاري تحميل الإشعارات...',
   'Failed to load notifications.': 'فشل في تحميل الإشعارات.',
   'No notifications found.': 'لم يتم العثور على إشعارات.',
-  'You're all caught up!': 'أنت على اطلاع دائم بآخر المستجدات!',
+  "You're all caught up!": 'أنت على اطلاع دائم بآخر المستجدات!',
   'Mark Read': 'تحديد كمقروء',
   'Order #{{orderId}} status changed to {{status}}.': 'حالة الطلب #{{orderId}} تغيرت إلى {{status}}.',
   'Shipment #{{shipmentId}} status changed to {{status}}.': 'حالة الشحنة #{{shipmentId}} تغيرت إلى {{status}}.',
@@ -1557,6 +1564,13 @@ const arTranslations = {
   'Service Name': 'اسم الخدمة',
   'Dimensions': 'الأبعاد',
   'Price': 'السعر',
+  'Add Order': 'إضافة أوردر',
+  'Total {{count}} orders': 'إجمالي {{count}} أوردر',
+  'Search by customer name, phone or order code...': 'بحث باسم العميل، رقم الهاتف، أو كود الأوردر...',
+  'All Dates': 'كل التواريخ',
+  'Quick Preview': 'معاينة سريعة',
+} as const satisfies Record<string, string>
+
 const enTranslations = Object.fromEntries(
   Object.keys(arTranslations).map((key) => [key, key]),
 ) as Record<string, string>

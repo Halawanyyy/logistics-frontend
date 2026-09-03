@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
 import { listPricingPlans } from '../../location-pricing/api/location-pricing.api'
@@ -237,7 +237,13 @@ function GeneratePickPackFeesDialog({
   )
 }
 
-export function PickPackFeeRulesPage() {
+export function PickPackFeeRulesPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<RuleFiltersState>(initialFilters)
@@ -293,9 +299,15 @@ export function PickPackFeeRulesPage() {
   })
   const rules = rulesQuery.data?.data ?? []
 
+  useEffect(() => {
+    if (rulesQuery.data) {
+      onCountChange?.(rulesQuery.data.data.length)
+    }
+  }, [onCountChange, rulesQuery.data])
+
   return (
     <section className="page-section">
-      <PageHeader
+      {!embedded ? <PageHeader
         title={t('Pick & Pack Fee Rules')}
         description={t('Backend fee rules and one-order pick/pack fee generation.')}
         actions={(
@@ -308,7 +320,7 @@ export function PickPackFeeRulesPage() {
             </Can>
           </div>
         )}
-      />
+      /> : null}
 
       <Card variant="flat" className="dashboard-filter-card">
         <CardContent className="dashboard-filters">
@@ -421,4 +433,8 @@ export function PickPackFeeRulesPage() {
       />
     </section>
   )
+}
+
+export function PickPackFeeRulesPage() {
+  return <PickPackFeeRulesPanel />
 }

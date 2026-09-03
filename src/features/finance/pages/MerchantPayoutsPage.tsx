@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { MoreVertical } from 'lucide-react'
 import {
   approveMerchantPayout,
   completeMerchantPayout,
@@ -13,7 +14,6 @@ import type { CompleteMerchantPayoutRequest, FinanceFilters, MerchantPayout } fr
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
-import { ApprovalActionButtons } from '../../../shared/components/actions/ApprovalActionButtons'
 import { FieldError } from '../../../shared/components/forms/FieldError'
 import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
 import { MerchantSelector } from '../../../shared/components/selectors/MerchantSelector'
@@ -34,6 +34,8 @@ import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
+import { ConfirmActionModal } from '../../../shared/components/modals/ConfirmActionModal'
+import { DropdownContent, DropdownItem, DropdownMenu, DropdownTrigger } from '../../../shared/components/ui/Dropdown'
 
 type PayoutFiltersState = {
   date_from: string
@@ -194,12 +196,19 @@ function CompletePayoutDialog({
   )
 }
 
-export function MerchantPayoutsPage() {
+export function MerchantPayoutsPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<PayoutFiltersState>(initialFilters)
   const [payoutPendingReject, setPayoutPendingReject] = useState<MerchantPayout | null>(null)
   const [payoutPendingComplete, setPayoutPendingComplete] = useState<MerchantPayout | null>(null)
+  const [bulkApprovalOpen, setBulkApprovalOpen] = useState(false)
   const params: FinanceFilters = useMemo(
     () => ({
       ...(filters.date_from ? { date_from: filters.date_from } : {}),
@@ -256,23 +265,62 @@ export function MerchantPayoutsPage() {
     },
   })
   const payouts = payoutsQuery.data?.data ?? []
+  const pendingPayouts = payouts.filter((payout) => payout.status === 'pending')
+  const totalsByStatus = (status: string) => payouts
+    .filter((payout) => payout.status === status)
+    .reduce((sum, payout) => sum + Number(payout.amount || 0), 0)
+  const countByStatus = (status: string) => payouts.filter((payout) => payout.status === status).length
+  const bulkApproveMutation = useMutation({
+    mutationFn: () => Promise.all(pendingPayouts.map((payout) => approveMerchantPayout(payout.id))),
+    onSuccess: async () => {
+      setBulkApprovalOpen(false)
+      await queryClient.invalidateQueries({ queryKey: ['merchant-payouts'] })
+    },
+  })
+
+  useEffect(() => {
+    if (payoutsQuery.data) {
+      onCountChange?.(payoutsQuery.data.data.length)
+    }
+  }, [onCountChange, payoutsQuery.data])
+
+  const payoutHeaderActions = (
+    <div className="page-header__button-row finance-panel-actions">
+      {pendingPayouts.length ? (
+        <Can permission={PERMISSIONS.FINANCE_PAYOUTS_APPROVE}>
+          <Button type="button" variant="secondary" onClick={() => setBulkApprovalOpen(true)}>
+            {t('Approve all pending ({{count}})', { count: pendingPayouts.length, defaultValue: `Approve all pending (${pendingPayouts.length})` })}
+          </Button>
+        </Can>
+      ) : null}
+      <Can permission={PERMISSIONS.PAYOUTS_CREATE}>
+        <Link className="ui-link-reset" to={adminPath('/finance/merchant-payouts/create')}>
+          <Button>{t('Create Payout', { defaultValue: 'Create Payout' })}</Button>
+        </Link>
+      </Can>
+    </div>
+  )
 
   return (
     <section className="page-section">
-      <PageHeader
-        title={t('Merchant Payouts', { defaultValue: 'Merchant Payouts' })}
-        description={t('Approve, reject, and complete merchant payouts using backend-owned balances.', { defaultValue: 'Approve, reject, and complete merchant payouts using backend-owned balances.' })}
-        actions={(
-          <Can permission={PERMISSIONS.PAYOUTS_CREATE}>
-            <Link className="ui-link-reset" to={adminPath('/finance/merchant-payouts/create')}>
-              <Button>{t('Create Payout', { defaultValue: 'Create Payout' })}</Button>
-            </Link>
-          </Can>
-        )}
-      />
+      {!embedded ? <div className="finance-page-header animate-fade-up">
+        <PageHeader
+          title={t('Merchant Payouts', { defaultValue: 'Merchant Payouts' })}
+          description={t('Approve, reject, and complete merchant payouts using backend-owned balances.', { defaultValue: 'Approve, reject, and complete merchant payouts using backend-owned balances.' })}
+          actions={payoutHeaderActions}
+        />
+      </div> : (
+        payoutHeaderActions
+      )}
+
+      <div className="stats-grid finance-summary-grid">
+        <Card variant="stat" className="finance-summary-card finance-summary-card--warning" data-accent="warning"><CardContent><div className="compact-stat"><span className="compact-stat__label">{t('Total Pending', { defaultValue: 'Total Pending' })}</span><span className="compact-stat__value text-warning"><MoneyDisplay value={totalsByStatus('pending')} /></span><span className="compact-stat__count">{t('{{count}} payouts', { count: countByStatus('pending'), defaultValue: `${countByStatus('pending')} payouts` })}</span></div></CardContent></Card>
+        <Card variant="stat" className="finance-summary-card finance-summary-card--info" data-accent="finance"><CardContent><div className="compact-stat"><span className="compact-stat__label">{t('Total Approved', { defaultValue: 'Total Approved' })}</span><span className="compact-stat__value text-info"><MoneyDisplay value={totalsByStatus('approved')} /></span><span className="compact-stat__count">{t('{{count}} payouts', { count: countByStatus('approved'), defaultValue: `${countByStatus('approved')} payouts` })}</span></div></CardContent></Card>
+        <Card variant="stat" className="finance-summary-card finance-summary-card--success" data-accent="success"><CardContent><div className="compact-stat"><span className="compact-stat__label">{t('Total Paid', { defaultValue: 'Total Paid' })}</span><span className="compact-stat__value text-success"><MoneyDisplay value={totalsByStatus('completed')} /></span><span className="compact-stat__count">{t('{{count}} payouts', { count: countByStatus('completed'), defaultValue: `${countByStatus('completed')} payouts` })}</span></div></CardContent></Card>
+      </div>
 
       <Card variant="flat" className="dashboard-filter-card">
-        <CardContent className="dashboard-filters">
+        <CardContent className="dashboard-filters finance-filter-bar">
           <DateRangeFilter
             dateFrom={filters.date_from}
             dateTo={filters.date_to}
@@ -312,13 +360,9 @@ export function MerchantPayoutsPage() {
               <option value="wallet">wallet</option>
             </Select>
           </label>
-        </CardContent>
-        <CardContent>
-          <div className="form-actions">
-            <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
-              {t('Reset filters')}
-            </Button>
-          </div>
+          <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
+            {t('Reset filters')}
+          </Button>
         </CardContent>
       </Card>
 
@@ -336,6 +380,7 @@ export function MerchantPayoutsPage() {
               onRetry={() => void payoutsQuery.refetch()}
             />
           ) : null}
+          {bulkApproveMutation.isError ? <div className="form-error">{getApiErrorMessage(bulkApproveMutation.error)}</div> : null}
           {!payoutsQuery.isLoading && !payoutsQuery.isError && !payouts.length ? (
             <EmptyState
               title={t('No payouts found', { defaultValue: 'No payouts found' })}
@@ -364,7 +409,7 @@ export function MerchantPayoutsPage() {
                           {payout.merchant_name}
                         </Link>
                       </TableCell>
-                      <TableCell><MoneyDisplay value={payout.amount} /></TableCell>
+                      <TableCell className="amount-cell"><MoneyDisplay value={payout.amount} /></TableCell>
                       <TableCell>
                         <StatusBadge value={payout.status}>
                           {pickDisplayLabel(payout.status, payout.status_label)}
@@ -374,34 +419,39 @@ export function MerchantPayoutsPage() {
                       <TableCell>{payout.reference_number ?? '-'}</TableCell>
                       <TableCell>{payout.paid_at ? formatDate(payout.paid_at) : '-'}</TableCell>
                       <TableCell>
-                        <div className="page-header__button-row">
-                          <Link className="table-link" to={adminPath(`/finance/merchant-payouts/${payout.id}`)}>
-                            {t('View')}
+                        <div className="finance-row-actions">
+                          <Link className="ui-link-reset" to={adminPath(`/finance/merchant-payouts/${payout.id}`)}>
+                            <Button size="sm" variant="ghost">{t('View')}</Button>
                           </Link>
-                          <Can permission={PERMISSIONS.PAYOUTS_UPDATE}>
-                            <Link className="table-link" to={adminPath(`/finance/merchant-payouts/${payout.id}/edit`)}>
-                              {t('Edit')}
-                            </Link>
-                          </Can>
+                          {payout.status === 'pending' ? (
+                            <>
+                              <Can permission={PERMISSIONS.FINANCE_PAYOUTS_APPROVE}>
+                                <Button size="sm" className="finance-action--approve" loading={approveMutation.isPending} onClick={() => approveMutation.mutate(payout.id)}>{t('Approve', { defaultValue: 'Approve' })}</Button>
+                              </Can>
+                              <Can permission={PERMISSIONS.FINANCE_PAYOUTS_REJECT}>
+                                <Button size="sm" variant="danger" onClick={() => setPayoutPendingReject(payout)}>{t('Reject', { defaultValue: 'Reject' })}</Button>
+                              </Can>
+                            </>
+                          ) : null}
+                          <DropdownMenu>
+                            <DropdownTrigger aria-label={t('More actions', { defaultValue: 'More actions' })}><MoreVertical size={18} /></DropdownTrigger>
+                            <DropdownContent>
+                              <Can permission={PERMISSIONS.PAYOUTS_UPDATE}>
+                                <DropdownItem><Link className="ui-link-reset" to={adminPath(`/finance/merchant-payouts/${payout.id}/edit`)}>{t('Edit')}</Link></DropdownItem>
+                              </Can>
+                              {payout.status === 'approved' ? (
+                                <Can permission={PERMISSIONS.FINANCE_PAYOUTS_COMPLETE}>
+                                  <DropdownItem onClick={() => setPayoutPendingComplete(payout)}>{t('Complete', { defaultValue: 'Complete' })}</DropdownItem>
+                                </Can>
+                              ) : null}
+                              {payout.status === 'approved' ? (
+                                <Can permission={PERMISSIONS.FINANCE_PAYOUTS_REJECT}>
+                                  <DropdownItem destructive onClick={() => setPayoutPendingReject(payout)}>{t('Reject', { defaultValue: 'Reject' })}</DropdownItem>
+                                </Can>
+                              ) : null}
+                            </DropdownContent>
+                          </DropdownMenu>
                         </div>
-                        <ApprovalActionButtons
-                          approve={payout.status === 'pending' ? {
-                            label: t('Approve', { defaultValue: 'Approve' }),
-                            permission: PERMISSIONS.FINANCE_PAYOUTS_APPROVE,
-                            loading: approveMutation.isPending,
-                            onClick: () => approveMutation.mutate(payout.id),
-                          } : undefined}
-                          reject={['pending', 'approved'].includes(payout.status) ? {
-                            label: t('Reject', { defaultValue: 'Reject' }),
-                            permission: PERMISSIONS.FINANCE_PAYOUTS_REJECT,
-                            onClick: () => setPayoutPendingReject(payout),
-                          } : undefined}
-                          complete={payout.status === 'approved' ? {
-                            label: t('Complete', { defaultValue: 'Complete' }),
-                            permission: PERMISSIONS.FINANCE_PAYOUTS_COMPLETE,
-                            onClick: () => setPayoutPendingComplete(payout),
-                          } : undefined}
-                        />
                       </TableCell>
                     </tr>
                   ))}
@@ -435,6 +485,22 @@ export function MerchantPayoutsPage() {
         }}
         open={Boolean(payoutPendingComplete)}
       />
+      <ConfirmActionModal
+        open={bulkApprovalOpen}
+        title={t('Approve pending payouts', { defaultValue: 'Approve pending payouts' })}
+        description={t('Approve all {{count}} pending payouts in the current filtered list?', {
+          count: pendingPayouts.length,
+          defaultValue: `Approve all ${pendingPayouts.length} pending payouts in the current filtered list?`,
+        })}
+        confirmLabel={t('Approve payouts', { defaultValue: 'Approve payouts' })}
+        loading={bulkApproveMutation.isPending}
+        onCancel={() => setBulkApprovalOpen(false)}
+        onConfirm={() => bulkApproveMutation.mutate()}
+      />
     </section>
   )
+}
+
+export function MerchantPayoutsPage() {
+  return <MerchantPayoutsPanel />
 }

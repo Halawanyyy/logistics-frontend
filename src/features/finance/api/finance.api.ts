@@ -159,6 +159,13 @@ export async function updateDriverCashClosure(
   return response.data
 }
 
+export async function verifyDriverCashClosure(driverCashClosureId: string | number) {
+  const response = await apiClient.post<DriverCashClosureResponse>(
+    `/driver-cash-closures/${driverCashClosureId}/verify`,
+  )
+  return response.data
+}
+
 export async function deleteDriverCashClosure(driverCashClosureId: string | number) {
   const response = await apiClient.delete<DeleteFinanceResponse>(
     `/driver-cash-closures/${driverCashClosureId}`,

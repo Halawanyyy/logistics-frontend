@@ -1,16 +1,23 @@
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { MoreVertical } from 'lucide-react'
 import { listMerchantInvoices } from '../api/finance.api'
 import type { MerchantInvoice } from '../types/finance.types'
 import { ResourceListPage } from '../../../shared/components/data/ResourceListPage'
 import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { formatDate, formatMoney } from '../../../shared/utils/formatters'
 import { Button } from '../../../shared/components/ui/Button'
-import { ApiFilterBar, compactFilters } from '../../../shared/components/data/ApiFilterBar'
+import { compactFilters } from '../../../shared/components/data/ApiFilterBar'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { adminPath } from '../../../shared/routing/paths'
+import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
+import { Card, CardContent } from '../../../shared/components/ui/Card'
+import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
+import { MerchantSelector } from '../../../shared/components/selectors/MerchantSelector'
+import { Select } from '../../../shared/components/ui/Select'
+import { DropdownContent, DropdownItem, DropdownMenu, DropdownTrigger } from '../../../shared/components/ui/Dropdown'
 
 const initialFilters = {
   date_from: '',
@@ -19,7 +26,13 @@ const initialFilters = {
   status: '',
 }
 
-export function MerchantInvoicesPage() {
+export function MerchantInvoicesPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const params = compactFilters(filters)
@@ -29,32 +42,38 @@ export function MerchantInvoicesPage() {
       description={t('Merchant invoice records and payable totals.', {
         defaultValue: 'Merchant invoice records and payable totals.',
       })}
+      hideHeader={embedded}
+      onCountChange={onCountChange}
       actions={<Can permission={PERMISSIONS.FINANCE_INVOICES_CREATE}><Link className="ui-link-reset" to={adminPath('/finance/merchant-invoices/create')}><Button>{t('Create Invoice', { defaultValue: 'Create Invoice' })}</Button></Link></Can>}
       queryKey={['merchant-invoices', params]}
       queryFn={() => listMerchantInvoices(params)}
       filters={
-        <ApiFilterBar
-          filters={filters}
-          fields={[
-            { label: t('Date From'), name: 'date_from', type: 'date' },
-            { label: t('Date To'), name: 'date_to', type: 'date' },
-            { label: t('Merchant ID', { defaultValue: 'Merchant ID' }), name: 'merchant_id', type: 'number' },
-            {
-              label: t('Status'),
-              name: 'status',
-              type: 'select',
-              options: [
-                { label: t('draft', { defaultValue: 'draft' }), value: 'draft' },
-                { label: t('issued', { defaultValue: 'issued' }), value: 'issued' },
-                { label: t('paid', { defaultValue: 'paid' }), value: 'paid' },
-                { label: t('cancelled', { defaultValue: 'cancelled' }), value: 'cancelled' },
-              ],
-            },
-          ]}
-          onChange={(name, value) => setFilters((current) => ({ ...current, [name]: value }))}
-          onReset={() => setFilters(initialFilters)}
-        />
+        <div className="dashboard-filters finance-filter-bar">
+          <DateRangeFilter dateFrom={filters.date_from} dateTo={filters.date_to} onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))} />
+          <label className="field"><span>{t('Merchant')}</span><MerchantSelector includeAllOption value={filters.merchant_id} onChange={(merchant_id) => setFilters((current) => ({ ...current, merchant_id }))} /></label>
+          <label className="field"><span>{t('Status')}</span><Select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">{t('All statuses')}</option><option value="draft">draft</option><option value="issued">issued</option><option value="paid">paid</option><option value="overdue">overdue</option><option value="cancelled">cancelled</option></Select></label>
+          <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>{t('Reset filters')}</Button>
+        </div>
       }
+      renderSummary={(invoices) => {
+        const totalInvoiced = invoices.reduce((sum, invoice) => sum + Number(invoice.total_payable || 0), 0)
+        const paid = invoices
+          .filter((invoice) => invoice.status === 'paid')
+          .reduce((sum, invoice) => sum + Number(invoice.total_payable || 0), 0)
+        const overdue = invoices
+          .filter((invoice) => invoice.status === 'overdue')
+          .reduce((sum, invoice) => sum + Number(invoice.total_payable || 0), 0)
+        const paidCount = invoices.filter((invoice) => invoice.status === 'paid').length
+        const overdueCount = invoices.filter((invoice) => invoice.status === 'overdue').length
+
+        return (
+          <div className="stats-grid finance-summary-grid">
+            <Card variant="stat" className="finance-summary-card finance-summary-card--info" data-accent="finance"><CardContent><div className="compact-stat"><span className="compact-stat__label">{t('Total Invoiced', { defaultValue: 'Total Invoiced' })}</span><span className="compact-stat__value text-info"><MoneyDisplay value={totalInvoiced} /></span><span className="compact-stat__count">{t('{{count}} invoices', { count: invoices.length, defaultValue: `${invoices.length} invoices` })}</span></div></CardContent></Card>
+            <Card variant="stat" className="finance-summary-card finance-summary-card--success" data-accent="success"><CardContent><div className="compact-stat"><span className="compact-stat__label">{t('Paid', { defaultValue: 'Paid' })}</span><span className="compact-stat__value text-success"><MoneyDisplay value={paid} /></span><span className="compact-stat__count">{t('{{count}} invoices', { count: paidCount, defaultValue: `${paidCount} invoices` })}</span></div></CardContent></Card>
+            <Card variant="stat" className="finance-summary-card finance-summary-card--danger" data-accent="danger"><CardContent><div className="compact-stat"><span className="compact-stat__label">{t('Overdue', { defaultValue: 'Overdue' })}</span><span className="compact-stat__value text-danger"><MoneyDisplay value={overdue} /></span><span className="compact-stat__count">{t('{{count}} invoices', { count: overdueCount, defaultValue: `${overdueCount} invoices` })}</span></div></CardContent></Card>
+          </div>
+        )
+      }}
       columns={[
         { header: t('Invoice', { defaultValue: 'Invoice' }), render: (invoice) => <Link className="table-link" to={adminPath(`/finance/merchant-invoices/${invoice.id}`)}>{invoice.invoice_number}</Link> },
         { header: t('Merchant'), render: (invoice) => invoice.merchant_name },
@@ -62,8 +81,12 @@ export function MerchantInvoicesPage() {
         { header: t('Status'), render: (invoice) => <StatusBadge value={invoice.status} /> },
         { header: t('Period', { defaultValue: 'Period' }), render: (invoice) => `${invoice.period_start} ${t('to', { defaultValue: 'to' })} ${invoice.period_end}` },
         { header: t('Created'), render: (invoice) => formatDate(invoice.created_at) },
-        { header: t('Actions'), render: (invoice) => <Can permission={PERMISSIONS.FINANCE_INVOICES_UPDATE}><Link className="table-link" to={adminPath(`/finance/merchant-invoices/${invoice.id}/edit`)}>{t('Edit')}</Link></Can> },
+        { header: t('Actions'), render: (invoice) => <div className="finance-row-actions"><Link className="ui-link-reset" to={adminPath(`/finance/merchant-invoices/${invoice.id}`)}><Button size="sm" variant="ghost">{t('View')}</Button></Link><DropdownMenu><DropdownTrigger aria-label={t('More actions', { defaultValue: 'More actions' })}><MoreVertical size={18} /></DropdownTrigger><DropdownContent><Can permission={PERMISSIONS.FINANCE_INVOICES_UPDATE}><DropdownItem><Link className="ui-link-reset" to={adminPath(`/finance/merchant-invoices/${invoice.id}/edit`)}>{t('Edit')}</Link></DropdownItem></Can></DropdownContent></DropdownMenu></div> },
       ]}
     />
   )
+}
+
+export function MerchantInvoicesPage() {
+  return <MerchantInvoicesPanel />
 }

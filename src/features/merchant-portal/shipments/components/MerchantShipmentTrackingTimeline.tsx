@@ -6,11 +6,19 @@ import { formatDate } from '../../../../shared/utils/formatters'
 import { pickDisplayLabel } from '../../../../shared/i18n/locale'
 import { LoadingState } from '../../../../shared/components/states/LoadingState'
 import { ErrorState } from '../../../../shared/components/states/ErrorState'
-import { Table, TableCell, TableContainer, TableHead } from '../../../../shared/components/ui/Table'
+import { Timeline } from '../../../../shared/components/ui/Timeline'
 
 type MerchantShipmentTrackingTimelineProps = {
   shipmentId: number | string
   initialEvents?: MerchantPortalShipmentTrackingEvent[]
+}
+
+function mapTimelineStatus(status?: string): 'completed' | 'failed' | 'pending' | 'current' | undefined {
+  if (!status) return undefined
+  if (status.includes('delivered') || status.includes('completed')) return 'completed'
+  if (status.includes('failed') || status.includes('cancelled') || status.includes('returned')) return 'failed'
+  if (status.includes('transit') || status.includes('out_for_delivery')) return 'current'
+  return 'pending'
 }
 
 export function MerchantShipmentTrackingTimeline({ shipmentId, initialEvents }: MerchantShipmentTrackingTimelineProps) {
@@ -41,28 +49,13 @@ export function MerchantShipmentTrackingTimeline({ shipmentId, initialEvents }: 
     )
   }
 
-  return (
-    <TableContainer>
-      <Table variant="compact">
-        <thead>
-          <tr>
-            <TableHead>{t('Date', { defaultValue: 'Date' })}</TableHead>
-            <TableHead>{t('Status', { defaultValue: 'Status' })}</TableHead>
-            <TableHead>{t('Notes', { defaultValue: 'Notes' })}</TableHead>
-          </tr>
-        </thead>
-        <tbody>
-          {events.map((track) => (
-            <tr key={track.id}>
-              <TableCell style={{ whiteSpace: 'nowrap' }}>{formatDate(track.created_at)}</TableCell>
-              <TableCell style={{ fontWeight: 500 }}>
-                {track.status_label ? pickDisplayLabel(track.status, track.status_label) : track.status}
-              </TableCell>
-              <TableCell>{track.notes || '-'}</TableCell>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    </TableContainer>
-  )
+  const timelineItems = events.map((track) => ({
+    id: track.id,
+    title: track.status_label ? pickDisplayLabel(track.status, track.status_label) : track.status,
+    timestamp: formatDate(track.created_at),
+    description: track.notes || undefined,
+    status: mapTimelineStatus(track.status),
+  }))
+
+  return <Timeline items={timelineItems} />
 }

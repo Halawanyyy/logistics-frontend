@@ -11,7 +11,7 @@ import { Button } from '../../../../shared/components/ui/Button'
 import { merchantPath } from '../../../../shared/routing/paths'
 import { requestMerchantPortalPayout, getMerchantPortalWalletSummary } from '../api/merchantPortalFinance.api'
 import type { MerchantPayoutRequestPayload } from '../types/merchantPortalFinance.types'
-import { MoneyDisplay } from '../../../../shared/components/ui/MoneyDisplay'
+import { MoneyDisplay } from '../../../../shared/components/display/MoneyDisplay'
 import { LoadingState } from '../../../../shared/components/states/LoadingState'
 import { ErrorState } from '../../../../shared/components/states/ErrorState'
 
@@ -42,7 +42,7 @@ export function MerchantPayoutRequestPage() {
       navigate(merchantPath(`/finance/payouts/${response.data.id}`))
     },
     onError: (err) => {
-      setErrorMsg(getApiErrorMessage(err, t('Failed to request payout.')))
+      setErrorMsg(getApiErrorMessage(err))
     },
   })
 
@@ -58,7 +58,7 @@ export function MerchantPayoutRequestPage() {
             {t('Back to Payouts')}
           </Link>
         }
-        message={getApiErrorMessage(error, t('Failed to load wallet summary.'))}
+        message={getApiErrorMessage(error)}
         onRetry={refetch}
       />
     )
@@ -110,7 +110,7 @@ export function MerchantPayoutRequestPage() {
                 {t('Payout Details')}
               </CardTitle>
               <CardDescription>
-                {t('Available Balance')}: <MoneyDisplay amount={availableBalance} currency={currency} />
+                {t('Available Balance')}: <MoneyDisplay value={availableBalance} currency={currency} />
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -138,7 +138,7 @@ export function MerchantPayoutRequestPage() {
                     placeholder="0.00"
                   />
                   <p className="text-xs text-muted mt-1">
-                    {t('Maximum amount you can request is')} <MoneyDisplay amount={availableBalance} currency={currency} />
+                    {t('Maximum amount you can request is')} <MoneyDisplay value={availableBalance} currency={currency} />
                   </p>
                 </div>
 
@@ -187,7 +187,7 @@ export function MerchantPayoutRequestPage() {
                 <div className="pt-4 flex justify-end space-x-2 border-t">
                   <Button
                     type="button"
-                    variant="neutral"
+                    variant="secondary"
                     onClick={() => navigate(merchantPath('/finance/payouts'))}
                     disabled={isPending}
                   >

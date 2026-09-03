@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useQueries } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { ChevronDown } from 'lucide-react'
 import {
   getFinanceCompanyProfitSummary,
   getFinanceDailyCashReport,
@@ -29,14 +30,17 @@ import { MerchantSelector } from '../../../shared/components/selectors/MerchantS
 import { TreasuryAccountSelector } from '../../../shared/components/selectors/TreasuryAccountSelector'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
-import { LoadingState } from '../../../shared/components/states/LoadingState'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
+import { Select } from '../../../shared/components/ui/Select'
+import { Skeleton } from '../../../shared/components/ui/Skeleton'
 import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
-import { formatDate } from '../../../shared/utils/formatters'
+import { formatDate, formatMoney } from '../../../shared/utils/formatters'
 import { useAuthStore } from '../../auth/store/auth.store'
+import type { FinanceCompanyProfitSummary, FinanceReconciliationSummary } from '../../dashboard/types/dashboard.types'
+import { inferStatAccent, type StatAccent } from '../../../shared/utils/statAccent'
 
 type FinanceReportsFiltersState = {
   date_from: string
@@ -46,9 +50,52 @@ type FinanceReportsFiltersState = {
   treasury_account_id: string
 }
 
+type DatePreset = 'today' | 'this_week' | 'this_month' | 'last_month' | 'custom'
+
+function toInputDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getPresetRange(preset: Exclude<DatePreset, 'custom'>) {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const end = new Date(start)
+
+  if (preset === 'this_week') {
+    const day = start.getDay() || 7
+    start.setDate(start.getDate() - day + 1)
+  } else if (preset === 'this_month') {
+    start.setDate(1)
+  } else if (preset === 'last_month') {
+    start.setMonth(start.getMonth() - 1, 1)
+    end.setDate(0)
+  }
+
+  return { date_from: toInputDate(start), date_to: toInputDate(end) }
+}
+
+function getPreviousRange(dateFrom?: string, dateTo?: string) {
+  if (!dateFrom || !dateTo) {
+    return undefined
+  }
+
+  const start = new Date(`${dateFrom}T00:00:00`)
+  const end = new Date(`${dateTo}T00:00:00`)
+  const duration = end.getTime() - start.getTime()
+  const previousEnd = new Date(start)
+  previousEnd.setDate(previousEnd.getDate() - 1)
+  const previousStart = new Date(previousEnd.getTime() - duration)
+
+  return { date_from: toInputDate(previousStart), date_to: toInputDate(previousEnd) }
+}
+
+const thisMonthRange = getPresetRange('this_month')
+
 const initialFilters: FinanceReportsFiltersState = {
-  date_from: '',
-  date_to: '',
+  ...thisMonthRange,
   merchant_id: '',
   driver_id: '',
   treasury_account_id: '',
@@ -58,6 +105,7 @@ export function FinanceReportsPage() {
   const { t } = useTranslation()
   const user = useAuthStore((state) => state.user)
   const [filters, setFilters] = useState<FinanceReportsFiltersState>(initialFilters)
+  const [datePreset, setDatePreset] = useState<DatePreset>('this_month')
   const params: FinanceReportFilters = useMemo(
     () => ({
       ...(filters.date_from ? { date_from: filters.date_from } : {}),
@@ -68,6 +116,14 @@ export function FinanceReportsPage() {
     }),
     [filters],
   )
+  const previousRange = useMemo(
+    () => getPreviousRange(params.date_from, params.date_to),
+    [params.date_from, params.date_to],
+  )
+  const previousParams = useMemo<FinanceReportFilters | undefined>(() => previousRange ? {
+    ...params,
+    ...previousRange,
+  } : undefined, [params, previousRange])
 
   const [
     reconciliationQuery,
@@ -77,6 +133,9 @@ export function FinanceReportsPage() {
     driverDiscrepanciesQuery,
     warehouseRevenueQuery,
     profitLossQuery,
+    ,
+    ,
+    ,
   ] = useQueries({
     queries: [
       {
@@ -114,25 +173,68 @@ export function FinanceReportsPage() {
         queryFn: () => getFinanceProfitLossReport(params),
         enabled: hasPermission(user, PERMISSIONS.FINANCE_REPORTS_PROFIT_LOSS),
       },
+      {
+        queryKey: ['finance-reconciliation-summary', 'previous-period', previousParams],
+        queryFn: () => getFinanceReconciliationSummary(previousParams),
+        enabled: Boolean(previousParams) && hasPermission(user, PERMISSIONS.FINANCE_RECONCILIATION_VIEW),
+      },
+      {
+        queryKey: ['finance-reports', 'profit-loss', 'previous-period', previousParams],
+        queryFn: () => getFinanceProfitLossReport(previousParams),
+        enabled: Boolean(previousParams) && hasPermission(user, PERMISSIONS.FINANCE_REPORTS_PROFIT_LOSS),
+      },
+      {
+        queryKey: ['finance-company-profit-summary', 'previous-period', previousParams],
+        queryFn: () => getFinanceCompanyProfitSummary(previousParams),
+        enabled: Boolean(previousParams) && hasPermission(user, PERMISSIONS.FINANCE_REPORTS_VIEW),
+      },
     ],
   })
 
+  const updateDatePreset = (preset: DatePreset) => {
+    setDatePreset(preset)
+    if (preset !== 'custom') {
+      const range = getPresetRange(preset)
+      setFilters((current) => ({ ...current, ...range }))
+    }
+  }
+
+  const currentReconciliation = reconciliationQuery.data?.data
+  const currentProfitLoss = profitLossQuery.data?.data
+
   return (
     <section className="page-section report-surface" dir="auto">
-      <PageHeader
-        title={t('Finance Reports', { defaultValue: 'Finance Reports' })}
-        description={t('Reconciliation, treasury, merchant ledger, warehouse revenue, and profit reports.', {
-          defaultValue: 'Reconciliation, treasury, merchant ledger, warehouse revenue, and profit reports.',
-        })}
-      />
+      <div className="finance-page-header animate-fade-up">
+        <PageHeader
+          eyebrow="Admin Console"
+          title={t('Finance Overview', { defaultValue: 'Finance Overview' })}
+          description={t('Financial reports and analytics', { defaultValue: 'Financial reports and analytics' })}
+          actions={(
+            <div className="finance-header-date-filter">
+              <label className="field finance-header-date-filter__preset">
+                <span>{t('Date Range', { defaultValue: 'Date Range' })}</span>
+                <Select value={datePreset} onChange={(event) => updateDatePreset(event.target.value as DatePreset)}>
+                  <option value="today">{t('Today', { defaultValue: 'Today' })}</option>
+                  <option value="this_week">{t('This Week', { defaultValue: 'This Week' })}</option>
+                  <option value="this_month">{t('This Month', { defaultValue: 'This Month' })}</option>
+                  <option value="last_month">{t('Last Month', { defaultValue: 'Last Month' })}</option>
+                  <option value="custom">{t('Custom Range', { defaultValue: 'Custom Range' })}</option>
+                </Select>
+              </label>
+              <DateRangeFilter
+                dateFrom={filters.date_from}
+                dateTo={filters.date_to}
+                onChange={({ date_from, date_to }) => {
+                  setDatePreset('custom')
+                  setFilters((current) => ({ ...current, date_from, date_to }))
+                }}
+              />
+            </div>
+          )}
+        />
+      </div>
 
-      <Card variant="flat" className="dashboard-filter-card">
-        <CardContent className="dashboard-filters">
-          <DateRangeFilter
-            dateFrom={filters.date_from}
-            dateTo={filters.date_to}
-            onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))}
-          />
+      <div className="filters-bar finance-overview-filters" aria-label={t('Report filters', { defaultValue: 'Report filters' })}>
           <label className="field">
             <span>{t('Merchant')}</span>
             <MerchantSelector
@@ -157,193 +259,237 @@ export function FinanceReportsPage() {
               onChange={(treasury_account_id) => setFilters((current) => ({ ...current, treasury_account_id }))}
             />
           </label>
-        </CardContent>
-      </Card>
+      </div>
 
-      <Can permission={PERMISSIONS.FINANCE_RECONCILIATION_VIEW}>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('Reconciliation')}</CardTitle>
-            <CardDescription>{t('Backend-owned COD, manifest, wallet, payout, and treasury reconciliation values.', {
-              defaultValue: 'Backend-owned COD, manifest, wallet, payout, and treasury reconciliation values.',
-            })}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {reconciliationQuery.isLoading ? <LoadingState title={t('Loading reconciliation summary', { defaultValue: 'Loading reconciliation summary' })} /> : null}
-            {reconciliationQuery.isError ? (
-              <ErrorState
-                title={t('Unable to load reconciliation summary', { defaultValue: 'Unable to load reconciliation summary' })}
-                message={getApiErrorMessage(reconciliationQuery.error)}
-                onRetry={() => void reconciliationQuery.refetch()}
-              />
-            ) : null}
-            {reconciliationQuery.data ? (
-              <div className="stats-grid">
-                <StatTile label={t('COD Expected', { defaultValue: 'COD Expected' })} value={<MoneyDisplay value={reconciliationQuery.data.data.total_cod_expected} />} />
-                <StatTile label={t('Driver Cash Verified', { defaultValue: 'Driver Cash Verified' })} value={<MoneyDisplay value={reconciliationQuery.data.data.total_driver_cash_verified} />} />
-                <StatTile label={t('COD Difference', { defaultValue: 'COD Difference' })} value={<MoneyDisplay value={reconciliationQuery.data.data.cod_difference} />} />
-                <StatTile label={t('Closed Manifests', { defaultValue: 'Closed Manifests' })} value={reconciliationQuery.data.data.driver_manifests_closed} />
-                <StatTile label={t('Manifest Expected COD', { defaultValue: 'Manifest Expected COD' })} value={<MoneyDisplay value={reconciliationQuery.data.data.driver_manifest_expected_cod} />} />
-                <StatTile label={t('Manifest Actual Received', { defaultValue: 'Manifest Actual Received' })} value={<MoneyDisplay value={reconciliationQuery.data.data.driver_manifest_actual_received} />} />
-                <StatTile label={t('Manifest Discrepancy', { defaultValue: 'Manifest Discrepancy' })} value={<MoneyDisplay value={reconciliationQuery.data.data.driver_manifest_discrepancy_total} />} />
-                <StatTile label={t('Wallet Credits', { defaultValue: 'Wallet Credits' })} value={<MoneyDisplay value={reconciliationQuery.data.data.wallet_total_credits} />} />
-                <StatTile label={t('Wallet Debits', { defaultValue: 'Wallet Debits' })} value={<MoneyDisplay value={reconciliationQuery.data.data.wallet_total_debits} />} />
-                <StatTile label={t('Wallet Available Total', { defaultValue: 'Wallet Available Total' })} value={<MoneyDisplay value={reconciliationQuery.data.data.wallet_available_total} />} />
-                <StatTile label={t('Payouts Pending', { defaultValue: 'Payouts Pending' })} value={<MoneyDisplay value={reconciliationQuery.data.data.payout_pending_total} />} />
-                <StatTile label={t('Payouts Approved', { defaultValue: 'Payouts Approved' })} value={<MoneyDisplay value={reconciliationQuery.data.data.payout_approved_total} />} />
-                <StatTile label={t('Payouts Completed', { defaultValue: 'Payouts Completed' })} value={<MoneyDisplay value={reconciliationQuery.data.data.payout_completed_total} />} />
-                <StatTile label={t('Treasury Accounts', { defaultValue: 'Treasury Accounts' })} value={reconciliationQuery.data.data.treasury_accounts_total} />
-                <StatTile label={t('Treasury Current Balance', { defaultValue: 'Treasury Current Balance' })} value={<MoneyDisplay value={reconciliationQuery.data.data.treasury_current_balance_total} />} />
-                <StatTile label={t('Merchant Payable', { defaultValue: 'Merchant Payable' })} value={<MoneyDisplay value={reconciliationQuery.data.data.total_merchant_payable} />} />
-                <StatTile label={t('Merchant Paid Out', { defaultValue: 'Merchant Paid Out' })} value={<MoneyDisplay value={reconciliationQuery.data.data.total_merchant_paid_out} />} />
-                <StatTile label={t('Merchant Balance Remaining', { defaultValue: 'Merchant Balance Remaining' })} value={<MoneyDisplay value={reconciliationQuery.data.data.merchant_balance_remaining} />} />
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      </Can>
-
-      <Can permission={PERMISSIONS.FINANCE_REPORTS_VIEW}>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('Company Profit', { defaultValue: 'Company Profit' })}</CardTitle>
-            <CardDescription>{t('Shipping revenue, warehouse charges, paid expenses, and net company profit.', {
+      <CollapsibleReportSection
+        title={t('Revenue & Profit', { defaultValue: 'Revenue & Profit' })}
+        description={t('Company profitability, warehouse revenue, and profit and loss for the selected period.', {
+          defaultValue: 'Company profitability, warehouse revenue, and profit and loss for the selected period.',
+        })}
+        summary={`${t('Revenue', { defaultValue: 'Revenue' })}: ${formatMoney(String(currentProfitLoss?.total_revenue ?? 0))} | ${t('Expenses', { defaultValue: 'Expenses' })}: ${formatMoney(String(currentProfitLoss?.paid_expenses ?? 0))}`}
+      >
+        <Can permission={PERMISSIONS.FINANCE_REPORTS_PROFIT_LOSS}>
+          <ReportPanel
+            title={t('Revenue', { defaultValue: 'Revenue' })}
+            description={t('Total revenue for the selected period.', {
+              defaultValue: 'Total revenue for the selected period.',
+            })}
+            loadingTitle={t('Loading profit and loss report', { defaultValue: 'Loading profit and loss report' })}
+            errorTitle={t('Unable to load profit and loss report', { defaultValue: 'Unable to load profit and loss report' })}
+            query={profitLossQuery}
+            render={(report) => <ProfitLossReportView report={report} />}
+          />
+        </Can>
+        <Can permission={PERMISSIONS.FINANCE_REPORTS_VIEW}>
+          <ReportPanel
+            title={t('Company Profit', { defaultValue: 'Company Profit' })}
+            description={t('Shipping revenue, warehouse charges, paid expenses, and net company profit.', {
               defaultValue: 'Shipping revenue, warehouse charges, paid expenses, and net company profit.',
-            })}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {companyProfitQuery.isLoading ? <LoadingState title={t('Loading company profit summary', { defaultValue: 'Loading company profit summary' })} /> : null}
-            {companyProfitQuery.isError ? (
-              <ErrorState
-                title={t('Unable to load company profit summary', { defaultValue: 'Unable to load company profit summary' })}
-                message={getApiErrorMessage(companyProfitQuery.error)}
-                onRetry={() => void companyProfitQuery.refetch()}
-              />
-            ) : null}
-            {companyProfitQuery.data ? (
-              <div className="stats-grid">
-                <StatTile label={t('Shipping Fees', { defaultValue: 'Shipping Fees' })} value={<MoneyDisplay value={companyProfitQuery.data.data.total_shipping_fees} />} />
-                <StatTile label={t('Warehouse Charges', { defaultValue: 'Warehouse Charges' })} value={<MoneyDisplay value={companyProfitQuery.data.data.total_warehouse_charges} />} />
-                <StatTile label={t('Expenses', { defaultValue: 'Expenses' })} value={<MoneyDisplay value={companyProfitQuery.data.data.total_expenses} />} />
-                <StatTile label={t('Net Company Profit', { defaultValue: 'Net Company Profit' })} value={<MoneyDisplay value={companyProfitQuery.data.data.net_company_profit} />} />
-                <StatTile label={t('COD Collected', { defaultValue: 'COD Collected' })} value={<MoneyDisplay value={companyProfitQuery.data.data.total_cod_collected} />} />
-                <StatTile label={t('Delivered Shipments', { defaultValue: 'Delivered Shipments' })} value={companyProfitQuery.data.data.delivered_shipments_count} />
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      </Can>
-
-      <Can permission={PERMISSIONS.FINANCE_REPORTS_DAILY_CASH}>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('Daily Cash', { defaultValue: 'Daily Cash' })}</CardTitle>
-            <CardDescription>{t('Treasury cash-in, cash-out, and current balances by treasury account.', {
-              defaultValue: 'Treasury cash-in, cash-out, and current balances by treasury account.',
-            })}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {dailyCashQuery.isLoading ? <LoadingState title={t('Loading daily cash report', { defaultValue: 'Loading daily cash report' })} /> : null}
-            {dailyCashQuery.isError ? (
-              <ErrorState
-                title={t('Unable to load daily cash report', { defaultValue: 'Unable to load daily cash report' })}
-                message={getApiErrorMessage(dailyCashQuery.error)}
-                onRetry={() => void dailyCashQuery.refetch()}
-              />
-            ) : null}
-            {dailyCashQuery.data ? <DailyCashReportView report={dailyCashQuery.data.data} /> : null}
-          </CardContent>
-        </Card>
-      </Can>
-
-      <Can permission={PERMISSIONS.FINANCE_REPORTS_MERCHANT_LEDGER}>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('Merchant Ledger', { defaultValue: 'Merchant Ledger' })}</CardTitle>
-            <CardDescription>{t('Wallet ledger items and backend summary totals for the selected filters.', {
-              defaultValue: 'Wallet ledger items and backend summary totals for the selected filters.',
-            })}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {merchantLedgerQuery.isLoading ? <LoadingState title={t('Loading merchant ledger report', { defaultValue: 'Loading merchant ledger report' })} /> : null}
-            {merchantLedgerQuery.isError ? (
-              <ErrorState
-                title={t('Unable to load merchant ledger report', { defaultValue: 'Unable to load merchant ledger report' })}
-                message={getApiErrorMessage(merchantLedgerQuery.error)}
-                onRetry={() => void merchantLedgerQuery.refetch()}
-              />
-            ) : null}
-            {merchantLedgerQuery.data ? <MerchantLedgerReportView report={merchantLedgerQuery.data.data} /> : null}
-          </CardContent>
-        </Card>
-      </Can>
-
-      <Can permission={PERMISSIONS.FINANCE_REPORTS_DRIVER_DISCREPANCIES}>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('Driver Discrepancies', { defaultValue: 'Driver Discrepancies' })}</CardTitle>
-            <CardDescription>{t('Closed driver manifests with expected, received, and difference totals.', {
-              defaultValue: 'Closed driver manifests with expected, received, and difference totals.',
-            })}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {driverDiscrepanciesQuery.isLoading ? <LoadingState title={t('Loading driver discrepancies report', { defaultValue: 'Loading driver discrepancies report' })} /> : null}
-            {driverDiscrepanciesQuery.isError ? (
-              <ErrorState
-                title={t('Unable to load driver discrepancies report', { defaultValue: 'Unable to load driver discrepancies report' })}
-                message={getApiErrorMessage(driverDiscrepanciesQuery.error)}
-                onRetry={() => void driverDiscrepanciesQuery.refetch()}
-              />
-            ) : null}
-            {driverDiscrepanciesQuery.data ? <DriverDiscrepanciesReportView report={driverDiscrepanciesQuery.data.data} /> : null}
-          </CardContent>
-        </Card>
-      </Can>
-
-      <Can permission={PERMISSIONS.FINANCE_REPORTS_WAREHOUSE_REVENUE}>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('Warehouse Revenue', { defaultValue: 'Warehouse Revenue' })}</CardTitle>
-            <CardDescription>{t('Storage, packaging, and fulfillment revenue grouped by type and merchant.', {
+            })}
+            loadingTitle={t('Loading company profit summary', { defaultValue: 'Loading company profit summary' })}
+            errorTitle={t('Unable to load company profit summary', { defaultValue: 'Unable to load company profit summary' })}
+            query={companyProfitQuery}
+            render={(report) => <CompanyProfitReportView report={report} />}
+          />
+        </Can>
+        <Can permission={PERMISSIONS.FINANCE_REPORTS_WAREHOUSE_REVENUE}>
+          <ReportPanel
+            title={t('Warehouse Revenue', { defaultValue: 'Warehouse Revenue' })}
+            description={t('Storage, packaging, and fulfillment revenue grouped by type and merchant.', {
               defaultValue: 'Storage, packaging, and fulfillment revenue grouped by type and merchant.',
-            })}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {warehouseRevenueQuery.isLoading ? <LoadingState title={t('Loading warehouse revenue report', { defaultValue: 'Loading warehouse revenue report' })} /> : null}
-            {warehouseRevenueQuery.isError ? (
-              <ErrorState
-                title={t('Unable to load warehouse revenue report', { defaultValue: 'Unable to load warehouse revenue report' })}
-                message={getApiErrorMessage(warehouseRevenueQuery.error)}
-                onRetry={() => void warehouseRevenueQuery.refetch()}
-              />
-            ) : null}
-            {warehouseRevenueQuery.data ? <WarehouseRevenueReportView report={warehouseRevenueQuery.data.data} /> : null}
-          </CardContent>
-        </Card>
-      </Can>
+            })}
+            loadingTitle={t('Loading warehouse revenue report', { defaultValue: 'Loading warehouse revenue report' })}
+            errorTitle={t('Unable to load warehouse revenue report', { defaultValue: 'Unable to load warehouse revenue report' })}
+            query={warehouseRevenueQuery}
+            render={(report) => <WarehouseRevenueReportView report={report} />}
+          />
+        </Can>
+      </CollapsibleReportSection>
 
-      <Can permission={PERMISSIONS.FINANCE_REPORTS_PROFIT_LOSS}>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('Profit & Loss', { defaultValue: 'Profit & Loss' })}</CardTitle>
-            <CardDescription>{t('Backend-owned revenue, expense, and treasury net cash values.', {
-              defaultValue: 'Backend-owned revenue, expense, and treasury net cash values.',
-            })}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {profitLossQuery.isLoading ? <LoadingState title={t('Loading profit and loss report', { defaultValue: 'Loading profit and loss report' })} /> : null}
-            {profitLossQuery.isError ? (
-              <ErrorState
-                title={t('Unable to load profit and loss report', { defaultValue: 'Unable to load profit and loss report' })}
-                message={getApiErrorMessage(profitLossQuery.error)}
-                onRetry={() => void profitLossQuery.refetch()}
-              />
-            ) : null}
-            {profitLossQuery.data ? <ProfitLossReportView report={profitLossQuery.data.data} /> : null}
-          </CardContent>
-        </Card>
-      </Can>
+      <CollapsibleReportSection
+        title={t('Merchant Ledger', { defaultValue: 'Merchant Ledger' })}
+        description={t('Reconciliation, merchant balances, and ledger movements.', {
+          defaultValue: 'Reconciliation, merchant balances, and ledger movements.',
+        })}
+        summary={`${t('Merchant Payable', { defaultValue: 'Merchant Payable' })}: ${formatMoney(String(currentReconciliation?.total_merchant_payable ?? 0))} | ${t('Outstanding', { defaultValue: 'Outstanding' })}: ${formatMoney(String(currentReconciliation?.merchant_balance_remaining ?? 0))}`}
+      >
+        <Can permission={PERMISSIONS.FINANCE_RECONCILIATION_VIEW}>
+          <ReportPanel
+            title={t('Reconciliation')}
+            description={t('Backend-owned COD, manifest, wallet, payout, and treasury reconciliation values.', {
+              defaultValue: 'Backend-owned COD, manifest, wallet, payout, and treasury reconciliation values.',
+            })}
+            loadingTitle={t('Loading reconciliation summary', { defaultValue: 'Loading reconciliation summary' })}
+            errorTitle={t('Unable to load reconciliation summary', { defaultValue: 'Unable to load reconciliation summary' })}
+            query={reconciliationQuery}
+            render={(report) => <ReconciliationReportView report={report} />}
+          />
+        </Can>
+        <Can permission={PERMISSIONS.FINANCE_REPORTS_MERCHANT_LEDGER}>
+          <ReportPanel
+            title={t('Merchant Ledger Entries', { defaultValue: 'Merchant Ledger Entries' })}
+            description={t('Ledger entries for the selected filters.', {
+              defaultValue: 'Ledger entries for the selected filters.',
+            })}
+            loadingTitle={t('Loading merchant ledger report', { defaultValue: 'Loading merchant ledger report' })}
+            errorTitle={t('Unable to load merchant ledger report', { defaultValue: 'Unable to load merchant ledger report' })}
+            query={merchantLedgerQuery}
+            render={(report) => <MerchantLedgerReportView report={report} />}
+          />
+        </Can>
+      </CollapsibleReportSection>
+
+      <CollapsibleReportSection
+        title={t('Cash Operations', { defaultValue: 'Cash Operations' })}
+        description={t('Daily treasury movement and driver closure discrepancies.', {
+          defaultValue: 'Daily treasury movement and driver closure discrepancies.',
+        })}
+        summary={`${t('Cash In', { defaultValue: 'Cash In' })}: ${formatMoney(String(dailyCashQuery.data?.data.total_cash_in ?? 0))} | ${t('Cash Out', { defaultValue: 'Cash Out' })}: ${formatMoney(String(dailyCashQuery.data?.data.total_cash_out ?? 0))}`}
+        defaultOpen={false}
+      >
+        <Can permission={PERMISSIONS.FINANCE_REPORTS_DAILY_CASH}>
+          <ReportPanel
+            title={t('Daily Cash', { defaultValue: 'Daily Cash' })}
+            description={t('Treasury cash-in, cash-out, and current balances by treasury account.', {
+              defaultValue: 'Treasury cash-in, cash-out, and current balances by treasury account.',
+            })}
+            loadingTitle={t('Loading daily cash report', { defaultValue: 'Loading daily cash report' })}
+            errorTitle={t('Unable to load daily cash report', { defaultValue: 'Unable to load daily cash report' })}
+            query={dailyCashQuery}
+            render={(report) => <DailyCashReportView report={report} />}
+          />
+        </Can>
+        <Can permission={PERMISSIONS.FINANCE_REPORTS_DRIVER_DISCREPANCIES}>
+          <ReportPanel
+            title={t('Driver Closures Summary', { defaultValue: 'Driver Closures Summary' })}
+            description={t('Closed driver manifests with expected, received, and difference totals.', {
+              defaultValue: 'Closed driver manifests with expected, received, and difference totals.',
+            })}
+            loadingTitle={t('Loading driver discrepancies report', { defaultValue: 'Loading driver discrepancies report' })}
+            errorTitle={t('Unable to load driver discrepancies report', { defaultValue: 'Unable to load driver discrepancies report' })}
+            query={driverDiscrepanciesQuery}
+            render={(report) => <DriverDiscrepanciesReportView report={report} />}
+          />
+        </Can>
+      </CollapsibleReportSection>
     </section>
+  )
+}
+
+type ReportQuery<T> = {
+  data?: { data: T }
+  error: unknown
+  isError: boolean
+  isLoading: boolean
+  refetch: () => unknown
+}
+
+function ReportPanel<T>({
+  description,
+  errorTitle,
+  loadingTitle,
+  query,
+  render,
+  title,
+}: {
+  description: string
+  errorTitle: string
+  loadingTitle: string
+  query: ReportQuery<T>
+  render: (report: T) => ReactNode
+  title: string
+}) {
+  return (
+    <Card className="finance-report-panel">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {query.isLoading ? <ReportPanelSkeleton label={loadingTitle} /> : null}
+        {query.isError ? (
+          <ErrorState
+            title={errorTitle}
+            message={getApiErrorMessage(query.error)}
+            onRetry={() => void query.refetch()}
+          />
+        ) : null}
+        {query.data ? render(query.data.data) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ReportPanelSkeleton({ label }: { label: string }) {
+  return (
+    <div className="finance-report-skeleton" aria-label={label} aria-busy="true">
+      <Skeleton className="finance-report-skeleton__stat" />
+      <Skeleton className="finance-report-skeleton__line" />
+      <Skeleton className="finance-report-skeleton__line finance-report-skeleton__line--short" />
+    </div>
+  )
+}
+
+function CollapsibleReportSection({
+  children,
+  defaultOpen = true,
+  description,
+  summary,
+  title,
+}: {
+  children: ReactNode
+  defaultOpen?: boolean
+  description: string
+  summary: string
+  title: string
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+
+  return (
+    <section className={`finance-report-section report-section${isOpen ? ' is-open' : ''}`}>
+      <button
+        type="button"
+        className="finance-report-section__toggle report-section__header"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        <span>
+          <strong className="report-section__title">{title}</strong>
+          <small>{isOpen ? description : summary}</small>
+        </span>
+        <ChevronDown
+          className={`report-section__chevron${isOpen ? ' report-section__chevron--open' : ''}`}
+          size={20}
+          aria-hidden="true"
+        />
+      </button>
+      <div className="finance-report-section__content">
+        <div className="finance-report-section__content-inner report-section__content page-stack">{children}</div>
+      </div>
+    </section>
+  )
+}
+
+function ReconciliationReportView({ report }: { report: FinanceReconciliationSummary }) {
+  const { t } = useTranslation()
+  return (
+    <div className="stats-grid">
+      <StatTile accent="warning" label={t('Merchant Payable', { defaultValue: 'Merchant Payable' })} value={<MoneyDisplay value={report.total_merchant_payable} />} />
+      <StatTile accent="finance" label={t('Merchant Paid Out', { defaultValue: 'Merchant Paid Out' })} value={<MoneyDisplay value={report.total_merchant_paid_out} />} />
+      <StatTile accent="warning" label={t('Balance Remaining', { defaultValue: 'Balance Remaining' })} value={<MoneyDisplay value={report.merchant_balance_remaining} />} />
+      <StatTile accent="finance" label={t('Wallet Available Total', { defaultValue: 'Wallet Available Total' })} value={<MoneyDisplay value={report.wallet_available_total} />} />
+    </div>
+  )
+}
+
+function CompanyProfitReportView({ report }: { report: FinanceCompanyProfitSummary }) {
+  const { t } = useTranslation()
+  return (
+    <div className="stats-grid">
+      <StatTile accent="warning" label={t('Total Expenses', { defaultValue: 'Total Expenses' })} value={<MoneyDisplay value={report.total_expenses} />} />
+      <StatTile accent="success" label={t('Net Company Profit', { defaultValue: 'Net Company Profit' })} value={<MoneyDisplay value={report.net_company_profit} />} />
+      <StatTile accent="finance" label={t('COD Collected', { defaultValue: 'COD Collected' })} value={<MoneyDisplay value={report.total_cod_collected} />} />
+    </div>
   )
 }
 
@@ -352,12 +498,9 @@ function DailyCashReportView({ report }: { report: FinanceDailyCashReport }) {
   return (
     <div className="page-stack">
       <div className="stats-grid">
-        <StatTile label={t('Total Cash In', { defaultValue: 'Total Cash In' })} value={<MoneyDisplay value={report.total_cash_in} />} />
-        <StatTile label={t('Total Cash Out', { defaultValue: 'Total Cash Out' })} value={<MoneyDisplay value={report.total_cash_out} />} />
-        <StatTile label={t('Net Cash', { defaultValue: 'Net Cash' })} value={<MoneyDisplay value={report.net_cash} />} />
-        <StatTile label={t('Driver Cash Received', { defaultValue: 'Driver Cash Received' })} value={<MoneyDisplay value={report.driver_cash_received} />} />
-        <StatTile label={t('Merchant Payouts Paid', { defaultValue: 'Merchant Payouts Paid' })} value={<MoneyDisplay value={report.merchant_payouts_paid} />} />
-        <StatTile label={t('Expenses Paid', { defaultValue: 'Expenses Paid' })} value={<MoneyDisplay value={report.expenses_paid} />} />
+        <StatTile accent="success" label={t('Total Cash In', { defaultValue: 'Total Cash In' })} value={<MoneyDisplay value={report.total_cash_in} />} />
+        <StatTile accent="warning" label={t('Total Cash Out', { defaultValue: 'Total Cash Out' })} value={<MoneyDisplay value={report.total_cash_out} />} />
+        <StatTile accent="finance" label={t('Net Cash', { defaultValue: 'Net Cash' })} value={<MoneyDisplay value={report.net_cash} />} />
       </div>
 
       {report.treasury_accounts.length ? (
@@ -403,12 +546,6 @@ function MerchantLedgerReportView({ report }: { report: FinanceMerchantLedgerRep
   const { t } = useTranslation()
   return (
     <div className="page-stack">
-      <div className="stats-grid">
-        <StatTile label={t('Total Credits', { defaultValue: 'Total Credits' })} value={<MoneyDisplay value={report.summary.total_credits} />} />
-        <StatTile label={t('Total Debits', { defaultValue: 'Total Debits' })} value={<MoneyDisplay value={report.summary.total_debits} />} />
-        <StatTile label={t('Pending Transactions', { defaultValue: 'Pending Transactions' })} value={report.summary.pending_transactions} />
-      </div>
-
       {report.items.length ? (
         <TableContainer>
           <Table variant="compact">
@@ -477,10 +614,7 @@ function DriverDiscrepanciesReportView({ report }: { report: FinanceDriverDiscre
   return (
     <div className="page-stack">
       <div className="stats-grid">
-        <StatTile label={t('Closed Manifests', { defaultValue: 'Closed Manifests' })} value={report.summary.closed_manifests} />
-        <StatTile label={t('Expected COD', { defaultValue: 'Expected COD' })} value={<MoneyDisplay value={report.summary.expected_cod_amount} />} />
-        <StatTile label={t('Actual Received', { defaultValue: 'Actual Received' })} value={<MoneyDisplay value={report.summary.actual_received_amount} />} />
-        <StatTile label={t('Difference', { defaultValue: 'Difference' })} value={<MoneyDisplay value={report.summary.difference_amount} />} />
+        <StatTile accent="drivers" label={t('Driver Closures Count', { defaultValue: 'Driver Closures Count' })} value={report.summary.closed_manifests} />
       </div>
 
       {report.items.length ? (
@@ -528,10 +662,6 @@ function WarehouseRevenueReportView({ report }: { report: FinanceWarehouseRevenu
   const { t } = useTranslation()
   return (
     <div className="page-stack">
-      <div className="stats-grid">
-        <StatTile label={t('Total Revenue', { defaultValue: 'Total Revenue' })} value={<MoneyDisplay value={report.total_revenue} />} />
-      </div>
-
       <div className="details-grid">
         <Card className="detail-card">
           <CardHeader>
@@ -615,26 +745,26 @@ function ProfitLossReportView({ report }: { report: FinanceProfitLossReport }) {
   const { t } = useTranslation()
   return (
     <div className="stats-grid">
-      <StatTile label={t('Shipping Revenue', { defaultValue: 'Shipping Revenue' })} value={<MoneyDisplay value={report.shipping_revenue} />} />
-      <StatTile label={t('Warehouse Revenue', { defaultValue: 'Warehouse Revenue' })} value={<MoneyDisplay value={report.warehouse_revenue} />} />
-      <StatTile label={t('Total Revenue', { defaultValue: 'Total Revenue' })} value={<MoneyDisplay value={report.total_revenue} />} />
-      <StatTile label={t('Paid Expenses', { defaultValue: 'Paid Expenses' })} value={<MoneyDisplay value={report.paid_expenses} />} />
-      <StatTile label={t('Net Profit', { defaultValue: 'Net Profit' })} value={<MoneyDisplay value={report.net_profit} />} />
-      <StatTile label={t('Treasury Cash In', { defaultValue: 'Treasury Cash In' })} value={<MoneyDisplay value={report.treasury_cash_in} />} />
-      <StatTile label={t('Treasury Cash Out', { defaultValue: 'Treasury Cash Out' })} value={<MoneyDisplay value={report.treasury_cash_out} />} />
-      <StatTile label={t('Treasury Net Cash', { defaultValue: 'Treasury Net Cash' })} value={<MoneyDisplay value={report.treasury_net_cash} />} />
+      <StatTile accent="success" label={t('Total Revenue', { defaultValue: 'Total Revenue' })} value={<MoneyDisplay value={report.total_revenue} />} />
     </div>
   )
 }
 
-function StatTile({ label, value }: { label: string; value: ReactNode }) {
+function StatTile({ accent, label, value }: { accent?: StatAccent; label: string; value: ReactNode }) {
+  // Simple heuristic for gradient variant
+  let variant = 'primary'
+  const text = label.toLowerCase()
+  if (text.includes('revenue') || text.includes('profit') || text.includes('available') || text.includes('collected')) {
+    variant = 'success'
+  }
+
   return (
-    <Card variant="stat" className="stat-card stat-card--neutral">
+    <Card variant="stat" className={`stat-card animate-fade-up stat-card--gradient-${variant}`} data-accent={accent ?? inferStatAccent(label)}>
       <CardHeader className="stat-card__header">
-        <span className="eyebrow">{label}</span>
+        <span className="eyebrow" style={{ opacity: 0.9 }}>{label}</span>
       </CardHeader>
       <CardContent className="stat-card__content">
-        <CardTitle className="stat-card__value">{value}</CardTitle>
+        <CardTitle className="stat-card__value" style={{ marginTop: '0.5rem' }}>{value}</CardTitle>
       </CardContent>
     </Card>
   )

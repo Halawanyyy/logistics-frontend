@@ -382,11 +382,11 @@ export function OrderDetailsPage() {
                 t,
               })}
               formats={['html', 'pdf']}
-              title={t('Order Label - {{orderNumber}}', {
+              title={t('Order Waybill - {{orderNumber}}', {
                 orderNumber: order.order_number,
-                defaultValue: `Order Label - ${order.order_number}`,
+                defaultValue: `Order Waybill - ${order.order_number}`,
               })}
-              triggerLabel={t('Label', { defaultValue: 'Label' })}
+              triggerLabel={t('Waybill', { defaultValue: 'Waybill' })}
             />
             {!isShipmentCreated ? (
               <Can permission={PERMISSIONS.ORDERS_DELETE}>

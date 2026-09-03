@@ -1,8 +1,27 @@
-import { useEffect, useState, type PropsWithChildren } from 'react'
-import { Sidebar, type SidebarItem } from './Sidebar'
+import { useEffect, useState, type PropsWithChildren, type ReactNode } from 'react'
+import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { useBranding } from '../../branding/useBranding'
 import type { AuthUser } from '../../../features/auth/types/auth.types'
+import { CommandPalette, type CommandPalettePage } from '../ui/CommandPalette'
+
+export interface NavItem {
+  type: 'link'
+  path: string
+  icon: ReactNode
+  label: string
+  permission?: string
+}
+
+export interface NavGroup {
+  type: 'group'
+  icon: ReactNode
+  label: string
+  children: NavItem[]
+  defaultOpen?: boolean
+}
+
+export type SidebarItem = NavGroup | NavItem
 
 type AppShellProps = PropsWithChildren<{
   fallbackAppName: string
@@ -31,6 +50,7 @@ export function AppShell({
     typeof window === 'undefined' ? true : window.innerWidth > 920,
   )
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const branding = useBranding()
   const companyName = branding.companyName || fallbackAppName
   const sidebarVisible = isDesktop ? desktopSidebarOpen : mobileSidebarOpen
@@ -51,6 +71,30 @@ export function AppShell({
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  useEffect(() => {
+    function handleCommandPaletteShortcut(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setCommandPaletteOpen((current) => !current)
+      }
+    }
+
+    window.addEventListener('keydown', handleCommandPaletteShortcut)
+    return () => window.removeEventListener('keydown', handleCommandPaletteShortcut)
+  }, [])
+
+  const commandPages = items.flatMap<CommandPalettePage>((item) => {
+    if (item.type === 'link') {
+      return [{ label: item.label, path: item.path }]
+    }
+
+    return item.children.map((child) => ({
+      label: `${item.label} / ${child.label}`,
+      path: child.path,
+      keywords: `${item.label} ${child.label}`,
+    }))
+  })
+
   function handleToggleSidebar() {
     if (isDesktop) {
       setDesktopSidebarOpen((current) => !current)
@@ -70,6 +114,7 @@ export function AppShell({
     <div
       className={[
         'app-shell',
+        portalType === 'merchant' ? 'merchant-portal-shell' : '',
         isDesktop ? 'app-shell--desktop' : 'app-shell--mobile',
         desktopSidebarOpen ? 'app-shell--desktop-sidebar-open' : 'app-shell--desktop-sidebar-hidden',
         mobileSidebarOpen ? 'app-shell--mobile-sidebar-open' : '',
@@ -111,6 +156,13 @@ export function AppShell({
         />
         <main className="app-shell__content">{children}</main>
       </div>
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        pages={commandPages}
+        portalType={portalType}
+        user={user}
+      />
     </div>
   )
 }

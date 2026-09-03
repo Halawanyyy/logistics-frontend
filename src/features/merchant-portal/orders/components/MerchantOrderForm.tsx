@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { ClipboardCheck, Info, Package, Plus, Trash2, User } from 'lucide-react'
 import { z } from 'zod'
 import { FieldError } from '../../../../shared/components/forms/FieldError'
-import { FormActionsBar } from '../../../../shared/components/forms/FormActionsBar'
 import { Button } from '../../../../shared/components/ui/Button'
 import { Input } from '../../../../shared/components/ui/Input'
 import { SearchableSelect, type SearchableSelectOption } from '../../../../shared/components/ui/SearchableSelect'
 import { Select } from '../../../../shared/components/ui/Select'
+import { StepWizard } from '../../../../shared/components/ui/StepWizard'
 import { useFormApiErrors } from '../../../../shared/hooks/useFormApiErrors'
 import {
   listMerchantPortalAreas,
@@ -288,15 +289,18 @@ export function MerchantOrderForm({
     register,
     reset,
     setValue,
+    trigger,
     watch,
   } = form
   const items = useFieldArray({
     control,
     name: 'items',
   })
+  const [currentStep, setCurrentStep] = useState(0)
   const selectedOrderType = watch('order_type')
   const selectedPaymentType = watch('payment_type')
   const selectedGovernorateId = watch('delivery_governorate_id')
+  const currentValues = watch()
   const previousGovernorateIdRef = useRef<number | undefined>(undefined)
   const useArabicLabel = i18n.resolvedLanguage === 'ar'
 
@@ -403,7 +407,26 @@ export function MerchantOrderForm({
   }
 
   return (
-    <form style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} onSubmit={handleSubmit(handleValidSubmit)}>
+    <form style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} onSubmit={(event) => event.preventDefault()}>
+      <StepWizard
+        activeStep={currentStep}
+        completeLabel={t(submitLabel, { defaultValue: submitLabel })}
+        isCompleting={isSubmitting}
+        onComplete={() => void handleSubmit(handleValidSubmit)()}
+        onStepChange={setCurrentStep}
+        steps={[
+          {
+            title: t('Basic Information', { defaultValue: 'Basic Information' }),
+            icon: <Info size={16} />,
+            validate: () => trigger([
+              'order_type',
+              'fulfillment_type',
+              'is_fragile',
+              'allow_inspection',
+              'notes',
+            ]),
+            component: (
+              <div className="order-wizard-step">
       <div className="form-section form-section--panel">
         <div className="form-section__header">
           <div className="form-section__header-copy">
@@ -435,6 +458,48 @@ export function MerchantOrderForm({
           </label>
         </div>
       </div>
+
+      <div className="form-section form-section--panel">
+        <div className="form-section__header">
+          <div className="form-section__header-copy">
+            <h3 className="form-section__title">{t('Fulfillment Information', { defaultValue: 'Fulfillment Information' })}</h3>
+          </div>
+        </div>
+        <div className="form-section__body form-grid form-grid--two">
+          <label className="field field--inline">
+            <input type="checkbox" {...register('is_fragile')} />
+            <span>{t('Fragile', { defaultValue: 'Fragile' })}</span>
+          </label>
+
+          <label className="field field--inline">
+            <input type="checkbox" {...register('allow_inspection')} />
+            <span>{t('Allow Inspection', { defaultValue: 'Allow Inspection' })}</span>
+          </label>
+
+          <label className="field field--full">
+            <span>{t('Notes', { defaultValue: 'Notes' })}</span>
+            <textarea className="ui-input" rows={3} {...register('notes')} />
+            <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
+          </label>
+        </div>
+      </div>
+              </div>
+            ),
+          },
+          {
+            title: t('Customer & Delivery', { defaultValue: 'Customer & Delivery' }),
+            icon: <User size={16} />,
+            validate: () => trigger([
+              'customer_name',
+              'customer_phone',
+              'customer_phone_alt',
+              'delivery_governorate_id',
+              'delivery_area_id',
+              'delivery_address',
+              'delivery_notes',
+            ]),
+            component: (
+              <div className="order-wizard-step">
 
       <div className="form-section form-section--panel">
         <div className="form-section__header">
@@ -550,6 +615,15 @@ export function MerchantOrderForm({
           </label>
         </div>
       </div>
+              </div>
+            ),
+          },
+          {
+            title: t('Items & Payment', { defaultValue: 'Items & Payment' }),
+            icon: <Package size={16} />,
+            validate: () => trigger(['payment_type', 'cod_amount', 'items']),
+            component: (
+              <div className="order-wizard-step">
 
       <div className="form-section form-section--panel">
         <div className="form-section__header">
@@ -583,43 +657,23 @@ export function MerchantOrderForm({
       <div className="form-section form-section--panel">
         <div className="form-section__header">
           <div className="form-section__header-copy">
-            <h3 className="form-section__title">{t('Fulfillment Information', { defaultValue: 'Fulfillment Information' })}</h3>
-          </div>
-        </div>
-        <div className="form-section__body form-grid form-grid--two">
-          <label className="field field--inline">
-            <input type="checkbox" {...register('is_fragile')} />
-            <span>{t('Fragile', { defaultValue: 'Fragile' })}</span>
-          </label>
-
-          <label className="field field--inline">
-            <input type="checkbox" {...register('allow_inspection')} />
-            <span>{t('Allow Inspection', { defaultValue: 'Allow Inspection' })}</span>
-          </label>
-
-          <label className="field field--full">
-            <span>{t('Notes', { defaultValue: 'Notes' })}</span>
-            <textarea className="ui-input" rows={3} {...register('notes')} />
-            <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
-          </label>
-        </div>
-      </div>
-
-      <div className="form-section form-section--panel">
-        <div className="form-section__header">
-          <div className="form-section__header-copy">
             <h3 className="form-section__title">{t('Items', { defaultValue: 'Items' })}</h3>
           </div>
         </div>
         <div className="form-section__body">
-          <div style={{ marginBottom: '1rem' }}>
+          <div className="order-items-toolbar">
+            <p>{t('Add one or more products included in this order.', { defaultValue: 'Add one or more products included in this order.' })}</p>
             <Button type="button" variant="secondary" onClick={() => items.append(emptyItem())}>
+              <Plus size={16} />
               {t('Add Item', { defaultValue: 'Add Item' })}
             </Button>
           </div>
           <div className="order-items-list">
             {items.fields.map((field, index) => (
               <div className="order-item-row" key={field.id}>
+                <span className="order-item-row__number">
+                  {t('Item {{number}}', { number: index + 1, defaultValue: `Item ${index + 1}` })}
+                </span>
                 <label className="field">
                   <span>{t('Product Name', { defaultValue: 'Product Name' })}</span>
                   <Input {...register(`items.${index}.product_name`)} />
@@ -663,6 +717,7 @@ export function MerchantOrderForm({
                     variant="danger"
                     onClick={() => items.remove(index)}
                   >
+                    <Trash2 size={15} />
                     {t('Remove Item', { defaultValue: 'Remove Item' })}
                   </Button>
                 </div>
@@ -671,13 +726,69 @@ export function MerchantOrderForm({
           </div>
         </div>
       </div>
+              </div>
+            ),
+          },
+          {
+            title: t('Review', { defaultValue: 'Review' }),
+            icon: <ClipboardCheck size={16} />,
+            component: (
+              <div className="step-wizard-review">
+                <section className="step-wizard-review__section">
+                  <div className="step-wizard-review__header">
+                    <h3>{t('Basic Information', { defaultValue: 'Basic Information' })}</h3>
+                    <button className="step-wizard-review__edit" type="button" onClick={() => setCurrentStep(0)}>
+                      {t('Edit', { defaultValue: 'Edit' })}
+                    </button>
+                  </div>
+                  <dl className="step-wizard-review__grid">
+                    <div><dt>{t('Order Type', { defaultValue: 'Order Type' })}</dt><dd>{currentValues.order_type}</dd></div>
+                    <div><dt>{t('Fulfillment Type', { defaultValue: 'Fulfillment Type' })}</dt><dd>{currentValues.fulfillment_type}</dd></div>
+                    <div><dt>{t('Fragile', { defaultValue: 'Fragile' })}</dt><dd>{currentValues.is_fragile ? t('Yes', { defaultValue: 'Yes' }) : t('No', { defaultValue: 'No' })}</dd></div>
+                    <div><dt>{t('Allow Inspection', { defaultValue: 'Allow Inspection' })}</dt><dd>{currentValues.allow_inspection ? t('Yes', { defaultValue: 'Yes' }) : t('No', { defaultValue: 'No' })}</dd></div>
+                    <div><dt>{t('Notes')}</dt><dd>{currentValues.notes || '-'}</dd></div>
+                  </dl>
+                </section>
+
+                <section className="step-wizard-review__section">
+                  <div className="step-wizard-review__header">
+                    <h3>{t('Customer & Delivery', { defaultValue: 'Customer & Delivery' })}</h3>
+                    <button className="step-wizard-review__edit" type="button" onClick={() => setCurrentStep(1)}>
+                      {t('Edit', { defaultValue: 'Edit' })}
+                    </button>
+                  </div>
+                  <dl className="step-wizard-review__grid">
+                    <div><dt>{t('Customer Name', { defaultValue: 'Customer Name' })}</dt><dd>{currentValues.customer_name || '-'}</dd></div>
+                    <div><dt>{t('Customer Phone', { defaultValue: 'Customer Phone' })}</dt><dd>{currentValues.customer_phone || '-'}</dd></div>
+                    <div><dt>{t('Alternative Phone', { defaultValue: 'Alternative Phone' })}</dt><dd>{currentValues.customer_phone_alt || '-'}</dd></div>
+                    <div><dt>{t('Delivery Governorate', { defaultValue: 'Delivery Governorate' })}</dt><dd>{currentValues.delivery_governorate_id || '-'}</dd></div>
+                    <div><dt>{t('Delivery Area', { defaultValue: 'Delivery Area' })}</dt><dd>{currentValues.delivery_area_id || '-'}</dd></div>
+                    <div><dt>{t('Delivery Address', { defaultValue: 'Delivery Address' })}</dt><dd>{currentValues.delivery_address || '-'}</dd></div>
+                    <div><dt>{t('Delivery Notes', { defaultValue: 'Delivery Notes' })}</dt><dd>{currentValues.delivery_notes || '-'}</dd></div>
+                  </dl>
+                </section>
+
+                <section className="step-wizard-review__section">
+                  <div className="step-wizard-review__header">
+                    <h3>{t('Items & Payment', { defaultValue: 'Items & Payment' })}</h3>
+                    <button className="step-wizard-review__edit" type="button" onClick={() => setCurrentStep(2)}>
+                      {t('Edit', { defaultValue: 'Edit' })}
+                    </button>
+                  </div>
+                  <dl className="step-wizard-review__grid">
+                    <div><dt>{t('Payment Type', { defaultValue: 'Payment Type' })}</dt><dd>{currentValues.payment_type}</dd></div>
+                    <div><dt>{t('COD Amount', { defaultValue: 'COD Amount' })}</dt><dd>{currentValues.cod_amount}</dd></div>
+                    <div><dt>{t('Items')}</dt><dd>{currentValues.items.length}</dd></div>
+                    <div><dt>{t('Products')}</dt><dd>{currentValues.items.map((item) => `${item.product_name || '-'} × ${item.quantity}`).join(', ') || '-'}</dd></div>
+                  </dl>
+                </section>
+              </div>
+            ),
+          },
+        ]}
+      />
 
       {formError ? <div className="form-error">{formError}</div> : null}
-
-      <FormActionsBar
-        isSubmitting={isSubmitting}
-        submitLabel={submitLabel}
-      />
     </form>
   )
 }

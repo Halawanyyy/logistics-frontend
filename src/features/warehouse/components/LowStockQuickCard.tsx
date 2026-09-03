@@ -23,7 +23,7 @@ export function LowStockQuickCard({
   actions,
 }: LowStockQuickCardProps) {
   return (
-    <Card variant="stat" className="stat-card stat-card--neutral">
+    <Card variant="stat" className="stat-card stat-card--neutral" data-accent="inventory">
       <CardHeader className="stat-card__header">
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>

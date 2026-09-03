@@ -80,6 +80,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.CASH_CLOSURES_CREATE,
     PERMISSIONS.CASH_CLOSURES_UPDATE,
     PERMISSIONS.CASH_CLOSURES_DELETE,
+    PERMISSIONS.DRIVER_CASH_CLOSURES_VERIFY,
     PERMISSIONS.EXPENSES_VIEW,
     PERMISSIONS.EXPENSES_CREATE,
     PERMISSIONS.EXPENSES_UPDATE,
@@ -186,7 +187,7 @@ export function canAll(
 }
 
 export function getDefaultRouteForUser(user: AuthUser | null | undefined): string {
-  if (user?.role === 'merchant') {
+  if (user?.role === 'merchant_portal' || user?.role === 'merchant') {
     return '/merchant/dashboard'
   }
 

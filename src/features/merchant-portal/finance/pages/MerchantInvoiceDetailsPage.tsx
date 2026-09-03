@@ -9,8 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../../shared/com
 import { PageHeader } from '../../../../shared/components/ui/PageHeader'
 import { merchantPath } from '../../../../shared/routing/paths'
 import { formatDate } from '../../../../shared/utils/formatters'
-import { getMerchantPortalInvoice, downloadMerchantPortalInvoice, previewMerchantPortalInvoice } from '../api/merchantPortalFinance.api'
-import { MoneyDisplay } from '../../../../shared/components/ui/MoneyDisplay'
+import { getMerchantPortalInvoice, downloadMerchantPortalInvoice } from '../api/merchantPortalFinance.api'
+import { MoneyDisplay } from '../../../../shared/components/display/MoneyDisplay'
 import { StatusBadge } from '../../../../shared/components/ui/StatusBadge'
 import { Button } from '../../../../shared/components/ui/Button'
 import { CanMerchant } from '../../components/CanMerchant'
@@ -54,7 +54,7 @@ export function MerchantInvoiceDetailsPage() {
             {t('Back to Invoices')}
           </Link>
         }
-        message={getApiErrorMessage(error, t('Failed to load invoice details.'))}
+        message={getApiErrorMessage(error)}
         onRetry={refetch}
       />
     )
@@ -117,13 +117,8 @@ export function MerchantInvoiceDetailsPage() {
         <LabelDocumentDialog
           open={previewOpen}
           onOpenChange={setPreviewOpen}
-          request={{
-            referenceId: invoice.id as number,
-            type: 'invoice',
-            fetchDocument: previewMerchantPortalInvoice,
-          }}
           title={`${t('Invoice')} #${invoice.invoice_number || invoice.number}`}
-        />
+         fetchDocument={async () => { const blob = await downloadMerchantPortalInvoice(invoice.id); return { blob, fileName: `invoice-${invoice.invoice_number || invoice.number}.pdf`, format: 'pdf', mimeType: 'application/pdf' }; }} triggerLabel="Preview" />
       )}
 
       <div className="mb-6">
@@ -148,7 +143,7 @@ export function MerchantInvoiceDetailsPage() {
                 <div>
                   <dt className="text-sm font-medium text-muted">{t('Total Amount')}</dt>
                   <dd className="mt-1 text-lg font-bold">
-                    <MoneyDisplay amount={invoice.total_amount} currency={invoice.currency} />
+                    <MoneyDisplay value={invoice.total_amount} currency={invoice.currency} />
                   </dd>
                 </div>
                 <div>
@@ -162,13 +157,13 @@ export function MerchantInvoiceDetailsPage() {
                 <div>
                   <dt className="text-sm font-medium text-muted">{t('Paid Amount')}</dt>
                   <dd className="mt-1 text-sm text-success">
-                    {invoice.paid_amount !== undefined ? <MoneyDisplay amount={invoice.paid_amount} currency={invoice.currency} /> : '-'}
+                    {invoice.paid_amount !== undefined ? <MoneyDisplay value={invoice.paid_amount} currency={invoice.currency} /> : '-'}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-muted">{t('Remaining Amount')}</dt>
                   <dd className="mt-1 text-sm text-destructive font-medium">
-                    {invoice.remaining_amount !== undefined ? <MoneyDisplay amount={invoice.remaining_amount} currency={invoice.currency} /> : '-'}
+                    {invoice.remaining_amount !== undefined ? <MoneyDisplay value={invoice.remaining_amount} currency={invoice.currency} /> : '-'}
                   </dd>
                 </div>
               </dl>
@@ -196,11 +191,11 @@ export function MerchantInvoiceDetailsPage() {
                         <tr key={item.id} className="border-b border-border/50">
                           <td className="px-6 py-4">{item.description}</td>
                           <td className="px-6 py-4 text-right">
-                            <MoneyDisplay amount={item.amount} currency={invoice.currency} />
+                            <MoneyDisplay value={item.amount} currency={invoice.currency} />
                           </td>
                           <td className="px-6 py-4 text-right">{item.quantity}</td>
                           <td className="px-6 py-4 text-right font-medium">
-                            <MoneyDisplay amount={item.total} currency={invoice.currency} />
+                            <MoneyDisplay value={item.total} currency={invoice.currency} />
                           </td>
                         </tr>
                       ))}

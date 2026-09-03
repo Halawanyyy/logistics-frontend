@@ -1,14 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from './Card'
+import { inferStatAccent, type StatAccent } from '../../utils/statAccent'
 
 type StatCardProps = {
   hint: string
   label: string
   value: number | string
+  accent?: StatAccent
 }
 
-export function StatCard({ hint, label, value }: StatCardProps) {
+export function StatCard({ accent, hint, label, value }: StatCardProps) {
   return (
-    <Card variant="stat" className="stat-card">
+    <Card variant="stat" className="stat-card" data-accent={accent ?? inferStatAccent(label)}>
       <CardHeader className="stat-card__header">
         <span className="eyebrow">{label}</span>
       </CardHeader>

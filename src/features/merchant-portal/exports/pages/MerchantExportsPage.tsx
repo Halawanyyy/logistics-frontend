@@ -31,15 +31,7 @@ export function MerchantExportsPage() {
     queryFn: () => listMerchantPortalExports(filters),
   })
 
-  const handleDateChange = (range: { from?: Date; to?: Date }) => {
-    setFilters((prev) => ({
-      ...prev,
-      page: 1,
-      date_from: range.from ? range.from.toISOString() : undefined,
-      date_to: range.to ? range.to.toISOString() : undefined,
-    }))
-  }
-
+  
   const handleReset = () => {
     setFilters({ page: 1, per_page: 50 })
   }
@@ -53,9 +45,11 @@ export function MerchantExportsPage() {
         description={t('Create and download exports for your merchant data.', { defaultValue: 'Create and download exports for your merchant data.' })}
         actions={
           <CanMerchant capability="exports.create">
-            <Button as={Link} to={merchantPath('/exports/create')} variant="primary">
-              {t('Create Export', { defaultValue: 'Create Export' })}
-            </Button>
+            <Link className="ui-link-reset" to={merchantPath('/exports/create')}>
+              <Button variant="primary">
+                {t('Create Export', { defaultValue: 'Create Export' })}
+              </Button>
+            </Link>
           </CanMerchant>
         }
       />
@@ -63,9 +57,9 @@ export function MerchantExportsPage() {
       <Card className="p-4 mb-4">
         <div className="filters-grid">
           <DateRangeFilter
-            dateFrom={filters.date_from ? new Date(filters.date_from) : undefined}
-            dateTo={filters.date_to ? new Date(filters.date_to) : undefined}
-            onChange={handleDateChange}
+            dateFrom={filters.date_from ?? ''}
+            dateTo={filters.date_to ?? ''}
+            onChange={(range: any) => { const from = range?.date_from || ""; const to = range?.date_to || ""; setFilters((prev: any) => ({ ...prev, date_from: from, date_to: to })) }}
           />
           <Button variant="secondary" onClick={handleReset}>
             {t('Reset', { defaultValue: 'Reset' })}
@@ -116,14 +110,14 @@ export function MerchantExportsPage() {
                     <TableCell>{exp.completed_at ? formatDate(exp.completed_at) : '-'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          as={Link}
-                          to={merchantPath(`/exports/${exp.id}`)}
-                          variant="secondary"
-                          size="sm"
-                        >
-                          {t('View', { defaultValue: 'View' })}
-                        </Button>
+                        <Link className="ui-link-reset" to={merchantPath(`/exports/${exp.id}`)}>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                          >
+                            {t('View', { defaultValue: 'View' })}
+                          </Button>
+                        </Link>
                         <CanMerchant capability="exports.download">
                           <MerchantExportDownloadButton exportItem={exp} />
                         </CanMerchant>

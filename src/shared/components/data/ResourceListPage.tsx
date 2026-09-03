@@ -31,6 +31,9 @@ type ResourceListPageProps<T extends { id?: number | string }> = {
   getSearchText?: (item: T) => string
   emptyTitle?: string
   searchValue?: string
+  hideHeader?: boolean
+  onCountChange?: (count: number) => void
+  renderSummary?: (rows: T[]) => ReactNode
 }
 
 export function ResourceListPage<T extends { id?: number | string }>({
@@ -44,13 +47,24 @@ export function ResourceListPage<T extends { id?: number | string }>({
   getSearchText,
   emptyTitle,
   searchValue,
+  hideHeader = false,
+  onCountChange,
+  renderSummary,
 }: ResourceListPageProps<T>) {
   const { t } = useTranslation()
   const [search, setSearch] = useState(searchValue ?? '')
   const query = useQuery({ queryKey, queryFn })
 
   useEffect(() => {
+    if (query.data) {
+      onCountChange?.(query.data.data.length)
+    }
+  }, [onCountChange, query.data])
+
+  useEffect(() => {
     if (searchValue !== undefined) {
+      // This component supports an externally refreshed initial search value while keeping input edits local.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearch(searchValue)
     }
   }, [searchValue])
@@ -70,7 +84,9 @@ export function ResourceListPage<T extends { id?: number | string }>({
 
   return (
     <section className="page-section">
-      <PageHeader title={title} description={description} actions={actions} />
+      {!hideHeader ? <PageHeader title={title} description={description} actions={actions} /> : null}
+      {hideHeader && actions ? <div className="page-header__button-row">{actions}</div> : null}
+      {renderSummary?.(rows)}
       <Card className="table-card">
         <CardHeader className="table-card__header">
           <CardTitle>{t(title, { defaultValue: title })}</CardTitle>

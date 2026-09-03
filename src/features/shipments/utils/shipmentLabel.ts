@@ -182,7 +182,7 @@ export function buildShipmentLabelHtml({
     codeText: shipment.shipment_number,
     details,
     dimensions,
-    eyebrow: t('Shipment Label', { defaultValue: 'Shipment Label' }),
+    eyebrow: t('Shipment Waybill', { defaultValue: 'Shipment Waybill' }),
     subtitle: [shipment.customer_name, shipment.customer_phone].filter(Boolean).join(' • '),
     title: shipment.shipment_number,
   })

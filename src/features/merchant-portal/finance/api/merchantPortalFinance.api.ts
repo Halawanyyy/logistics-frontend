@@ -1,6 +1,6 @@
 import { apiClient } from '../../../../shared/api/axios'
 import { guardMerchantId } from '../../api/merchantPortal.api'
-import type { LabelDocument, LabelRequestOptions } from '../../../../shared/components/labels/types'
+import type { LabelRequestOptions } from '../../../../shared/types/labels.types'
 import type {
   MerchantFinanceSummary,
   MerchantWalletSummary,
@@ -52,7 +52,7 @@ export async function getMerchantPortalInvoice(invoiceId: string | number) {
   return response.data
 }
 
-export async function previewMerchantPortalInvoice({ referenceId }: LabelRequestOptions): Promise<LabelDocument> {
+export async function previewMerchantPortalInvoice({ referenceId }: LabelRequestOptions & { referenceId: number }): Promise<any> {
   const response = await apiClient.get<{ data: string }>(`/merchant-portal/finance/invoices/${referenceId}/preview`)
   return {
     content: response.data.data,

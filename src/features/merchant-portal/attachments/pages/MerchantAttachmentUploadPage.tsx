@@ -54,7 +54,6 @@ export function MerchantAttachmentUploadPage() {
       <PageHeader
         title={t('Upload Attachment', { defaultValue: 'Upload Attachment' })}
         description={t('Upload a new file to your merchant account.', { defaultValue: 'Upload a new file to your merchant account.' })}
-        backTo={merchantPath('/attachments')}
       />
 
       <Card>

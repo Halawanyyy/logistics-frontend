@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { Truck } from 'lucide-react'
 import { listShipments } from '../../shipments/api/shipments.api'
 import type { Shipment } from '../../shipments/types/shipment.types'
 import {
@@ -75,6 +76,12 @@ function uniqueShipments(queries: Array<{ data?: { data: Shipment[] } }>) {
   return Array.from(map.values())
 }
 
+function canCloseDriverManifest(manifest: DriverManifest) {
+  return manifest.status === 'open'
+    && manifest.items.length > 0
+    && manifest.items.every((item) => item.current_status === 'delivered')
+}
+
 function GenerateManifestDialog({
   error,
   isSubmitting,
@@ -89,11 +96,12 @@ function GenerateManifestDialog({
   open: boolean
 }) {
   const { t } = useTranslation()
+  const [searchTerm, setSearchTerm] = useState('')
   const {
+    control,
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors },
   } = useForm<GenerateManifestFormValues>({
     defaultValues: {
@@ -104,7 +112,8 @@ function GenerateManifestDialog({
     },
   })
   const { formError, getFieldError } = useFormApiErrors(error)
-  const selectedShipments = watch('shipment_ids') ?? []
+  const selectedShipments = useWatch({ control, name: 'shipment_ids', defaultValue: [] })
+  const selectedDriverId = useWatch({ control, name: 'driver_id' })
   const [readyForDispatchQuery, outForDeliveryQuery] = useQueries({
     queries: [
       {
@@ -123,11 +132,99 @@ function GenerateManifestDialog({
     () => uniqueShipments([readyForDispatchQuery, outForDeliveryQuery]),
     [readyForDispatchQuery, outForDeliveryQuery],
   )
+  const eligibleShipments = useMemo(
+    () => selectedDriverId
+      ? availableShipments.filter((shipment) => (
+          shipment.assigned_driver_id == null
+          || shipment.assigned_driver_id === selectedDriverId
+        ))
+      : [],
+    [availableShipments, selectedDriverId],
+  )
+  const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase()
+  const filteredShipments = useMemo(
+    () => eligibleShipments.filter((shipment) => {
+      if (!normalizedSearchTerm) {
+        return true
+      }
+
+      return [
+        shipment.shipment_number,
+        shipment.customer_name,
+        shipment.delivery_area_name,
+        shipment.delivery_governorate_name,
+      ].some((value) => value?.toLocaleLowerCase().includes(normalizedSearchTerm))
+    }),
+    [eligibleShipments, normalizedSearchTerm],
+  )
+  const candidateSections = useMemo(() => {
+    function groupByGovernorate(shipments: Shipment[]) {
+      const groups = new Map<string, Shipment[]>()
+
+      shipments.forEach((shipment) => {
+        const governorate = shipment.delivery_governorate_name || t('Unknown governorate', { defaultValue: 'Unknown governorate' })
+        const group = groups.get(governorate) ?? []
+        group.push(shipment)
+        groups.set(governorate, group)
+      })
+
+      return Array.from(groups.entries()).map(([governorate, grouped]) => ({
+        governorate,
+        shipments: grouped.sort((first, second) =>
+          (first.delivery_area_name ?? '').localeCompare(second.delivery_area_name ?? ''),
+        ),
+      }))
+    }
+
+    const assigned = filteredShipments.filter((shipment) => shipment.assigned_driver_id === selectedDriverId)
+    const unassigned = filteredShipments.filter((shipment) => shipment.assigned_driver_id == null)
+
+    return [
+      {
+        id: 'assigned',
+        title: t('Assigned to selected driver', { defaultValue: 'Assigned to selected driver' }),
+        description: t('These shipments are already assigned to this driver and are still awaiting delivery.', {
+          defaultValue: 'These shipments are already assigned to this driver and are still awaiting delivery.',
+        }),
+        shipments: assigned,
+        groups: groupByGovernorate(assigned),
+      },
+      {
+        id: 'unassigned',
+        title: t('Unassigned shipments', { defaultValue: 'Unassigned shipments' }),
+        description: t('These shipments have no driver yet. Selecting them adds them to the selected driver\'s manifest.', {
+          defaultValue: 'These shipments have no driver yet. Selecting them adds them to the selected driver\'s manifest.',
+        }),
+        shipments: unassigned,
+        groups: groupByGovernorate(unassigned),
+      },
+    ]
+  }, [filteredShipments, selectedDriverId, t])
+  const selectedShipmentRecords = useMemo(
+    () => eligibleShipments.filter((shipment) => selectedShipments.includes(shipment.id)),
+    [eligibleShipments, selectedShipments],
+  )
+  const selectedTotalCod = selectedShipmentRecords.reduce(
+    (total, shipment) => total + Number(shipment.cod_amount || 0),
+    0,
+  )
+  const selectedAreasCount = new Set(
+    selectedShipmentRecords.map((shipment) => shipment.delivery_area_name).filter(Boolean),
+  ).size
 
   function toggleShipment(shipmentId: number) {
     const nextValue = selectedShipments.includes(shipmentId)
       ? selectedShipments.filter((id) => id !== shipmentId)
       : [...selectedShipments, shipmentId]
+    setValue('shipment_ids', nextValue, { shouldValidate: true })
+  }
+
+  function toggleShipmentGroup(shipments: Shipment[]) {
+    const groupIds = shipments.map((shipment) => shipment.id)
+    const allSelected = groupIds.every((shipmentId) => selectedShipments.includes(shipmentId))
+    const nextValue = allSelected
+      ? selectedShipments.filter((shipmentId) => !groupIds.includes(shipmentId))
+      : Array.from(new Set([...selectedShipments, ...groupIds]))
     setValue('shipment_ids', nextValue, { shouldValidate: true })
   }
 
@@ -137,8 +234,11 @@ function GenerateManifestDialog({
         <label className="field">
           <span>{t('Driver', { defaultValue: 'Driver' })}</span>
           <DriverSelector
-            value={watch('driver_id') ? String(watch('driver_id')) : ''}
-            onChange={(driverId) => setValue('driver_id', driverId ? Number(driverId) : 0, { shouldValidate: true })}
+            value={selectedDriverId ? String(selectedDriverId) : ''}
+            onChange={(driverId) => {
+              setValue('driver_id', driverId ? Number(driverId) : 0, { shouldValidate: true })
+              setValue('shipment_ids', [], { shouldValidate: true })
+            }}
           />
           <FieldError error={errors.driver_id?.message ?? getFieldError('driver_id')} />
         </label>
@@ -170,58 +270,155 @@ function GenerateManifestDialog({
               }}
             />
           ) : null}
-          {!readyForDispatchQuery.isLoading && !outForDeliveryQuery.isLoading && !availableShipments.length ? (
-            <EmptyState
-              title={t('No manifest-ready shipments', { defaultValue: 'No manifest-ready shipments' })}
-              description={t('No shipments in ready_for_dispatch or out_for_delivery were returned.', {
-                defaultValue: 'No shipments in ready_for_dispatch or out_for_delivery were returned.',
-              })}
-            />
+          {!readyForDispatchQuery.isLoading && !outForDeliveryQuery.isLoading && !selectedDriverId ? (
+            <div className="manifest-empty-state manifest-empty-state--driver" role="status">
+              <div className="manifest-empty-state__icon" aria-hidden="true">
+                <Truck size={22} />
+              </div>
+              <div className="manifest-empty-state__content">
+                <strong>{t('Select a driver first', { defaultValue: 'Select a driver first' })}</strong>
+                <p>{t('The form will then show shipments assigned to that driver separately from shipments that are not assigned to anyone.', {
+                  defaultValue: 'The form will then show shipments assigned to that driver separately from shipments that are not assigned to anyone.',
+                })}</p>
+              </div>
+            </div>
           ) : null}
-          {availableShipments.length ? (
-            <div className="page-stack">
-              <p className="table-meta">{t('{{count}} shipment(s) selected.', {
-                count: selectedShipments.length,
-                defaultValue: `${selectedShipments.length} shipment(s) selected.`,
-              })}</p>
-              <TableContainer>
-                <Table variant="compact">
-                  <thead>
-                    <tr>
-                      <TableHead>{t('Select', { defaultValue: 'Select' })}</TableHead>
-                      <TableHead>{t('Shipment', { defaultValue: 'Shipment' })}</TableHead>
-                      <TableHead>{t('Merchant')}</TableHead>
-                      <TableHead>{t('Customer')}</TableHead>
-                      <TableHead>{t('Status')}</TableHead>
-                      <TableHead>{t('COD')}</TableHead>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {availableShipments.map((shipment) => (
-                      <tr key={shipment.id}>
-                        <TableCell>
-                          <input
-                            checked={selectedShipments.includes(shipment.id)}
-                            type="checkbox"
-                            onChange={() => toggleShipment(shipment.id)}
-                          />
-                        </TableCell>
-                        <TableCell>{shipment.shipment_number}</TableCell>
-                        <TableCell>{shipment.merchant_name}</TableCell>
-                        <TableCell>{shipment.customer_name}</TableCell>
-                        <TableCell><StatusBadge value={shipment.status} /></TableCell>
-                        <TableCell><MoneyDisplay value={shipment.cod_amount} /></TableCell>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </TableContainer>
+          {!readyForDispatchQuery.isLoading && !outForDeliveryQuery.isLoading && selectedDriverId && !eligibleShipments.length ? (
+            <div className="manifest-empty-state" role="status">
+              <div className="manifest-empty-state__icon" aria-hidden="true">
+                <Truck size={22} />
+              </div>
+              <div className="manifest-empty-state__content">
+                <strong>{t('No manifest-ready shipments available', {
+                  defaultValue: 'No manifest-ready shipments available',
+                })}</strong>
+                <p>{t('No ready shipments are assigned to the selected driver, and no unassigned shipments are currently available.', {
+                  defaultValue: 'No ready shipments are assigned to the selected driver, and no unassigned shipments are currently available.',
+                })}</p>
+                <div className="manifest-empty-state__criteria" aria-label={t('Shipment requirements', { defaultValue: 'Shipment requirements' })}>
+                  <span>{t('Selected driver or unassigned', { defaultValue: 'Selected driver or unassigned' })}</span>
+                  <span>{t('Not delivered', { defaultValue: 'Not delivered' })}</span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {selectedDriverId && eligibleShipments.length ? (
+            <div className="page-stack manifest-candidates">
+              <Input
+                aria-label={t('Search manifest shipments', { defaultValue: 'Search manifest shipments' })}
+                className="manifest-candidates__search"
+                type="search"
+                placeholder={t('Search by shipment number, customer, or area...', {
+                  defaultValue: 'Search by shipment number, customer, or area...',
+                })}
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+
+              {filteredShipments.length ? (
+                <div className="manifest-assignment-sections">
+                  {candidateSections.map((section) => (
+                    <section
+                      className={`manifest-assignment-section manifest-assignment-section--${section.id}`}
+                      key={section.id}
+                    >
+                      <div className="manifest-assignment-section__header">
+                        <div>
+                          <strong>{section.title}</strong>
+                          <p>{section.description}</p>
+                        </div>
+                        <span className="manifest-assignment-section__count">
+                          {section.shipments.length}
+                        </span>
+                      </div>
+
+                      {section.groups.length ? (
+                        <div className="manifest-groups">
+                          {section.groups.map(({ governorate, shipments }) => {
+                            const allSelected = shipments.every((shipment) => selectedShipments.includes(shipment.id))
+
+                            return (
+                              <section className="manifest-group" key={`${section.id}-${governorate}`}>
+                                <div className="manifest-group__header">
+                                  <label className="manifest-group__select">
+                                    <input
+                                      checked={allSelected}
+                                      type="checkbox"
+                                      onChange={() => toggleShipmentGroup(shipments)}
+                                    />
+                                    <span>{governorate}</span>
+                                    <span className="manifest-group__count">
+                                      {t('{{count}} shipments', {
+                                        count: shipments.length,
+                                        defaultValue: `${shipments.length} shipments`,
+                                      })}
+                                    </span>
+                                  </label>
+                                </div>
+                                <div className="manifest-group__items">
+                                  {shipments.map((shipment) => (
+                                    <label className="manifest-group__item" key={shipment.id}>
+                                      <input
+                                        checked={selectedShipments.includes(shipment.id)}
+                                        type="checkbox"
+                                        onChange={() => toggleShipment(shipment.id)}
+                                      />
+                                      <strong>{shipment.shipment_number}</strong>
+                                      <span className="manifest-group__customer">{shipment.customer_name}</span>
+                                      <span className="manifest-group__area">{shipment.delivery_area_name ?? t('Unassigned area', { defaultValue: 'Unassigned area' })}</span>
+                                      <span className="manifest-group__cod"><MoneyDisplay value={shipment.cod_amount} /></span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </section>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="manifest-assignment-section__empty">
+                          {section.id === 'assigned'
+                            ? t('No ready shipments are currently assigned to this driver.', {
+                                defaultValue: 'No ready shipments are currently assigned to this driver.',
+                              })
+                            : t('No unassigned ready shipments are currently available.', {
+                                defaultValue: 'No unassigned ready shipments are currently available.',
+                              })}
+                        </p>
+                      )}
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title={t('No matching shipments', { defaultValue: 'No matching shipments' })}
+                  description={t('Try a different shipment number, customer, governorate, or area.', {
+                    defaultValue: 'Try a different shipment number, customer, governorate, or area.',
+                  })}
+                />
+              )}
+
+              <div className="manifest-summary" aria-live="polite">
+                <div className="compact-stats-row">
+                  <div className="compact-stat">
+                    <span className="compact-stat__label">{t('Selected', { defaultValue: 'Selected' })}</span>
+                    <span className="compact-stat__value">{selectedShipments.length}</span>
+                  </div>
+                  <div className="compact-stat">
+                    <span className="compact-stat__label">{t('Total COD', { defaultValue: 'Total COD' })}</span>
+                    <span className="compact-stat__value"><MoneyDisplay value={selectedTotalCod} /></span>
+                  </div>
+                  <div className="compact-stat">
+                    <span className="compact-stat__label">{t('Areas', { defaultValue: 'Areas' })}</span>
+                    <span className="compact-stat__value">{selectedAreasCount}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : null}
           <FieldError error={errors.shipment_ids?.message ?? getFieldError('shipment_ids')} />
         </div>
-        {formError ? <div className="form-error">{formError}</div> : null}
-        <div className="form-actions">
+        {formError ? <div className="form-error" role="alert">{formError}</div> : null}
+        <div className="form-actions manifest-generate-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
             {t('Cancel')}
           </Button>
@@ -292,7 +489,7 @@ function CloseManifestDialog({
           <Input {...register('notes')} />
           <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
         </label>
-        {formError ? <div className="form-error">{formError}</div> : null}
+        {formError ? <div className="form-error" role="alert">{formError}</div> : null}
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
             {t('Cancel')}
@@ -502,6 +699,12 @@ export function DriverManifestsPage() {
                               <Button
                                 type="button"
                                 variant="secondary"
+                                disabled={!canCloseDriverManifest(manifest)}
+                                title={!canCloseDriverManifest(manifest)
+                                  ? t('All manifest shipments must be delivered before closing.', {
+                                      defaultValue: 'All manifest shipments must be delivered before closing.',
+                                    })
+                                  : undefined}
                                 onClick={() => setManifestPendingClose(manifest)}
                               >
                                 {t('Close')}

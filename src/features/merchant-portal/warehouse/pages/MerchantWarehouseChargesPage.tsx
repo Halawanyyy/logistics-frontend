@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { getApiErrorMessage } from '../../../../shared/api/api-error'
-import { MoneyDisplay } from '../../../../shared/components/display/MoneyDisplay'
 import { EmptyState } from '../../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../../shared/components/states/LoadingState'
@@ -42,7 +41,12 @@ export function MerchantWarehouseChargesPage() {
     queryFn: () => listMerchantPortalWarehouseCharges(page, params),
   })
 
-    function handleClearFilters() {
+    function handleFilterChange(key: string, value: any) {
+    setFilters((prev: any) => ({ ...prev, [key]: value }))
+    setPage(1)
+  }
+
+  function handleClearFilters() {
     setFilters({ ...initialFilters })
     setPage(1)
   }
@@ -57,7 +61,7 @@ export function MerchantWarehouseChargesPage() {
     if (isError) {
       return (
         <ErrorState
-          message={getApiErrorMessage(error, t('Failed to load warehouse charges.'))}
+          message={getApiErrorMessage(error)}
           onRetry={refetch}
         />
       )

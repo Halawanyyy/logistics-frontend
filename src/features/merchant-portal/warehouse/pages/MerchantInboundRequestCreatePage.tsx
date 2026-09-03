@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../../shared/com
 import { Input } from '../../../../shared/components/ui/Input'
 import { PageHeader } from '../../../../shared/components/ui/PageHeader'
 import { merchantPath } from '../../../../shared/routing/paths'
-import { FormPageLayout } from '../../../../shared/components/forms/FormPageLayout'
 import { FormActionsBar } from '../../../../shared/components/forms/FormActionsBar'
 import { FieldError } from '../../../../shared/components/forms/FieldError'
 import { createMerchantPortalInboundRequest, listMerchantPortalWarehouseProducts } from '../api/merchantPortalWarehouse.api'
@@ -23,7 +22,7 @@ export function MerchantInboundRequestCreatePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
-  const [productSearch, setProductSearch] = useState('')
+  const [productSearch] = useState('')
 
   const { data: productsData } = useQuery({
     queryKey: ['merchant-portal', 'warehouse-products', 1, { search: productSearch, status: 'active' }],
@@ -55,7 +54,7 @@ export function MerchantInboundRequestCreatePage() {
       navigate(merchantPath(`/warehouse/inbound-requests/${data.data.id}`))
     },
     onError: (err) => {
-      console.error(getApiErrorMessage(err, t('Failed to create inbound request.')))
+      console.error(getApiErrorMessage(err))
     },
   })
 
@@ -96,9 +95,8 @@ export function MerchantInboundRequestCreatePage() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <FormPageLayout
-          mainContent={
-            <>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
               <Card>
                 <CardHeader>
                   <CardTitle>{t('Request Details')}</CardTitle>
@@ -138,7 +136,7 @@ export function MerchantInboundRequestCreatePage() {
                   <Button
                     size="sm"
                     type="button"
-                    variant="neutral"
+                    variant="secondary"
                     onClick={() => append({ quantity: 1, requested_product_name: '', requested_sku: '' })}
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -151,9 +149,9 @@ export function MerchantInboundRequestCreatePage() {
                       {fields.length > 1 && (
                         <Button
                           className="absolute right-2 top-2 text-muted hover:text-destructive"
-                          size="icon"
+                          size="sm"
                           type="button"
-                          variant="ghost"
+                          variant="icon"
                           onClick={() => remove(index)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -249,9 +247,8 @@ export function MerchantInboundRequestCreatePage() {
                   )}
                 </CardContent>
               </Card>
-            </>
-          }
-          sidebar={
+          </div>
+          <div>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -268,11 +265,16 @@ export function MerchantInboundRequestCreatePage() {
                 </dl>
               </CardContent>
             </Card>
-          }
-        />
+          </div>
+        </div>
         <FormActionsBar
           isSubmitting={createMutation.isPending}
-          onCancel={() => navigate(merchantPath('/warehouse/inbound-requests'))}
+          submitLabel="Create Request"
+          secondaryAction={
+            <Button variant="secondary" onClick={() => navigate(merchantPath('/warehouse/inbound-requests'))}>
+              {t('Cancel')}
+            </Button>
+          }
         />
       </form>
     </>

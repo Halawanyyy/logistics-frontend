@@ -3,6 +3,13 @@ import { useQuery } from '@tanstack/react-query'
 import { appConfig } from '../../app/config'
 import { listPublicSettings } from '../../features/settings/api/settings.api'
 
+export {
+  applyBrandColors,
+  generatePalette,
+  useBrand,
+} from './BrandProvider'
+export type { BrandConfig, BrandPalette, BrandShade } from './BrandProvider'
+
 type PublicSettingValue = string | number | boolean | string[] | null | undefined
 
 function toSettingText(value: PublicSettingValue) {

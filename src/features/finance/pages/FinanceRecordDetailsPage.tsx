@@ -25,9 +25,23 @@ import {
   getMerchantInvoice,
   getMerchantInvoicePreview,
   getMerchantPayout,
+  verifyDriverCashClosure,
 } from '../api/finance.api'
 
 type FinanceKind = 'payouts' | 'cash-closures' | 'expenses' | 'invoices'
+
+type FinanceRecord = Record<string, unknown> & {
+  id: number
+  status?: string
+  invoice_number?: string
+  merchant_name?: string
+  driver_name?: string
+  category?: string
+}
+
+type FinanceRecordResponse = {
+  data: FinanceRecord
+}
 
 const config = {
   payouts: { title: 'Merchant Payout', back: adminPath('/finance/merchant-payouts'), queryKey: 'merchant-payouts', get: getMerchantPayout, remove: deleteMerchantPayout },
@@ -54,7 +68,11 @@ export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
   const entry = config[kind]
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const query = useQuery<any>({ queryKey: [entry.queryKey, recordId], queryFn: () => entry.get(recordId!) as Promise<any>, enabled: Boolean(recordId) })
+  const query = useQuery<FinanceRecordResponse>({
+    queryKey: [entry.queryKey, recordId],
+    queryFn: () => entry.get(recordId!) as Promise<FinanceRecordResponse>,
+    enabled: Boolean(recordId),
+  })
   const previewQuery = useQuery({ queryKey: ['merchant-invoices', recordId, 'preview'], queryFn: () => getMerchantInvoicePreview(recordId!), enabled: kind === 'invoices' && Boolean(recordId) })
     
   const deleteMutation = useMutation({
@@ -75,6 +93,17 @@ export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
       URL.revokeObjectURL(url)
     },
   })
+  const verifyCashClosureMutation = useMutation({
+    mutationFn: () => verifyDriverCashClosure(recordId!),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['driver-cash-closures'] }),
+        queryClient.invalidateQueries({ queryKey: ['driver-manifests'] }),
+        queryClient.invalidateQueries({ queryKey: ['finance-reports'] }),
+        queryClient.invalidateQueries({ queryKey: ['treasury'] }),
+      ])
+    },
+  })
 
   if (query.isLoading) {
     return <LoadingState title={t('Loading {{title}}', {
@@ -84,7 +113,7 @@ export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
   }
   if (query.isError || !query.data) return <ErrorState message={getApiErrorMessage(query.error)} />
 
-  const record = query.data.data as any
+  const record = query.data.data
   const permissions = actionPermissions[kind]
 
   return (
@@ -94,6 +123,22 @@ export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
         description={record.invoice_number ?? record.merchant_name ?? record.driver_name ?? record.category ?? `#${record.id}`}
         actions={(
           <div className="page-header__button-row">
+            {kind === 'cash-closures' && record.status === 'pending' ? (
+              <Can permission={PERMISSIONS.DRIVER_CASH_CLOSURES_VERIFY}>
+                <Button
+                  loading={verifyCashClosureMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm(t('Verify this cash closure and sync it to treasury?', {
+                      defaultValue: 'Verify this cash closure and sync it to treasury?',
+                    }))) {
+                      verifyCashClosureMutation.mutate()
+                    }
+                  }}
+                >
+                  {t('Verify', { defaultValue: 'Verify' })}
+                </Button>
+              </Can>
+            ) : null}
             <Can permission={permissions.update}>
               <Link className="ui-link-reset" to={`${entry.back}/${record.id}/edit`}>
                 <Button variant="secondary">{t('Edit')}</Button>
@@ -127,6 +172,7 @@ export function FinanceRecordDetailsPage({ kind }: { kind: FinanceKind }) {
       />
       {deleteMutation.error ? <div className="form-error">{getApiErrorMessage(deleteMutation.error)}</div> : null}
       {downloadMutation.error ? <div className="form-error">{getApiErrorMessage(downloadMutation.error)}</div> : null}
+      {verifyCashClosureMutation.error ? <div className="form-error">{getApiErrorMessage(verifyCashClosureMutation.error)}</div> : null}
       <Card>
         <CardHeader><CardTitle>{t('Details')}</CardTitle></CardHeader>
         <CardContent>

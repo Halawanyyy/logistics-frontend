@@ -34,7 +34,9 @@ export type DriverManifestItem = {
   delivery_address: string
   cod_amount: string
   shipping_fee: string
+  loadout_status?: string | null
   shipment_status_at_loadout: string
+  current_status?: string | null
   final_status: string | null
   delivered_cod_amount: string
   notes: string | null

@@ -73,26 +73,50 @@ export function MerchantPortalProvider({ children }: { children: ReactNode }) {
 
   if (isMerchantInactive || isPortalUserInactive) {
     return (
-      <div className="error-state-container" style={{ padding: '4rem 2rem', textAlign: 'center', maxWidth: '600px', margin: '100px auto' }}>
-        <h2 style={{ color: 'var(--danger-color, #ef4444)', marginBottom: '1rem' }}>
-          {isMerchantInactive 
-            ? t('Merchant Account Inactive', { defaultValue: 'Merchant Account Inactive' })
-            : t('Membership Suspended', { defaultValue: 'Membership Suspended' })
-          }
-        </h2>
-        <p style={{ marginBottom: '2rem', color: 'var(--text-muted, #6b7280)' }}>
-          {isMerchantInactive
-            ? t('Your merchant portal access is currently disabled because your company account is inactive or suspended. Please contact operations support.', {
-                defaultValue: 'Your merchant portal access is currently disabled because your company account is inactive or suspended. Please contact operations support.'
-              })
-            : t('Your personal merchant membership is currently inactive or suspended. Please contact your company administrator.', {
-                defaultValue: 'Your personal merchant membership is currently inactive or suspended. Please contact your company administrator.'
-              })
-          }
-        </p>
-        <Button variant="secondary" onClick={handleLogout}>
-          {t('Logout', { defaultValue: 'Logout' })}
-        </Button>
+      <div style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: 'var(--bg-subtle, #f9fafb)' }}>
+        <div style={{ 
+          position: 'absolute', 
+          inset: 0, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          pointerEvents: 'none', 
+          opacity: 0.04, 
+          fontSize: '15vw', 
+          fontWeight: 900, 
+          textTransform: 'uppercase', 
+          transform: 'rotate(-30deg)', 
+          color: 'var(--danger-color, #ef4444)',
+          whiteSpace: 'nowrap',
+          userSelect: 'none'
+        }}>
+          {t('Suspended', { defaultValue: 'Suspended' })}
+        </div>
+        
+        <div className="error-state-container" style={{ position: 'relative', zIndex: 10, padding: '3rem 2rem', textAlign: 'center', maxWidth: '500px', width: '100%', background: 'var(--card-bg, #ffffff)', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)', border: '1px solid var(--border-color, #e5e7eb)' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--danger-color-50, #fef2f2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: 'var(--danger-color, #ef4444)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+          </div>
+          <h2 style={{ color: 'var(--text-color, #111827)', marginBottom: '1rem', fontSize: '1.5rem', fontWeight: 700 }}>
+            {isMerchantInactive 
+              ? t('Merchant Account Inactive', { defaultValue: 'Merchant Account Inactive' })
+              : t('Membership Suspended', { defaultValue: 'Membership Suspended' })
+            }
+          </h2>
+          <p style={{ marginBottom: '2rem', color: 'var(--text-muted, #6b7280)', lineHeight: 1.6 }}>
+            {isMerchantInactive
+              ? t('Your merchant portal access is currently disabled because your company account is inactive or suspended. Please contact operations support.', {
+                  defaultValue: 'Your merchant portal access is currently disabled because your company account is inactive or suspended. Please contact operations support.'
+                })
+              : t('Your personal merchant membership is currently inactive or suspended. Please contact your company administrator.', {
+                  defaultValue: 'Your personal merchant membership is currently inactive or suspended. Please contact your company administrator.'
+                })
+            }
+          </p>
+          <Button variant="secondary" onClick={handleLogout} style={{ width: '100%', padding: '0.75rem' }}>
+            {t('Logout', { defaultValue: 'Logout' })}
+          </Button>
+        </div>
       </div>
     )
   }

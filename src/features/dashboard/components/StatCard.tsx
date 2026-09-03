@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
 import { cn } from '../../../shared/utils/cn'
+import { inferStatAccent, type StatAccent } from '../../../shared/utils/statAccent'
 
 type StatCardProps = {
   title: string
@@ -8,6 +9,7 @@ type StatCardProps = {
   description?: string
   icon?: ReactNode
   tone?: 'success' | 'warning' | 'danger' | 'info' | 'neutral'
+  accent?: StatAccent
 }
 
 export function StatCard({
@@ -16,9 +18,10 @@ export function StatCard({
   description,
   icon,
   tone = 'neutral',
+  accent,
 }: StatCardProps) {
   return (
-    <Card variant="stat" className={cn('stat-card', `stat-card--${tone}`)}>
+    <Card variant="stat" className={cn('stat-card', `stat-card--${tone}`)} data-accent={accent ?? inferStatAccent(title)}>
       <CardHeader className="stat-card__header">
         <span className="eyebrow">{title}</span>
         {icon ? <span className="stat-card__icon">{icon}</span> : null}

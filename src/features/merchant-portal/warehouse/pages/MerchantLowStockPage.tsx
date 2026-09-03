@@ -46,7 +46,12 @@ export function MerchantLowStockPage() {
     queryFn: () => listMerchantPortalLowStock(page, params),
   })
 
-    function handleClearFilters() {
+    function handleFilterChange(key: string, value: any) {
+    setFilters((prev: any) => ({ ...prev, [key]: value }))
+    setPage(1)
+  }
+
+  function handleClearFilters() {
     setFilters({ ...initialFilters })
     setPage(1)
   }
@@ -61,7 +66,7 @@ export function MerchantLowStockPage() {
     if (isError) {
       return (
         <ErrorState
-          message={getApiErrorMessage(error, t('Failed to load low stock items.'))}
+          message={getApiErrorMessage(error)}
           onRetry={refetch}
         />
       )

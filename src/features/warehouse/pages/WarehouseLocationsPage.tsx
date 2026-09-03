@@ -502,12 +502,19 @@ function CreateBinDialog({
   )
 }
 
-export function WarehouseLocationsPage() {
+export function WarehouseLocationsPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const { locale } = useLocale()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = searchParams.get('tab')
+  const tabParamName = embedded ? 'location_tab' : 'tab'
+  const initialTab = searchParams.get(tabParamName)
   const [tab, setTab] = useState<LocationsTab>(
     initialTab === 'shelves' || initialTab === 'bins' ? initialTab : 'zones',
   )
@@ -600,16 +607,20 @@ export function WarehouseLocationsPage() {
   const bins = binsQuery.data?.data ?? []
 
   useEffect(() => {
+    onCountChange?.(zones.length + shelves.length + bins.length)
+  }, [bins.length, onCountChange, shelves.length, zones.length])
+
+  useEffect(() => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current)
-      next.set('tab', tab)
+      next.set(tabParamName, tab)
       return next
     }, { replace: true })
-  }, [setSearchParams, tab])
+  }, [setSearchParams, tab, tabParamName])
 
   return (
     <section className="page-section">
-      <PageHeader
+      {!embedded ? <PageHeader
         title={t('Warehouse Locations', { defaultValue: 'Warehouse Locations' })}
         description={t('Zones, shelves, and bins used by warehouse storage operations.', { defaultValue: 'Zones, shelves, and bins used by warehouse storage operations.' })}
         actions={(
@@ -621,7 +632,7 @@ export function WarehouseLocationsPage() {
             </div>
           </Can>
         )}
-      />
+      /> : null}
 
       <Card variant="flat" className="dashboard-filter-card">
         <CardContent className="dashboard-filters">
@@ -780,6 +791,10 @@ export function WarehouseLocationsPage() {
       />
     </section>
   )
+}
+
+export function WarehouseLocationsPage() {
+  return <WarehouseLocationsPanel />
 }
 
 function ZonesTable({ zones }: { zones: WarehouseZone[] }) {

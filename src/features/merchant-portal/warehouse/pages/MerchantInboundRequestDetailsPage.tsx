@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Ban, Calendar, Clock, MapPin, Package, ClipboardList } from 'lucide-react'
+import { ArrowLeft, Ban, Clock, Package, ClipboardList } from 'lucide-react'
 import { getApiErrorMessage } from '../../../../shared/api/api-error'
 import { ErrorState } from '../../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../../shared/components/states/LoadingState'
@@ -18,7 +18,7 @@ import {
   cancelMerchantPortalInboundRequest,
 } from '../api/merchantPortalWarehouse.api'
 import { Timeline } from '../../../../shared/components/timeline/Timeline'
-import type { TimelineItem } from '../../../../shared/components/timeline/Timeline'
+
 import { ConfirmActionModal } from '../../../../shared/components/modals/ConfirmActionModal'
 import { useState } from 'react'
 
@@ -43,7 +43,7 @@ export function MerchantInboundRequestDetailsPage() {
       setIsCancelModalOpen(false)
     },
     onError: (err) => {
-      console.error(getApiErrorMessage(err, t('Failed to cancel inbound request.')))
+      console.error(getApiErrorMessage(err))
     },
   })
 
@@ -59,7 +59,7 @@ export function MerchantInboundRequestDetailsPage() {
             {t('Back to Inbound Requests')}
           </Button>
         }
-        message={getApiErrorMessage(error, t('Failed to load inbound request details.'))}
+        message={getApiErrorMessage(error)}
         onRetry={refetch}
       />
     )
@@ -249,7 +249,7 @@ export function MerchantInboundRequestDetailsPage() {
 
       <ConfirmActionModal
         confirmLabel={t('Cancel Request')}
-        variant="destructive"
+        variant="danger"
         description={t('Are you sure you want to cancel this inbound request? This action cannot be undone.')}
         open={isCancelModalOpen}
         loading={cancelMutation.isPending}

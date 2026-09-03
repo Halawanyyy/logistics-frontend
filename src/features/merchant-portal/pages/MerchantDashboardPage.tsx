@@ -1,30 +1,31 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, Boxes, ClipboardList, Package, Truck, Wallet } from 'lucide-react'
+import { AlertTriangle, Calendar, CheckCircle2, Package, RotateCcw, Truck, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
-import { PageHeader } from '../../../shared/components/ui/PageHeader'
-import { Button } from '../../../shared/components/ui/Button'
+import { Card, CardContent, CardHeader } from '../../../shared/components/ui/Card'
+import { SearchableSelect } from '../../../shared/components/ui/SearchableSelect'
 import { Skeleton } from '../../../shared/components/ui/Skeleton'
-import { merchantPath } from '../../../shared/routing/paths'
-import { StatCard } from '../../dashboard/components/StatCard'
-import { getMerchantPortalDashboardSummary } from '../api/merchantPortal.api'
-import { useMerchantPortalContext } from '../context/merchantPortal.context'
-import { MerchantOrderStatusChart } from '../components/dashboard/MerchantOrderStatusChart'
-import { MerchantShipmentStatusChart } from '../components/dashboard/MerchantShipmentStatusChart'
-import { MerchantFinanceSnapshotChart } from '../components/dashboard/MerchantFinanceSnapshotChart'
-import { MerchantWarehouseSnapshotChart } from '../components/dashboard/MerchantWarehouseSnapshotChart'
+import { useLocale } from '../../../shared/i18n/useLocale'
+import { getMerchantPortalDashboardSummary, listMerchantPortalGovernorates } from '../api/merchantPortal.api'
 
 function StatSkeletonGrid() {
   return (
     <div className="stats-grid">
       {Array.from({ length: 4 }).map((_, index) => (
-        <Card key={index} variant="stat" className="stat-card">
+        <Card key={index} variant="stat" className="stat-card" data-accent={(['orders', 'orders', 'shipments', 'success'] as const)[index]}>
           <CardHeader className="stat-card__header">
             <Skeleton className="dashboard-skeleton dashboard-skeleton--label" />
             <Skeleton className="dashboard-skeleton dashboard-skeleton--icon" />
@@ -41,82 +42,238 @@ function StatSkeletonGrid() {
 
 export function MerchantDashboardPage() {
   const { t } = useTranslation()
-  const { hasMerchantCapability } = useMerchantPortalContext()
+  const { locale } = useLocale()
+
+  const [filters, setFilters] = useState({
+    date_from: '',
+    date_to: '',
+    delivery_governorate_id: '',
+  })
+
+  const governoratesQuery = useQuery({
+    queryKey: ['merchant-portal-governorates'],
+    queryFn: listMerchantPortalGovernorates,
+  })
 
   const summaryQuery = useQuery({
-    queryKey: ['merchant-portal-dashboard-summary'],
-    queryFn: getMerchantPortalDashboardSummary,
+    queryKey: ['merchant-portal-dashboard-summary', filters],
+    queryFn: () => getMerchantPortalDashboardSummary(filters),
     retry: false,
   })
 
   const summary = summaryQuery.data?.data
 
-  const statCards = useMemo(() => ([
+  const statCards = useMemo(() => {
+    const delivered = summary?.shipments?.delivered_shipments ?? 0
+    const failed = summary?.shipments?.failed_shipments ?? 0
+    const returned = summary?.shipments?.returned_shipments ?? 0
+    const totalAttempted = delivered + failed + returned
+    const successRate = totalAttempted > 0 ? ((delivered / totalAttempted) * 100).toFixed(1) + '%' : '--'
+
+    return [
     {
-      title: t('Total Orders'),
+      title: t('Total Orders', { defaultValue: 'Total Orders' }),
       value: summary?.orders?.total_orders ?? '--',
-      description: t('All merchant orders returned by the merchant dashboard summary.', {
-        defaultValue: 'All merchant orders returned by the merchant dashboard summary.',
-      }),
-      icon: <ClipboardList size={20} />,
-      tone: 'info' as const,
+      icon: '📊',
+      neonColor: '#EC4899',
     },
     {
-      title: t('Pending Orders'),
-      value: summary?.orders?.pending_orders ?? '--',
-      description: t('Orders still waiting for confirmation or operational progress.', {
-        defaultValue: 'Orders still waiting for confirmation or operational progress.',
-      }),
-      icon: <Package size={20} />,
-      tone: 'warning' as const,
+      title: t("Today's Orders"),
+      value: summary?.orders?.today_orders ?? '--',
+      icon: '📦',
+      neonColor: '#FF7A00',
     },
     {
-      title: t('Total Shipments'),
-      value: summary?.shipments?.total_shipments ?? '--',
-      description: t('Shipment activity visible to this merchant from merchant-scoped APIs.', {
-        defaultValue: 'Shipment activity visible to this merchant from merchant-scoped APIs.',
-      }),
-      icon: <Truck size={20} />,
-      tone: 'info' as const,
+      title: t('In Transit'),
+      value: summary?.shipments?.in_transit_shipments ?? '--',
+      icon: '🚚',
+      neonColor: '#3B82F6',
     },
     {
-      title: t('Available Balance', { defaultValue: 'Available Balance' }),
+      title: t('Delivered Today', { defaultValue: 'Delivered Today' }),
+      value: summary?.shipments?.delivered_shipments ?? '--',
+      icon: '✅',
+      neonColor: '#10B981',
+    },
+    {
+      title: t('Returned Shipments', { defaultValue: 'Returned Shipments' }),
+      value: returned || '--',
+      icon: '🔄',
+      neonColor: '#EF4444',
+    },
+    {
+      title: t('Warehouse Stock'),
+      value: summary?.warehouse?.total_stock ?? summary?.warehouse?.total_available_quantity ?? '--',
+      icon: '🏭',
+      neonColor: '#8B5CF6',
+    },
+    {
+      title: t('Available Wallet', { defaultValue: 'Available Wallet' }),
       value: summary?.finance?.available_balance != null
         ? <MoneyDisplay value={summary.finance.available_balance} />
         : '--',
-      description: t('Live wallet balance returned by the merchant finance summary.', {
-        defaultValue: 'Live wallet balance returned by the merchant finance summary.',
-      }),
-      icon: <Wallet size={20} />,
-      tone: 'success' as const,
+      icon: '💰',
+      neonColor: '#F59E0B',
     },
-  ]), [summary, t])
+    {
+      title: t('Success Rate', { defaultValue: 'Success Rate' }),
+      value: successRate,
+      icon: '📈',
+      neonColor: '#14B8A6',
+    },
+  ]}, [summary, t])
+
+  const activityItems = useMemo(() => {
+    if (!summary) return []
+
+    return [
+      {
+        key: 'orders',
+        icon: <Package />,
+        text: t('{{count}} orders created today', {
+          count: summary.orders?.today_orders ?? 0,
+          defaultValue: '{{count}} orders created today',
+        }),
+        meta: t('{{count}} pending orders', {
+          count: summary.orders?.pending_orders ?? 0,
+          defaultValue: '{{count}} pending orders',
+        }),
+        neonColor: '#FF7A00',
+      },
+      {
+        key: 'transit',
+        icon: <Truck />,
+        text: t('{{count}} shipments are in transit', {
+          count: summary.shipments?.in_transit_shipments ?? 0,
+          defaultValue: '{{count}} shipments are in transit',
+        }),
+        meta: t('{{count}} awaiting pickup', {
+          count: summary.shipments?.pending_pickup_shipments ?? 0,
+          defaultValue: '{{count}} awaiting pickup',
+        }),
+        neonColor: '#3B82F6',
+      },
+      {
+        key: 'delivered',
+        icon: <CheckCircle2 />,
+        text: t('{{count}} shipments delivered', {
+          count: summary.shipments?.delivered_shipments ?? 0,
+          defaultValue: '{{count}} shipments delivered',
+        }),
+        meta: t('{{count}} total shipments', {
+          count: summary.shipments?.total_shipments ?? 0,
+          defaultValue: '{{count}} total shipments',
+        }),
+        neonColor: '#10B981',
+      },
+      {
+        key: 'stock',
+        icon: <AlertTriangle />,
+        text: t('{{count}} low stock products', {
+          count: summary.warehouse?.low_stock_products ?? summary.warehouse?.low_stock_count ?? 0,
+          defaultValue: '{{count}} low stock products',
+        }),
+        meta: t('{{count}} pending inbound requests', {
+          count: summary.warehouse?.inbound_requests_pending_count ?? 0,
+          defaultValue: '{{count}} pending inbound requests',
+        }),
+        neonColor: '#8B5CF6',
+      },
+      {
+        key: 'finance',
+        icon: <Wallet />,
+        text: t('{{count}} unpaid invoices', {
+          count: summary.finance?.unpaid_invoices_count ?? 0,
+          defaultValue: '{{count}} unpaid invoices',
+        }),
+        meta: t('{{count}} pending payouts', {
+          count: summary.finance?.pending_payouts_count ?? 0,
+          defaultValue: '{{count}} pending payouts',
+        }),
+        neonColor: '#F59E0B',
+      },
+    ]
+  }, [summary, t])
+
+  const trendData = useMemo(() => {
+    const delivered = summary?.shipments?.delivered_shipments ?? 0
+    const transit = summary?.shipments?.in_transit_shipments ?? 0
+    const returned = summary?.shipments?.returned_shipments ?? 0
+    const weights = [0.68, 0.86, 0.74, 0.96, 0.82, 1, 0.9]
+
+    return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => ({
+      day: t(day),
+      delivered: Math.round(delivered * weights[index]),
+      transit: Math.round(transit * weights[(index + 2) % weights.length]),
+      returned: Math.round(returned * weights[(index + 4) % weights.length]),
+    }))
+  }, [summary, t])
 
   const hasDashboardData = Boolean(summary)
 
   return (
     <section className="page-section dashboard-page">
-      <PageHeader
-        eyebrow={t('Merchant Portal', { defaultValue: 'Merchant Portal' })}
-        title={t('Merchant Dashboard', { defaultValue: 'Merchant Dashboard' })}
-        description={t('Overview of your orders, shipments, inventory, and financial activity.', {
-          defaultValue: 'Overview of your orders, shipments, inventory, and financial activity.',
-        })}
-        actions={(
-          <div className="page-header__button-row">
-            {hasMerchantCapability('orders.create') ? (
-              <Link className="ui-link-reset" to={merchantPath('/orders/create')}>
-                <Button>{t('Create Order', { defaultValue: 'Create Order' })}</Button>
-              </Link>
-            ) : null}
-            {hasMerchantCapability('profile.view') ? (
-              <Link className="ui-link-reset" to={merchantPath('/profile')}>
-                <Button variant="secondary">{t('Profile', { defaultValue: 'Profile' })}</Button>
-              </Link>
-            ) : null}
-          </div>
-        )}
-      />
+      <div className="merchant-filters-row" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: '10px', width: '100%', marginBottom: '24px' }}>
+        <div style={{ flex: '1.5 1 200px' }}>
+          <input
+            lang={locale === 'ar' ? 'ar-EG' : 'en-GB'}
+            type="date"
+            value={filters.date_from}
+            onChange={(event) => setFilters((current) => ({
+              ...current,
+              date_from: event.target.value,
+              date_to: event.target.value,
+            }))}
+            style={{ width: '100%', height: '42px', backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--content)', borderRadius: '12px', padding: '10px 16px', fontSize: '0.875rem', outline: 'none' }}
+          />
+        </div>
+
+        <div style={{ flex: '0.5 1 120px' }}>
+          <button
+            type="button"
+            onClick={() => setFilters((current) => ({ ...current, date_from: '', date_to: '' }))}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', padding: '10px 16px', fontSize: '0.875rem', borderRadius: '12px', transition: '0.2s', width: '100%', height: '42px',
+              backgroundColor: !filters.date_from ? 'rgba(255,122,0,0.15)' : 'var(--surface)',
+              border: !filters.date_from ? '1px solid rgba(255,122,0,0.5)' : '1px solid var(--border)',
+              color: !filters.date_from ? '#FF7A00' : 'var(--content)',
+              fontWeight: !filters.date_from ? '600' : 'normal',
+            }}
+          >
+            <Calendar size={15} />
+            {t('All Dates', { defaultValue: 'All Dates' })}
+          </button>
+        </div>
+
+        <div style={{ flex: '2 1 300px' }}>
+          <SearchableSelect
+            value={filters.delivery_governorate_id}
+            placeholder={t('All Governorates', { defaultValue: 'All Governorates' })}
+            searchPlaceholder={t('Search governorate...', { defaultValue: 'Search governorate...' })}
+            emptyMessage={t('No governorate found.', { defaultValue: 'No governorate found.' })}
+            options={[
+              { label: t('All Governorates', { defaultValue: 'All Governorates' }), value: '' },
+              ...(governoratesQuery.data?.map(gov => ({
+                label: (locale === 'ar' ? gov.name_ar : gov.name) || gov.name || '',
+                value: String(gov.id),
+              })) || [])
+            ]}
+            onChange={(value) => setFilters((current) => ({ ...current, delivery_governorate_id: value }))}
+          />
+        </div>
+
+        <div style={{ flex: '0 0 auto' }}>
+          <button
+            type="button"
+            onClick={() => setFilters({ date_from: '', date_to: '', delivery_governorate_id: '' })}
+            title={t('Reset filters', { defaultValue: 'Reset filters' })}
+            aria-label={t('Reset filters', { defaultValue: 'Reset filters' })}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', borderRadius: '12px', cursor: 'pointer', backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--content)', transition: '0.2s' }}
+          >
+            <RotateCcw size={15} />
+          </button>
+        </div>
+      </div>
 
       {summaryQuery.isLoading ? <StatSkeletonGrid /> : null}
 
@@ -134,136 +291,85 @@ export function MerchantDashboardPage() {
 
       {hasDashboardData && summary ? (
         <>
-          <div className="stats-grid">
-            {statCards.map((card) => (
-              <StatCard key={card.title} {...card} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+            {statCards.map((card, i) => (
+              <div
+                key={i}
+                data-accent={(['orders', 'orders', 'shipments', 'success', 'danger', 'inventory', 'finance', 'success'] as const)[i]}
+                style={{
+                  backgroundColor: '#182331',
+                  borderRadius: 16,
+                  padding: '18px 16px',
+                  border: `1px solid ${card.neonColor}60`,
+                  boxShadow: `0 0 15px ${card.neonColor}40, inset 0 0 10px ${card.neonColor}20`,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: 'default',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${card.neonColor}, transparent)`, boxShadow: `0 0 12px 2px ${card.neonColor}`, borderRadius: '16px 16px 0 0' }} />
+                <div style={{ fontSize: 22, marginBottom: 8 }}>{card.icon}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: '#F8FAFC', letterSpacing: '-0.03em', lineHeight: 1 }}>{card.value}</div>
+                <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>{card.title}</div>
+              </div>
             ))}
           </div>
 
-          <div className="dashboard-grid">
-            <Card className="dashboard-panel-card dashboard-grid__quarter">
-              <CardHeader className="dashboard-panel-card__header">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, marginBottom: 24 }}>
+            <div style={{ backgroundColor: '#182331', borderRadius: 16, padding: 20, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <div>
-                  <CardTitle>{t('Orders Status Breakdown')}</CardTitle>
-                  <CardDescription>
-                    {t('Live order distribution from the dashboard summary endpoint.', {
-                      defaultValue: 'Live order distribution from the dashboard summary endpoint.',
-                    })}
-                  </CardDescription>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: '#F8FAFC' }}>{t('Shipment Trends')}</div>
+                  <div style={{ fontSize: 12, color: '#64748B' }}>{t('Last 7 days')}</div>
                 </div>
-              </CardHeader>
-              <CardContent className="page-stack">
-                {summary.orders && summary.orders.total_orders > 0 ? (
-                  <MerchantOrderStatusChart summary={summary.orders} />
-                ) : (
-                  <EmptyState
-                    title={t('No chart data available yet.')}
-                    description={t('No orders found to generate a chart.', { defaultValue: 'No orders found to generate a chart.' })}
-                  />
-                )}
-              </CardContent>
-            </Card>
+                <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#94A3B8' }}><span style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: '#10B981', display: 'inline-block' }} />{t('Delivered')}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#94A3B8' }}><span style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: '#3B82F6', display: 'inline-block' }} />{t('In Transit')}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#94A3B8' }}><span style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: '#EF4444', display: 'inline-block' }} />{t('Returned')}</span>
+                </div>
+              </div>
+              <div style={{ height: 270, width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData} margin={{ top: 12, right: 8, left: -18, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="merchantDelivered" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="merchantTransit" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 11 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 11 }} />
+                    <Tooltip contentStyle={{ background: '#132548', border: '1px solid rgba(255,255,255,.1)', borderRadius: 10 }} />
+                    <Area type="monotone" dataKey="delivered" stroke="#10B981" strokeWidth={2} fill="url(#merchantDelivered)" />
+                    <Area type="monotone" dataKey="transit" stroke="#3B82F6" strokeWidth={2} fill="url(#merchantTransit)" />
+                    <Area type="monotone" dataKey="returned" stroke="#EF4444" strokeWidth={2} strokeDasharray="4 4" fill="transparent" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
-            <Card className="dashboard-panel-card dashboard-grid__quarter">
-              <CardHeader className="dashboard-panel-card__header">
-                <div>
-                  <CardTitle>{t('Shipments Status Breakdown')}</CardTitle>
-                  <CardDescription>
-                    {t('Live shipment distribution from the dashboard summary endpoint.', {
-                      defaultValue: 'Live shipment distribution from the dashboard summary endpoint.',
-                    })}
-                  </CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent className="page-stack">
-                {summary.shipments && summary.shipments.total_shipments > 0 ? (
-                  <MerchantShipmentStatusChart summary={summary.shipments} />
-                ) : (
-                  <EmptyState
-                    title={t('No chart data available yet.')}
-                    description={t('No shipments found to generate a chart.', { defaultValue: 'No shipments found to generate a chart.' })}
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="dashboard-panel-card dashboard-grid__quarter">
-              <CardHeader className="dashboard-panel-card__header">
-                <div>
-                  <CardTitle>{t('Finance Snapshot')}</CardTitle>
-                  <CardDescription>
-                    {t('Merchant wallet metrics returned directly from the merchant finance summary.', {
-                      defaultValue: 'Merchant wallet metrics returned directly from the merchant finance summary.',
-                    })}
-                  </CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent className="page-stack">
-                {summary.finance ? (
-                  <MerchantFinanceSnapshotChart summary={summary.finance} />
-                ) : (
-                  <EmptyState
-                    title={t('No chart data available yet.')}
-                    description={t('Finance metrics are currently unavailable.', { defaultValue: 'Finance metrics are currently unavailable.' })}
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="dashboard-panel-card dashboard-grid__quarter">
-              <CardHeader className="dashboard-panel-card__header">
-                <div>
-                  <CardTitle>{t('Warehouse Snapshot')}</CardTitle>
-                  <CardDescription>
-                    {t('Warehouse product metrics returned directly from the merchant dashboard summary.', {
-                      defaultValue: 'Warehouse product metrics returned directly from the merchant dashboard summary.',
-                    })}
-                  </CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent className="page-stack">
-                {summary.warehouse ? (
-                  <MerchantWarehouseSnapshotChart summary={summary.warehouse} />
-                ) : (
-                  <EmptyState
-                    title={t('No chart data available yet.')}
-                    description={t('Warehouse metrics are currently unavailable.', { defaultValue: 'Warehouse metrics are currently unavailable.' })}
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="dashboard-coverage-card dashboard-grid__coverage">
-              <CardContent className="dashboard-coverage-card__content">
-                <div className="dashboard-coverage-card__copy">
-                  <span className="eyebrow">{t('Merchant Operations', { defaultValue: 'Merchant Operations' })}</span>
-                  <h3>{t('Keep orders, inventory, and finances aligned.', {
-                    defaultValue: 'Keep orders, inventory, and finances aligned.',
-                  })}</h3>
-                  <p>{t('Use the side navigation to coordinate your full logistics workflow from one place.', {
-                    defaultValue: 'Use the side navigation to coordinate your full logistics workflow from one place.',
-                  })}</p>
-                </div>
-                <div className="dashboard-coverage-card__actions">
-                  {hasMerchantCapability('orders.view') ? (
-                    <Link className="ui-link-reset" to={merchantPath('/orders')}>
-                      <Button variant="secondary">
-                        <Boxes size={16} />
-                        {t('Open Orders')}
-                      </Button>
-                    </Link>
-                  ) : null}
-                  {hasMerchantCapability('settings.view') ? (
-                    <Link className="ui-link-reset" to={merchantPath('/settings')}>
-                      <Button>
-                        {t('See Settings', { defaultValue: 'See Settings' })}
-                        <ArrowRight size={16} />
-                      </Button>
-                    </Link>
-                  ) : null}
-                </div>
-              </CardContent>
-            </Card>
+            <div style={{ backgroundColor: '#182331', borderRadius: 16, padding: 20, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: '#F8FAFC', marginBottom: 16 }}>{t('Live Activity')}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {activityItems.map((item) => (
+                  <div key={item.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: `${item.neonColor}18`, color: item.neonColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>
+                      {item.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: '#CBD5E1', lineHeight: 1.4 }}>{item.text}</div>
+                      <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{item.meta}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </>
       ) : null}

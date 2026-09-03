@@ -18,7 +18,7 @@ import { merchantPath } from '../../../../shared/routing/paths'
 import { formatDate } from '../../../../shared/utils/formatters'
 import { listMerchantPortalInvoices, downloadMerchantPortalInvoice } from '../api/merchantPortalFinance.api'
 import type { MerchantInvoiceFilters } from '../types/merchantPortalFinance.types'
-import { MoneyDisplay } from '../../../../shared/components/ui/MoneyDisplay'
+import { MoneyDisplay } from '../../../../shared/components/display/MoneyDisplay'
 import { CanMerchant } from '../../components/CanMerchant'
 import { useMutation } from '@tanstack/react-query'
 
@@ -82,7 +82,7 @@ export function MerchantInvoicesPage() {
     if (isError) {
       return (
         <ErrorState
-          message={getApiErrorMessage(error, t('Failed to load invoices.'))}
+          message={getApiErrorMessage(error)}
           onRetry={refetch}
         />
       )
@@ -128,7 +128,7 @@ export function MerchantInvoicesPage() {
                 <TableCell>{formatDate(invoice.issue_date)}</TableCell>
                 <TableCell>{formatDate(invoice.due_date)}</TableCell>
                 <TableCell className="text-right font-medium">
-                  <MoneyDisplay amount={invoice.total_amount} currency={invoice.currency} />
+                  <MoneyDisplay value={invoice.total_amount} currency={invoice.currency} />
                 </TableCell>
                 <TableCell>
                   <StatusBadge value={invoice.status} />
@@ -136,7 +136,7 @@ export function MerchantInvoicesPage() {
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end space-x-2">
                     <CanMerchant capability="invoices.view">
-                      <Button variant="neutral" asChild size="sm">
+                      <Button variant="secondary" size="sm">
                         <Link to={merchantPath(`/finance/invoices/${invoice.id}`)}>
                           {t('View')}
                         </Link>
@@ -144,7 +144,7 @@ export function MerchantInvoicesPage() {
                     </CanMerchant>
                     <CanMerchant capability="invoices.download">
                       <Button 
-                        variant="neutral" 
+                        variant="secondary" 
                         size="sm" 
                         onClick={() => downloadInvoice(invoice.id)}
                         disabled={isDownloading}

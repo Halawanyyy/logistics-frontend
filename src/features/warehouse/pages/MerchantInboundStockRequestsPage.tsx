@@ -113,7 +113,13 @@ function InboundActionDialog({
   )
 }
 
-export function MerchantInboundStockRequestsPage() {
+export function InboundRequestsPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null)
@@ -156,6 +162,8 @@ export function MerchantInboundStockRequestsPage() {
   return (
     <>
       <ResourceListPage<MerchantInboundStockRequest>
+        hideHeader={embedded}
+        onCountChange={onCountChange}
         title={t('Inbound Stock Requests', { defaultValue: 'Inbound Stock Requests' })}
         description={t('Admin review for merchant inbound stock requests before warehouse receipt confirmation.', { defaultValue: 'Admin review for merchant inbound stock requests before warehouse receipt confirmation.' })}
         queryKey={['merchant-inbound-stock-requests', params]}
@@ -164,8 +172,8 @@ export function MerchantInboundStockRequestsPage() {
           <ApiFilterBar
             filters={filters}
             fields={[
-              { label: t('Merchant ID', { defaultValue: 'Merchant ID' }), name: 'merchant_id', type: 'number' },
-              { label: t('Warehouse ID', { defaultValue: 'Warehouse ID' }), name: 'warehouse_id', type: 'number' },
+              { label: t('Merchant', { defaultValue: 'Merchant' }), name: 'merchant_id', type: 'merchant' },
+              { label: t('Warehouse', { defaultValue: 'Warehouse' }), name: 'warehouse_id', type: 'warehouse' },
               { label: t('Status'), name: 'status', type: 'select', options: [{ label: t('pending', { defaultValue: 'pending' }), value: 'pending' }, { label: t('approved', { defaultValue: 'approved' }), value: 'approved' }, { label: t('rejected', { defaultValue: 'rejected' }), value: 'rejected' }, { label: t('received', { defaultValue: 'received' }), value: 'received' }, { label: t('partially_received', { defaultValue: 'partially_received' }), value: 'partially_received' }] },
             ]}
             onChange={(name, value) => setFilters((current) => ({ ...current, [name]: value }))}
@@ -279,4 +287,8 @@ export function MerchantInboundStockRequestsPage() {
       ) : null}
     </>
   )
+}
+
+export function MerchantInboundStockRequestsPage() {
+  return <InboundRequestsPanel />
 }

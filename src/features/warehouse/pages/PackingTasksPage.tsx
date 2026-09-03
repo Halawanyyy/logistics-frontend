@@ -185,7 +185,13 @@ function CompletePackingTaskDialog({
   )
 }
 
-export function PackingTasksPage() {
+export function PackingTasksPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [generateOpen, setGenerateOpen] = useState(false)
@@ -226,9 +232,15 @@ export function PackingTasksPage() {
   })
   const tasks = packingTasksQuery.data?.data ?? []
 
+  useEffect(() => {
+    if (packingTasksQuery.data) {
+      onCountChange?.(packingTasksQuery.data.data.length)
+    }
+  }, [onCountChange, packingTasksQuery.data])
+
   return (
     <section className="page-section">
-      <PageHeader
+      {!embedded ? <PageHeader
         title={t('Packing Tasks', { defaultValue: 'Packing Tasks' })}
         description={t('Generate and complete packing tasks from warehouse picking lists.', { defaultValue: 'Generate and complete packing tasks from warehouse picking lists.' })}
         actions={(
@@ -238,7 +250,7 @@ export function PackingTasksPage() {
             </Button>
           </Can>
         )}
-      />
+      /> : null}
 
       <Card className="table-card">
         <CardHeader>
@@ -333,4 +345,8 @@ export function PackingTasksPage() {
       />
     </section>
   )
+}
+
+export function PackingTasksPage() {
+  return <PackingTasksPanel />
 }

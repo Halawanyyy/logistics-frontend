@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
 import { listPricingPlans } from '../../location-pricing/api/location-pricing.api'
@@ -240,7 +240,13 @@ function GenerateStorageFeesDialog({
   )
 }
 
-export function StorageFeeRulesPage() {
+export function StorageFeeRulesPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<RuleFiltersState>(initialFilters)
@@ -297,9 +303,15 @@ export function StorageFeeRulesPage() {
   })
   const rules = rulesQuery.data?.data ?? []
 
+  useEffect(() => {
+    if (rulesQuery.data) {
+      onCountChange?.(rulesQuery.data.data.length)
+    }
+  }, [onCountChange, rulesQuery.data])
+
   return (
     <section className="page-section">
-      <PageHeader
+      {!embedded ? <PageHeader
         title={t('Storage Fee Rules')}
         description={t('Merchant and pricing-plan storage billing rules plus storage fee generation.')}
         actions={(
@@ -312,7 +324,7 @@ export function StorageFeeRulesPage() {
             </Can>
           </div>
         )}
-      />
+      /> : null}
 
       <Card variant="flat" className="dashboard-filter-card">
         <CardContent className="dashboard-filters">
@@ -423,4 +435,8 @@ export function StorageFeeRulesPage() {
       />
     </section>
   )
+}
+
+export function StorageFeeRulesPage() {
+  return <StorageFeeRulesPanel />
 }

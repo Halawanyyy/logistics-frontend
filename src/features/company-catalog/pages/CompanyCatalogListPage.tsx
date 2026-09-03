@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -48,7 +48,13 @@ function getTypeLabel(type: string, t: (key: string, options?: { defaultValue?: 
     }
 }
 
-export function CompanyCatalogListPage() {
+export function CompanyCatalogPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -74,6 +80,12 @@ export function CompanyCatalogListPage() {
     queryFn: () => listCompanyCatalogItems(queryParams),
   })
 
+  useEffect(() => {
+    if (query.data) {
+      onCountChange?.(query.data.data.length)
+    }
+  }, [onCountChange, query.data])
+
   const deleteMutation = useMutation({
     mutationFn: (companyCatalogItemId: number) => deleteCompanyCatalogItem(companyCatalogItemId),
     onSuccess: async () => {
@@ -96,7 +108,7 @@ export function CompanyCatalogListPage() {
 
   return (
     <section className="page-section">
-      <PageHeader
+      {!embedded ? <PageHeader
         title={t('Company Catalog', { defaultValue: 'Company Catalog' })}
         description={t('Manage company-owned packaging products and service catalog items.', {
           defaultValue: 'Manage company-owned packaging products and service catalog items.',
@@ -108,7 +120,7 @@ export function CompanyCatalogListPage() {
             </Link>
           </Can>
         )}
-      />
+      /> : null}
 
       <Card className="table-card">
         <CardHeader className="table-card__header">
@@ -242,4 +254,8 @@ export function CompanyCatalogListPage() {
       />
     </section>
   )
+}
+
+export function CompanyCatalogListPage() {
+  return <CompanyCatalogPanel />
 }

@@ -16,8 +16,6 @@ import { ApiFilterBar, compactFilters } from '../../../shared/components/data/Ap
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { adminPath } from '../../../shared/routing/paths'
-import { LowStockQuickCard } from '../components/LowStockQuickCard'
-import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { buildBulkProductLabelDocument, getProductPrintableLabelDocument } from '../utils/productLabel'
 
 const initialFilters = {
@@ -30,7 +28,13 @@ const initialFilters = {
   search: '',
 }
 
-export function WarehouseProductsPage() {
+export function WarehouseProductsPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const { locale } = useLocale()
   const [searchParams] = useSearchParams()
@@ -47,22 +51,10 @@ export function WarehouseProductsPage() {
   }))
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([])
   const params = compactFilters(filters)
-  const summaryParams = compactFilters({
-    merchant_id: filters.merchant_id,
-    warehouse_id: filters.warehouse_id,
-    sku: filters.sku,
-    barcode: filters.barcode,
-    status: filters.status,
-    search: filters.search,
-  })
   const queryFn = filters.low_stock ? () => listLowStockWarehouseProducts(params) : () => listWarehouseProducts(params)
   const productsQuery = useQuery({
     queryKey: ['warehouse-products', params],
     queryFn,
-  })
-  const lowStockProductsQuery = useQuery({
-    queryKey: ['warehouse-products', 'low-stock-summary', summaryParams],
-    queryFn: () => listLowStockWarehouseProducts(summaryParams),
   })
   const inventoryLowStockSearch = new URLSearchParams({
     low_stock: 'true',
@@ -86,6 +78,8 @@ export function WarehouseProductsPage() {
 
   return (
     <ResourceListPage<WarehouseProduct>
+      hideHeader={embedded}
+      onCountChange={onCountChange}
       title={t('Warehouse Products', { defaultValue: 'Warehouse Products' })}
       description={t('Merchant products available for warehouse inventory.', {
         defaultValue: 'Merchant products available for warehouse inventory.',
@@ -129,39 +123,11 @@ export function WarehouseProductsPage() {
       queryKey={['warehouse-products', params]}
       queryFn={queryFn}
       filters={
-        <div className="page-stack">
-          <div className="stats-grid">
-            <LowStockQuickCard
-              title={t('Low-Stock Products', { defaultValue: 'Low-Stock Products' })}
-              description={t('Count is based on the current warehouse-product filters and the backend low-stock list.', {
-                defaultValue: 'Count is based on the current warehouse-product filters and the backend low-stock list.',
-              })}
-              countLabel={t('Current low-stock matches', { defaultValue: 'Current low-stock matches' })}
-              count={lowStockProductsQuery.data?.data.length ?? 0}
-              loading={lowStockProductsQuery.isLoading}
-              error={lowStockProductsQuery.isError ? getApiErrorMessage(lowStockProductsQuery.error) : null}
-              actions={(
-                <>
-                  <Button type="button" variant="secondary" onClick={() => setFilters((current) => ({ ...current, low_stock: 'true' }))}>
-                    {t('Filter low stock', { defaultValue: 'Filter low stock' })}
-                  </Button>
-                  {filters.low_stock ? (
-                    <Button type="button" variant="secondary" onClick={() => setFilters((current) => ({ ...current, low_stock: '' }))}>
-                      {t('Clear filter', { defaultValue: 'Clear filter' })}
-                    </Button>
-                  ) : null}
-                  <Link className="ui-link-reset" to={`${adminPath('/inventory-stocks')}?${inventoryLowStockSearch}`}>
-                    <Button type="button" variant="secondary">{t('View low-stock inventory', { defaultValue: 'View low-stock inventory' })}</Button>
-                  </Link>
-                </>
-              )}
-            />
-          </div>
-          <ApiFilterBar
+        <ApiFilterBar
             filters={filters}
             fields={[
-              { label: t('Merchant ID', { defaultValue: 'Merchant ID' }), name: 'merchant_id', type: 'number' },
-              { label: t('Warehouse ID', { defaultValue: 'Warehouse ID' }), name: 'warehouse_id', type: 'number' },
+              { label: t('Merchant'), name: 'merchant_id', type: 'merchant' },
+              { label: t('Warehouse'), name: 'warehouse_id', type: 'warehouse' },
               { label: t('SKU', { defaultValue: 'SKU' }), name: 'sku' },
               { label: t('Barcode'), name: 'barcode' },
               {
@@ -176,13 +142,27 @@ export function WarehouseProductsPage() {
               { label: t('Low Stock', { defaultValue: 'Low Stock' }), name: 'low_stock', type: 'select', options: [{ label: 'true', value: 'true' }] },
               { label: t('Search'), name: 'search' },
             ]}
+            extra={(
+              <>
+                <Button type="button" variant="secondary" onClick={() => setFilters((current) => ({ ...current, low_stock: 'true' }))}>
+                  {t('Filter low stock', { defaultValue: 'Filter low stock' })}
+                </Button>
+                {filters.low_stock ? (
+                  <Button type="button" variant="secondary" onClick={() => setFilters((current) => ({ ...current, low_stock: '' }))}>
+                    {t('Clear filter', { defaultValue: 'Clear filter' })}
+                  </Button>
+                ) : null}
+                <Link className="ui-link-reset" to={`${adminPath('/inventory-stocks')}?${inventoryLowStockSearch}`}>
+                  <Button type="button" variant="secondary">{t('View low-stock inventory', { defaultValue: 'View low-stock inventory' })}</Button>
+                </Link>
+              </>
+            )}
             onChange={(name, value) => setFilters((current) => ({ ...current, [name]: value }))}
             onReset={() => {
               setFilters(initialFilters)
               setSelectedProductIds([])
             }}
           />
-        </div>
       }
       columns={[
         {
@@ -231,4 +211,8 @@ export function WarehouseProductsPage() {
       ]}
     />
   )
+}
+
+export function WarehouseProductsPage() {
+  return <WarehouseProductsPanel />
 }

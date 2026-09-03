@@ -1,102 +1,235 @@
 import { Outlet, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import {
+  Boxes,
+  ClipboardList,
+  CreditCard,
+  FileSpreadsheet,
+  Landmark,
+  LayoutDashboard,
+  Map as MapIcon,
+  MapPin,
+  Package,
+  Receipt,
+  Settings,
+  Store,
+  Truck,
+  UserRoundCheck,
+  Users,
+  Wallet,
+  Warehouse,
+} from 'lucide-react'
 import { appConfig } from '../app/config'
 import { logout as logoutRequest } from '../features/auth/api/auth.api'
 import { useAuthStore } from '../features/auth/store/auth.store'
 import { PERMISSIONS, type Permission } from '../shared/auth/permission-keys'
 import { hasAnyPermission, hasPermission } from '../shared/auth/permissions'
-import { AppShell } from '../shared/components/layout/AppShell'
+import {
+  AppShell,
+  type NavGroup,
+  type NavItem,
+  type SidebarItem,
+} from '../shared/components/layout/AppShell'
+import { QuickActionsBar } from '../shared/components/layout/QuickActionsBar'
 import { adminPath } from '../shared/routing/paths'
 
-const navigationItems: Array<{
-  to: string
-  label: string
+type AdminNavItem = NavItem & {
   permission?: Permission
   anyOf?: Permission[]
-}> = [
-  { to: adminPath('/dashboard'), label: 'Dashboard', permission: PERMISSIONS.DASHBOARD_VIEW },
-  { to: adminPath('/users'), label: 'Users', permission: PERMISSIONS.USERS_VIEW },
-  { to: adminPath('/roles'), label: 'Roles', permission: PERMISSIONS.ROLES_VIEW },
-  { to: adminPath('/merchants'), label: 'Merchants', permission: PERMISSIONS.MERCHANTS_VIEW },
-  { to: adminPath('/governorates'), label: 'Governorates', permission: PERMISSIONS.LOCATION_PRICING_VIEW },
-  { to: adminPath('/areas'), label: 'Areas', permission: PERMISSIONS.LOCATION_PRICING_VIEW },
-  { to: adminPath('/shipping-rates'), label: 'Shipping Rates', permission: PERMISSIONS.SHIPPING_RATES_VIEW },
-  { to: adminPath('/pricing-plans'), label: 'Pricing Plans', permission: PERMISSIONS.PRICING_PLANS_VIEW },
-  { to: adminPath('/pricing-plan-rates'), label: 'Pricing Plan Rates', permission: PERMISSIONS.PRICING_PLAN_RATES_VIEW },
-  { to: adminPath('/orders'), label: 'Orders', permission: PERMISSIONS.ORDERS_VIEW },
-  { to: adminPath('/shipments'), label: 'Shipments', permission: PERMISSIONS.SHIPMENTS_VIEW },
-  { to: adminPath('/drivers'), label: 'Drivers', permission: PERMISSIONS.DRIVERS_VIEW },
-  { to: adminPath('/driver-manifests'), label: 'Driver Manifests', permission: PERMISSIONS.DRIVER_MANIFESTS_VIEW },
+}
+
+type AdminNavGroup = Omit<NavGroup, 'children'> & {
+  children: AdminNavItem[]
+}
+
+type AdminSidebarItem = AdminNavItem | AdminNavGroup
+
+const navigationItems: AdminSidebarItem[] = [
   {
-    to: adminPath('/finance'),
-    label: 'Finance Overview',
-    anyOf: [
-      PERMISSIONS.FINANCE_VIEW,
-      PERMISSIONS.FINANCE_REPORTS_VIEW,
-      PERMISSIONS.FINANCE_RECONCILIATION_VIEW,
+    type: 'link',
+    path: adminPath('/dashboard'),
+    label: 'Dashboard',
+    icon: <LayoutDashboard size={18} />,
+    permission: PERMISSIONS.DASHBOARD_VIEW,
+  },
+  {
+    type: 'group',
+    label: 'Operations',
+    icon: <ClipboardList size={18} />,
+    defaultOpen: true,
+    children: [
+      { type: 'link', path: adminPath('/orders'), label: 'Orders', icon: <Package size={18} />, permission: PERMISSIONS.ORDERS_VIEW },
+      { type: 'link', path: adminPath('/shipments'), label: 'Shipments', icon: <Truck size={18} />, permission: PERMISSIONS.SHIPMENTS_VIEW },
+      { type: 'link', path: adminPath('/driver-manifests'), label: 'Driver Manifests', icon: <ClipboardList size={18} />, permission: PERMISSIONS.DRIVER_MANIFESTS_VIEW },
     ],
   },
-  { to: adminPath('/finance/merchant-payouts'), label: 'Payouts', permission: PERMISSIONS.PAYOUTS_VIEW },
-  { to: adminPath('/finance/expenses'), label: 'Expenses', permission: PERMISSIONS.EXPENSES_VIEW },
-  { to: adminPath('/finance/merchant-invoices'), label: 'Invoices', permission: PERMISSIONS.FINANCE_INVOICES_VIEW },
-  { to: adminPath('/finance/treasury/accounts'), label: 'Treasury Accounts', permission: PERMISSIONS.FINANCE_TREASURY_VIEW },
-  { to: adminPath('/finance/treasury/transactions'), label: 'Treasury Transactions', permission: PERMISSIONS.FINANCE_TREASURY_VIEW },
   {
-    to: adminPath('/warehouse'),
+    type: 'link',
+    path: adminPath('/merchants'),
+    label: 'Merchants',
+    icon: <Store size={18} />,
+    permission: PERMISSIONS.MERCHANTS_VIEW,
+  },
+  {
+    type: 'link',
+    path: adminPath('/drivers'),
+    label: 'Drivers',
+    icon: <UserRoundCheck size={18} />,
+    permission: PERMISSIONS.DRIVERS_VIEW,
+  },
+  {
+    type: 'group',
+    label: 'Pricing',
+    icon: <CreditCard size={18} />,
+    children: [
+      { type: 'link', path: adminPath('/governorates'), label: 'Governorates', icon: <MapIcon size={18} />, permission: PERMISSIONS.LOCATION_PRICING_VIEW },
+      { type: 'link', path: adminPath('/areas'), label: 'Areas', icon: <MapPin size={18} />, permission: PERMISSIONS.LOCATION_PRICING_VIEW },
+      { type: 'link', path: adminPath('/shipping-rates'), label: 'Shipping Rates', icon: <Receipt size={18} />, permission: PERMISSIONS.SHIPPING_RATES_VIEW },
+      { type: 'link', path: adminPath('/pricing-plans'), label: 'Pricing Plans', icon: <Wallet size={18} />, permission: PERMISSIONS.PRICING_PLANS_VIEW },
+      { type: 'link', path: adminPath('/pricing-plan-rates'), label: 'Pricing Plan Rates', icon: <CreditCard size={18} />, permission: PERMISSIONS.PRICING_PLAN_RATES_VIEW },
+    ],
+  },
+  {
+    type: 'group',
     label: 'Warehouse',
-    anyOf: [
-      PERMISSIONS.WAREHOUSE_VIEW,
-      PERMISSIONS.INVENTORY_VIEW,
-      PERMISSIONS.WAREHOUSE_LOCATIONS_VIEW,
-      PERMISSIONS.PICKING_LISTS_VIEW,
-      PERMISSIONS.PACKING_TASKS_VIEW,
-      PERMISSIONS.STORAGE_FEE_RULES_VIEW,
-      PERMISSIONS.PICK_PACK_FEE_RULES_VIEW,
-      PERMISSIONS.WAREHOUSE_KPIS_VIEW,
+    icon: <Warehouse size={18} />,
+    children: [
+      {
+        type: 'link',
+        path: adminPath('/warehouse/kpis'),
+        label: 'Hub',
+        icon: <LayoutDashboard size={18} />,
+        permission: PERMISSIONS.WAREHOUSE_KPIS_VIEW,
+      },
+      {
+        type: 'link',
+        path: adminPath('/warehouse/inbound'),
+        label: 'Inbound',
+        icon: <Receipt size={18} />,
+        anyOf: [
+          PERMISSIONS.MERCHANT_INBOUND_REQUESTS_VIEW,
+          PERMISSIONS.MERCHANT_INBOUND_REQUESTS_MANAGE,
+          PERMISSIONS.INVENTORY_VIEW,
+        ],
+      },
+      {
+        type: 'link',
+        path: adminPath('/warehouse/inventory'),
+        label: 'Inventory',
+        icon: <Boxes size={18} />,
+        anyOf: [PERMISSIONS.INVENTORY_VIEW, PERMISSIONS.STOCK_MOVEMENTS_VIEW, PERMISSIONS.COMPANY_CATALOG_VIEW, PERMISSIONS.WAREHOUSE_LOCATIONS_VIEW],
+      },
+      {
+        type: 'link',
+        path: adminPath('/warehouse/fulfillment'),
+        label: 'Fulfillment',
+        icon: <Package size={18} />,
+        anyOf: [PERMISSIONS.PICKING_LISTS_VIEW, PERMISSIONS.PACKING_TASKS_VIEW],
+      },
+      {
+        type: 'link',
+        path: adminPath('/warehouse/config'),
+        label: 'Config',
+        icon: <Settings size={18} />,
+        anyOf: [
+          PERMISSIONS.WAREHOUSE_RETURNS_VIEW,
+          PERMISSIONS.WAREHOUSE_CHARGES_VIEW,
+          PERMISSIONS.STORAGE_FEE_RULES_VIEW,
+          PERMISSIONS.PICK_PACK_FEE_RULES_VIEW,
+        ],
+      },
+      {
+        type: 'link',
+        path: adminPath('/warehouses'),
+        label: 'Warehouses',
+        icon: <Warehouse size={18} />,
+        permission: PERMISSIONS.WAREHOUSE_VIEW,
+      },
     ],
   },
-  { to: adminPath('/warehouses'), label: 'Warehouses', permission: PERMISSIONS.WAREHOUSE_VIEW },
-  { to: adminPath('/warehouse-products'), label: 'Products', permission: PERMISSIONS.INVENTORY_VIEW },
-  { to: adminPath('/company-catalog'), label: 'Company Catalog', permission: PERMISSIONS.COMPANY_CATALOG_VIEW },
-  { to: adminPath('/inventory-stocks'), label: 'Inventory Stocks', permission: PERMISSIONS.INVENTORY_VIEW },
-  { to: adminPath('/stock-movements'), label: 'Stock Movements', permission: PERMISSIONS.STOCK_MOVEMENTS_VIEW },
-  { to: adminPath('/stock-reservations'), label: 'Stock Reservations', permission: PERMISSIONS.INVENTORY_VIEW },
-  { to: adminPath('/warehouse/locations'), label: 'Warehouse Locations', permission: PERMISSIONS.WAREHOUSE_LOCATIONS_VIEW },
-  { to: adminPath('/warehouse/receipts'), label: 'Warehouse Receipts', permission: PERMISSIONS.INVENTORY_VIEW },
-  { to: adminPath('/warehouse/transfers'), label: 'Warehouse Transfers', permission: PERMISSIONS.INVENTORY_VIEW },
-  { to: adminPath('/warehouse-returns'), label: 'Returns', permission: PERMISSIONS.WAREHOUSE_RETURNS_VIEW },
-  { to: adminPath('/warehouse-charges'), label: 'Charges', permission: PERMISSIONS.WAREHOUSE_CHARGES_VIEW },
-  { to: adminPath('/warehouse/picking-lists'), label: 'Picking Lists', permission: PERMISSIONS.PICKING_LISTS_VIEW },
-  { to: adminPath('/warehouse/packing-tasks'), label: 'Packing Tasks', permission: PERMISSIONS.PACKING_TASKS_VIEW },
-  { to: adminPath('/warehouse/storage-fee-rules'), label: 'Storage Fee Rules', permission: PERMISSIONS.STORAGE_FEE_RULES_VIEW },
-  { to: adminPath('/warehouse/pick-pack-fee-rules'), label: 'Pick & Pack Fee Rules', permission: PERMISSIONS.PICK_PACK_FEE_RULES_VIEW },
-  { to: adminPath('/warehouse/kpis'), label: 'Warehouse KPIs', permission: PERMISSIONS.WAREHOUSE_KPIS_VIEW },
   {
-    to: adminPath('/warehouse/inbound-requests'),
-    label: 'Inbound Requests',
-    anyOf: [
-      PERMISSIONS.MERCHANT_INBOUND_REQUESTS_VIEW,
-      PERMISSIONS.MERCHANT_INBOUND_REQUESTS_MANAGE,
+    type: 'group',
+    label: 'Finance',
+    icon: <Landmark size={18} />,
+    children: [
+      {
+        type: 'link',
+        path: adminPath('/finance'),
+        label: 'Overview',
+        icon: <LayoutDashboard size={18} />,
+        anyOf: [
+          PERMISSIONS.FINANCE_VIEW,
+          PERMISSIONS.FINANCE_RECONCILIATION_VIEW,
+          PERMISSIONS.FINANCE_REPORTS_VIEW,
+          PERMISSIONS.FINANCE_REPORTS_DAILY_CASH,
+          PERMISSIONS.FINANCE_REPORTS_MERCHANT_LEDGER,
+          PERMISSIONS.FINANCE_REPORTS_DRIVER_DISCREPANCIES,
+          PERMISSIONS.FINANCE_REPORTS_WAREHOUSE_REVENUE,
+          PERMISSIONS.FINANCE_REPORTS_PROFIT_LOSS,
+        ],
+      },
+      {
+        type: 'link',
+        path: adminPath('/finance/operations'),
+        label: 'Operations',
+        icon: <Wallet size={18} />,
+        anyOf: [
+          PERMISSIONS.PAYOUTS_VIEW,
+          PERMISSIONS.FINANCE_INVOICES_VIEW,
+          PERMISSIONS.EXPENSES_VIEW,
+          PERMISSIONS.CASH_CLOSURES_VIEW,
+        ],
+      },
+      {
+        type: 'link',
+        path: adminPath('/finance/treasury'),
+        label: 'Treasury',
+        icon: <Landmark size={18} />,
+        permission: PERMISSIONS.FINANCE_TREASURY_VIEW,
+      },
     ],
   },
   {
-    to: adminPath('/operations/barcodes'),
-    label: 'Barcode Lookup',
-    anyOf: [PERMISSIONS.BARCODES_LOOKUP, PERMISSIONS.BARCODES_SCAN],
+    type: 'group',
+    label: 'Settings',
+    icon: <Settings size={18} />,
+    children: [
+      { type: 'link', path: adminPath('/users'), label: 'Users', icon: <Users size={18} />, permission: PERMISSIONS.USERS_VIEW },
+      { type: 'link', path: adminPath('/roles'), label: 'Roles', icon: <UserRoundCheck size={18} />, permission: PERMISSIONS.ROLES_VIEW },
+      { type: 'link', path: adminPath('/audit-logs'), label: 'Audit Logs', icon: <FileSpreadsheet size={18} />, permission: PERMISSIONS.AUDIT_LOGS_VIEW },
+      { type: 'link', path: adminPath('/exports'), label: 'Exports', icon: <FileSpreadsheet size={18} />, permission: PERMISSIONS.EXPORTS_VIEW },
+      { type: 'link', path: adminPath('/settings'), label: 'Settings', icon: <Settings size={18} />, permission: PERMISSIONS.SETTINGS_VIEW },
+    ],
   },
-  { to: adminPath('/exports'), label: 'Exports', permission: PERMISSIONS.EXPORTS_VIEW },
-  { to: adminPath('/audit-logs'), label: 'Audit Logs', permission: PERMISSIONS.AUDIT_LOGS_VIEW },
-  { to: adminPath('/settings'), label: 'Settings', permission: PERMISSIONS.SETTINGS_VIEW },
 ]
+
+function canViewNavigationItem(user: ReturnType<typeof useAuthStore.getState>['user'], item: AdminNavItem) {
+  if (item.permission) {
+    return hasPermission(user, item.permission)
+  }
+
+  return item.anyOf ? hasAnyPermission(user, item.anyOf) : false
+}
+
+function getVisibleNavigationItems(
+  user: ReturnType<typeof useAuthStore.getState>['user'],
+): SidebarItem[] {
+  return navigationItems.flatMap<SidebarItem>((item) => {
+    if (item.type === 'link') {
+      return canViewNavigationItem(user, item) ? [item] : []
+    }
+
+    const children = item.children.filter((child) => canViewNavigationItem(user, child))
+    return children.length ? [{ ...item, children }] : []
+  })
+}
 
 export function DashboardLayout() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const clearSession = useAuthStore((state) => state.logout)
-  const visibleNavigationItems = navigationItems.filter((item) => (
-    item.permission ? hasPermission(user, item.permission) : item.anyOf ? hasAnyPermission(user, item.anyOf) : false
-  ))
+  const visibleNavigationItems = getVisibleNavigationItems(user)
 
   async function handleLogout() {
     try {
@@ -118,6 +251,7 @@ export function DashboardLayout() {
       userName={user?.name ?? t('Authenticated User', { defaultValue: 'Authenticated User' })}
       userRole={user?.role ?? '-'}
     >
+      <QuickActionsBar />
       <Outlet />
     </AppShell>
   )

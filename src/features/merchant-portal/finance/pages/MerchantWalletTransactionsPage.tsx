@@ -18,7 +18,7 @@ import { merchantPath } from '../../../../shared/routing/paths'
 import { formatDate } from '../../../../shared/utils/formatters'
 import { listMerchantPortalWalletTransactions } from '../api/merchantPortalFinance.api'
 import type { MerchantWalletTransactionFilters } from '../types/merchantPortalFinance.types'
-import { MoneyDisplay } from '../../../../shared/components/ui/MoneyDisplay'
+import { MoneyDisplay } from '../../../../shared/components/display/MoneyDisplay'
 import { CanMerchant } from '../../components/CanMerchant'
 
 const initialFilters: MerchantWalletTransactionFilters = {
@@ -64,7 +64,7 @@ export function MerchantWalletTransactionsPage() {
     if (isError) {
       return (
         <ErrorState
-          message={getApiErrorMessage(error, t('Failed to load wallet transactions.'))}
+          message={getApiErrorMessage(error)}
           onRetry={refetch}
         />
       )
@@ -92,7 +92,7 @@ export function MerchantWalletTransactionsPage() {
 
     return (
       <TableContainer>
-        <Table>
+        <Table className="finance-table">
           <thead>
             <tr>
               <TableHead>{t('Date')}</TableHead>
@@ -113,11 +113,11 @@ export function MerchantWalletTransactionsPage() {
                 <TableCell>{transaction.reference || '-'}</TableCell>
                 <TableCell className="max-w-xs truncate">{transaction.description || '-'}</TableCell>
                 <TableCell className="text-right font-medium">
-                  <MoneyDisplay amount={transaction.amount} currency={transaction.currency} />
+                  <MoneyDisplay value={transaction.amount} currency={transaction.currency} />
                 </TableCell>
                 <TableCell className="text-right font-medium text-muted">
                   {transaction.balance_after !== undefined && transaction.balance_after !== null ? (
-                    <MoneyDisplay amount={transaction.balance_after} currency={transaction.currency} />
+                    <MoneyDisplay value={transaction.balance_after} currency={transaction.currency} />
                   ) : '-'}
                 </TableCell>
                 <TableCell>
@@ -125,7 +125,7 @@ export function MerchantWalletTransactionsPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <CanMerchant capability="wallet.view">
-                    <Button variant="neutral" asChild size="sm">
+                    <Button variant="secondary" size="sm">
                       <Link to={merchantPath(`/finance/wallet/transactions/${transaction.id}`)}>
                         {t('View')}
                       </Link>

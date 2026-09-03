@@ -1,0 +1,145 @@
+/* -------------------------------------------------------------------------- */
+/* Premium Finance Enhancements
+/* -------------------------------------------------------------------------- */
+
+/* Stat Card Overhauls (More WOW Factor) */
+.stat-card {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border: 1px solid rgba(255,255,255, 0.4);
+  background: rgba(255,255,255, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.dark .stat-card {
+  background: rgba(16, 24, 38, 0.5);
+  border: 1px solid rgba(255,255,255, 0.05);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 20px 40px rgba(11, 61, 168, 0.12), 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.dark .stat-card:hover {
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 20px rgba(141, 178, 255, 0.08);
+}
+
+.stat-card__icon {
+  transition: transform 0.4s ease;
+}
+
+.stat-card:hover .stat-card__icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+/* Specific Stat Card Variants (Gradients) */
+.stat-card--gradient-primary {
+  background: linear-gradient(135deg, var(--brand-700) 0%, var(--brand) 100%);
+  color: white;
+  border: none;
+}
+.stat-card--gradient-primary .stat-card__title,
+.stat-card--gradient-primary .stat-card__value,
+.stat-card--gradient-primary .stat-card__trend {
+  color: white !important;
+}
+.stat-card--gradient-primary .stat-card__icon {
+  background: rgba(255,255,255, 0.2);
+  color: white;
+  box-shadow: none;
+}
+.stat-card--gradient-primary::before {
+  background: radial-gradient(circle at top right, rgba(255,255,255,0.2) 0%, transparent 70%);
+  width: 150%;
+  height: 150%;
+  top: -50%;
+  right: -50%;
+  border-radius: 50%;
+}
+
+.stat-card--gradient-success {
+  background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+  color: white;
+  border: none;
+}
+.stat-card--gradient-success .stat-card__title,
+.stat-card--gradient-success .stat-card__value,
+.stat-card--gradient-success .stat-card__trend {
+  color: white !important;
+}
+.stat-card--gradient-success .stat-card__icon {
+  background: rgba(255,255,255, 0.2);
+  color: white;
+  box-shadow: none;
+}
+
+/* Premium Tables */
+.finance-table tr {
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+.finance-table tbody tr:hover {
+  background-color: var(--brand-50);
+  transform: translateX(4px);
+  cursor: pointer;
+}
+.dark .finance-table tbody tr:hover {
+  background-color: rgba(141, 178, 255, 0.08);
+}
+.finance-table td.amount-cell {
+  font-weight: 600;
+  text-align: right;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+
+/* Micro Animations */
+@keyframes fadeUpIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: fadeUpIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.animate-delay-100 { animation-delay: 100ms; }
+.animate-delay-200 { animation-delay: 200ms; }
+.animate-delay-300 { animation-delay: 300ms; }
+.animate-delay-400 { animation-delay: 400ms; }
+.animate-delay-500 { animation-delay: 500ms; }
+
+/* Page Header Enhancements */
+.finance-page-header {
+  position: relative;
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(11, 61, 168, 0.04) 0%, transparent 100%);
+  margin-bottom: 2rem;
+  overflow: hidden;
+  border: 1px solid rgba(11, 61, 168, 0.08);
+}
+.dark .finance-page-header {
+  background: linear-gradient(135deg, rgba(141, 178, 255, 0.04) 0%, transparent 100%);
+  border: 1px solid rgba(141, 178, 255, 0.08);
+}
+.finance-page-header::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 30%;
+  background: radial-gradient(circle at center right, rgba(255, 106, 19, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.stats-grid > :nth-child(1) { animation-delay: 0ms; }
+.stats-grid > :nth-child(2) { animation-delay: 100ms; }
+.stats-grid > :nth-child(3) { animation-delay: 200ms; }
+.stats-grid > :nth-child(4) { animation-delay: 300ms; }
+.stats-grid > :nth-child(5) { animation-delay: 400ms; }
+.stats-grid > :nth-child(6) { animation-delay: 500ms; }
+.stats-grid > :nth-child(7) { animation-delay: 600ms; }
+.stats-grid > :nth-child(8) { animation-delay: 700ms; }

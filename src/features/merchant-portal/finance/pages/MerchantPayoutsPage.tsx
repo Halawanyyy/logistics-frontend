@@ -18,7 +18,7 @@ import { merchantPath } from '../../../../shared/routing/paths'
 import { formatDate } from '../../../../shared/utils/formatters'
 import { listMerchantPortalPayouts } from '../api/merchantPortalFinance.api'
 import type { MerchantPayoutFilters } from '../types/merchantPortalFinance.types'
-import { MoneyDisplay } from '../../../../shared/components/ui/MoneyDisplay'
+import { MoneyDisplay } from '../../../../shared/components/display/MoneyDisplay'
 import { CanMerchant } from '../../components/CanMerchant'
 
 const initialFilters: MerchantPayoutFilters = {
@@ -68,7 +68,7 @@ export function MerchantPayoutsPage() {
     if (isError) {
       return (
         <ErrorState
-          message={getApiErrorMessage(error, t('Failed to load payouts.'))}
+          message={getApiErrorMessage(error)}
           onRetry={refetch}
         />
       )
@@ -114,14 +114,14 @@ export function MerchantPayoutsPage() {
                 <TableCell>{payout.reference || '-'}</TableCell>
                 <TableCell>{formatDate(payout.requested_at)}</TableCell>
                 <TableCell className="text-right font-medium">
-                  <MoneyDisplay amount={payout.amount} currency={payout.currency} />
+                  <MoneyDisplay value={payout.amount} currency={payout.currency} />
                 </TableCell>
                 <TableCell>
                   <StatusBadge value={payout.status} />
                 </TableCell>
                 <TableCell className="text-right">
                   <CanMerchant capability="payouts.view">
-                    <Button variant="neutral" asChild size="sm">
+                    <Button variant="secondary" size="sm">
                       <Link to={merchantPath(`/finance/payouts/${payout.id}`)}>
                         {t('View')}
                       </Link>
@@ -143,7 +143,7 @@ export function MerchantPayoutsPage() {
         title={t('Payouts')}
         actions={
           <CanMerchant capability="payouts.request">
-            <Button asChild>
+            <Button>
               <Link to={merchantPath('/finance/payouts/request')}>
                 <Landmark className="mr-2 h-4 w-4" />
                 {t('Request Payout')}

@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
+import { Calendar, Plus, RotateCcw, Search } from 'lucide-react'
 import { getApiErrorMessage } from '../../../../shared/api/api-error'
 import { MoneyDisplay } from '../../../../shared/components/display/MoneyDisplay'
-import { DateRangeFilter } from '../../../../shared/components/filters/DateRangeFilter'
 import { LabelDocumentDialog } from '../../../../shared/components/labels/LabelDocumentDialog'
 import { ConfirmActionModal } from '../../../../shared/components/modals/ConfirmActionModal'
 import { EmptyState } from '../../../../shared/components/states/EmptyState'
@@ -12,11 +12,8 @@ import { ErrorState } from '../../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../../shared/components/states/LoadingState'
 import { Button } from '../../../../shared/components/ui/Button'
 import { DropdownContent, DropdownItem, DropdownMenu, DropdownTrigger } from '../../../../shared/components/ui/Dropdown'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../shared/components/ui/Card'
-import { Input } from '../../../../shared/components/ui/Input'
-import { PageHeader } from '../../../../shared/components/ui/PageHeader'
-import { SearchableSelect, type SearchableSelectOption } from '../../../../shared/components/ui/SearchableSelect'
-import { Select } from '../../../../shared/components/ui/Select'
+import { Card, CardContent } from '../../../../shared/components/ui/Card'
+import { SearchableSelect } from '../../../../shared/components/ui/SearchableSelect'
 import { Table, TableCell, TableContainer, TableHead } from '../../../../shared/components/ui/Table'
 import { useLocale } from '../../../../shared/i18n/useLocale'
 import { merchantPath } from '../../../../shared/routing/paths'
@@ -26,17 +23,13 @@ import { getOrderPrintableLabelDocument } from '../../../orders/utils/orderLabel
 import { CanMerchant } from '../../components/CanMerchant'
 import { useMerchantPortalContext } from '../../context/merchantPortal.context'
 import {
-  listMerchantPortalAreas,
-  listMerchantPortalGovernorates,
-  type MerchantPortalLocationOption,
-} from '../../api/merchantPortal.api'
-import {
   cancelMerchantPortalOrder,
   confirmMerchantPortalOrder,
   getMerchantPortalOrderLabel,
   listMerchantPortalOrders,
 } from '../api/merchantPortalOrders.api'
 import { MerchantOrderStatusBadge } from '../components/MerchantOrderStatusBadge'
+import { OrderQuickViewDrawer } from '../components/OrderQuickViewDrawer'
 import type { MerchantPortalOrder, MerchantPortalOrderFilters } from '../types/merchantPortalOrders.types'
 
 type PendingAction = {
@@ -63,21 +56,6 @@ const initialFilters: Required<Omit<MerchantPortalOrderFilters, 'has_shipment'>>
   warehouse_fulfillment_status: '',
 }
 
-function buildLocationSelectOption(
-  option: MerchantPortalLocationOption,
-  useArabicLabel: boolean,
-): SearchableSelectOption {
-  const fallbackLabel = String(option.id)
-
-  return {
-    label: useArabicLabel
-      ? option.name_ar || option.name || fallbackLabel
-      : option.name || option.name_ar || fallbackLabel,
-    value: String(option.id),
-    keywords: [option.name, option.name_ar, fallbackLabel].filter(Boolean) as string[],
-  }
-}
-
 export function MerchantOrdersListPage() {
   const { t } = useTranslation()
   const { locale } = useLocale()
@@ -86,10 +64,9 @@ export function MerchantOrdersListPage() {
   const [filters, setFilters] = useState(initialFilters)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [selectedOrderForLabel, setSelectedOrderForLabel] = useState<MerchantPortalOrder | null>(null)
+  const [quickViewOrderId, setQuickViewOrderId] = useState<number | null>(null)
   const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
-  const useArabicLabel = locale === 'ar'
-  const selectedGovernorateId = Number(filters.delivery_governorate_id || 0)
 
   const params = useMemo<MerchantPortalOrderFilters>(() => ({
     ...(filters.search ? { search: filters.search } : {}),
@@ -110,15 +87,6 @@ export function MerchantOrdersListPage() {
   const ordersQuery = useQuery({
     queryKey: ['merchant-portal-orders', params],
     queryFn: () => listMerchantPortalOrders(params),
-  })
-  const governoratesQuery = useQuery({
-    queryKey: ['merchant-portal-governorates', 'orders-list'],
-    queryFn: listMerchantPortalGovernorates,
-  })
-  const areasQuery = useQuery({
-    queryKey: ['merchant-portal-areas', 'orders-list', selectedGovernorateId],
-    queryFn: () => listMerchantPortalAreas(selectedGovernorateId),
-    enabled: selectedGovernorateId > 0,
   })
 
   async function invalidateOrders() {
@@ -143,14 +111,6 @@ export function MerchantOrdersListPage() {
     },
   })
 
-  const governorateOptions = useMemo(
-    () => (governoratesQuery.data ?? []).map((option) => buildLocationSelectOption(option, useArabicLabel)),
-    [governoratesQuery.data, useArabicLabel],
-  )
-  const areaOptions = useMemo(
-    () => (areasQuery.data ?? []).map((option) => buildLocationSelectOption(option, useArabicLabel)),
-    [areasQuery.data, useArabicLabel],
-  )
   const orders = ordersQuery.data?.data ?? []
   const canCreate = hasMerchantCapability('orders.create')
 
@@ -162,215 +122,150 @@ export function MerchantOrdersListPage() {
     return !order.has_shipment && order.status !== 'cancelled' && order.status !== 'delivered'
   }
 
-  function canShowConfirm(order: MerchantPortalOrder) {
-    if (!hasMerchantCapability('orders.confirm')) {
-      return false
-    }
-
-    return !order.has_shipment && (order.status === 'draft' || order.status === 'pending_review')
-  }
-
-  function canShowCancel(order: MerchantPortalOrder) {
-    if (!hasMerchantCapability('orders.cancel')) {
-      return false
-    }
-
-    return !order.has_shipment && order.status !== 'cancelled' && order.status !== 'delivered'
-  }
-
   return (
-    <section className="page-section page-section--with-sidebar">
-      <PageHeader
-        eyebrow={t('Merchant Portal', { defaultValue: 'Merchant Portal' })}
-        title={t('Orders', { defaultValue: 'Orders' })}
-        description={t('Manage and track your orders.', { defaultValue: 'Manage and track your orders.' })}
-        actions={canCreate ? (
-          <Link className="ui-link-reset" to={merchantPath('/orders/create')}>
-            <Button>{t('Create Order', { defaultValue: 'Create Order' })}</Button>
-          </Link>
-        ) : null}
-      />
+    <section className="merchant-data-workspace orders-workspace space-y-4 p-1 sm:p-2">
+      {/* Top Header Row matching screenshot */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px', width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100" style={{ margin: 0, fontSize: '1.5rem' }}>{t('Orders', { defaultValue: 'Orders' })}</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1" style={{ margin: '4px 0 0 0', fontSize: '0.75rem' }}>
+            {t('Total {{count}} orders', { defaultValue: 'Total {{count}} orders', count: orders.length })}
+          </p>
+        </div>
 
-      <aside className="page-sidebar-filters">
-        <Card variant="flat" className="dashboard-filter-card">
-          <CardHeader>
-            <CardTitle>{t('Filters', { defaultValue: 'Filters' })}</CardTitle>
-            <CardDescription>
-              {t('Merchant-safe filters applied with merchant portal query params only.', {
-                defaultValue: 'Merchant-safe filters applied with merchant portal query params only.',
-              })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="dashboard-filters dashboard-filters--sidebar">
-            <label className="field">
-              <span>{t('Search', { defaultValue: 'Search' })}</span>
-              <Input
-                placeholder={t('Search orders...', { defaultValue: 'Search orders...' })}
-                type="search"
-                value={filters.search}
-                onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              />
-            </label>
-
-            <label className="field">
-              <span>{t('Status', { defaultValue: 'Status' })}</span>
-              <Select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
-                <option value="">{t('All statuses', { defaultValue: 'All statuses' })}</option>
-                <option value="draft">{t('draft', { defaultValue: 'draft' })}</option>
-                <option value="pending_review">{t('pending_review', { defaultValue: 'pending_review' })}</option>
-                <option value="confirmed">{t('confirmed', { defaultValue: 'confirmed' })}</option>
-                <option value="cancelled">{t('cancelled', { defaultValue: 'cancelled' })}</option>
-              </Select>
-            </label>
-
-            <label className="field">
-              <span>{t('Order Type', { defaultValue: 'Order Type' })}</span>
-              <Select value={filters.order_type} onChange={(event) => setFilters((current) => ({ ...current, order_type: event.target.value }))}>
-                <option value="">{t('All order types', { defaultValue: 'All order types' })}</option>
-                <option value="delivery">{t('delivery', { defaultValue: 'delivery' })}</option>
-                <option value="swap">{t('swap', { defaultValue: 'swap' })}</option>
-                <option value="return">{t('return', { defaultValue: 'return' })}</option>
-              </Select>
-            </label>
-
-            <label className="field">
-              <span>{t('Payment Type', { defaultValue: 'Payment Type' })}</span>
-              <Select value={filters.payment_type} onChange={(event) => setFilters((current) => ({ ...current, payment_type: event.target.value }))}>
-                <option value="">{t('All payment types', { defaultValue: 'All payment types' })}</option>
-                <option value="cod">{t('cod', { defaultValue: 'cod' })}</option>
-                <option value="prepaid">{t('prepaid', { defaultValue: 'prepaid' })}</option>
-              </Select>
-            </label>
-
-            <label className="field">
-              <span>{t('Fulfillment Type', { defaultValue: 'Fulfillment Type' })}</span>
-              <Select value={filters.fulfillment_type} onChange={(event) => setFilters((current) => ({ ...current, fulfillment_type: event.target.value }))}>
-                <option value="">{t('All fulfillment', { defaultValue: 'All fulfillment' })}</option>
-                <option value="pickup_from_merchant">{t('pickup_from_merchant', { defaultValue: 'pickup_from_merchant' })}</option>
-                <option value="from_warehouse">{t('from_warehouse', { defaultValue: 'from_warehouse' })}</option>
-                <option value="pickup_from_customer">{t('pickup_from_customer', { defaultValue: 'pickup_from_customer' })}</option>
-              </Select>
-            </label>
-
-            <DateRangeFilter
-              dateFrom={filters.date_from}
-              dateTo={filters.date_to}
-              onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))}
-            />
-
-            <label className="field">
-              <span>{t('Order Number', { defaultValue: 'Order Number' })}</span>
-              <Input
-                value={filters.order_number}
-                onChange={(event) => setFilters((current) => ({ ...current, order_number: event.target.value }))}
-              />
-            </label>
-
-            <label className="field">
-              <span>{t('Customer Phone', { defaultValue: 'Customer Phone' })}</span>
-              <Input
-                value={filters.customer_phone}
-                onChange={(event) => setFilters((current) => ({ ...current, customer_phone: event.target.value }))}
-              />
-            </label>
-
-            <label className="field">
-              <span>{t('Delivery Governorate', { defaultValue: 'Delivery Governorate' })}</span>
-              <SearchableSelect
-                value={filters.delivery_governorate_id}
-                options={governorateOptions}
-                placeholder={governoratesQuery.isLoading
-                  ? t('Loading locations...', { defaultValue: 'Loading locations...' })
-                  : t('Select governorate', { defaultValue: 'Select governorate' })}
-                searchPlaceholder={t('Search governorates...', { defaultValue: 'Search governorates...' })}
-                emptyMessage={t('No options found.', { defaultValue: 'No options found.' })}
-                disabled={governoratesQuery.isLoading || governoratesQuery.isError}
-                onChange={(value) => setFilters((current) => ({
-                  ...current,
-                  delivery_governorate_id: value,
-                  delivery_area_id: '',
-                }))}
-              />
-              {governoratesQuery.isError ? (
-                <small>{t('Failed to load locations', { defaultValue: 'Failed to load locations' })}</small>
-              ) : null}
-            </label>
-
-            <label className="field">
-              <span>{t('Delivery Area', { defaultValue: 'Delivery Area' })}</span>
-              <SearchableSelect
-                value={filters.delivery_area_id}
-                options={areaOptions}
-                placeholder={!selectedGovernorateId
-                  ? t('Select governorate first', { defaultValue: 'Select governorate first' })
-                  : areasQuery.isLoading
-                    ? t('Loading locations...', { defaultValue: 'Loading locations...' })
-                    : t('Select area', { defaultValue: 'Select area' })}
-                searchPlaceholder={t('Search areas...', { defaultValue: 'Search areas...' })}
-                emptyMessage={t('No options found.', { defaultValue: 'No options found.' })}
-                disabled={!selectedGovernorateId || areasQuery.isLoading || areasQuery.isError}
-                onChange={(value) => setFilters((current) => ({ ...current, delivery_area_id: value }))}
-              />
-              {!selectedGovernorateId ? (
-                <small>{t('Select governorate first', { defaultValue: 'Select governorate first' })}</small>
-              ) : null}
-              {areasQuery.isError ? (
-                <small>{t('Failed to load locations', { defaultValue: 'Failed to load locations' })}</small>
-              ) : null}
-            </label>
-
-            <label className="field">
-              <span>{t('Has Shipment', { defaultValue: 'Has Shipment' })}</span>
-              <Select value={filters.has_shipment} onChange={(event) => setFilters((current) => ({ ...current, has_shipment: event.target.value }))}>
-                <option value="">{t('All', { defaultValue: 'All' })}</option>
-                <option value="1">{t('Yes', { defaultValue: 'Yes' })}</option>
-                <option value="0">{t('No', { defaultValue: 'No' })}</option>
-              </Select>
-            </label>
-
-            <label className="field">
-              <span>{t('Warehouse Fulfillment', { defaultValue: 'Warehouse Fulfillment' })}</span>
-              <Select
-                value={filters.warehouse_fulfillment_status}
-                onChange={(event) => setFilters((current) => ({ ...current, warehouse_fulfillment_status: event.target.value }))}
-              >
-                <option value="">{t('All', { defaultValue: 'All' })}</option>
-                <option value="not_required">{t('not_required', { defaultValue: 'not_required' })}</option>
-                <option value="pending_reservation">{t('pending_reservation', { defaultValue: 'pending_reservation' })}</option>
-                <option value="reserved">{t('reserved', { defaultValue: 'reserved' })}</option>
-                <option value="picking">{t('picking', { defaultValue: 'picking' })}</option>
-                <option value="picked">{t('picked', { defaultValue: 'picked' })}</option>
-                <option value="packing">{t('packing', { defaultValue: 'packing' })}</option>
-                <option value="packed">{t('packed', { defaultValue: 'packed' })}</option>
-                <option value="ready_for_dispatch">{t('ready_for_dispatch', { defaultValue: 'ready_for_dispatch' })}</option>
-                <option value="fulfilled">{t('fulfilled', { defaultValue: 'fulfilled' })}</option>
-                <option value="cancelled">{t('cancelled', { defaultValue: 'cancelled' })}</option>
-              </Select>
-            </label>
-          </CardContent>
-          <CardContent>
-            <div className="form-actions">
-              <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
-                {t('Reset filters', { defaultValue: 'Reset filters' })}
+        {/* Top Action Buttons */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+          {canCreate ? (
+            <Link className="ui-link-reset" to={merchantPath('/orders/create')}>
+              <Button style={{ backgroundColor: '#FF7A00', color: '#fff', border: 'none', fontWeight: '600', padding: '8px 16px', borderRadius: '12px' }}>
+                <Plus size={16} />
+                {t('Add Order', { defaultValue: 'Add Order' })}
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </aside>
+            </Link>
+          ) : null}
 
-      <main className="page-main-content">
-        <Card className="table-card">
-          <CardHeader className="table-card__header">
-            <div>
-              <CardTitle>{t('Orders', { defaultValue: 'Orders' })}</CardTitle>
-              <CardDescription>
-                {t('Merchant-scoped orders with conservative action visibility and merchant-safe filter inputs.', {
-                  defaultValue: 'Merchant-scoped orders with conservative action visibility and merchant-safe filter inputs.',
-                })}
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
+        </div>
+      </div>
+
+      {/* Full-width Search Input */}
+      <div style={{ position: 'relative', width: '100%', marginTop: '16px', marginBottom: '16px' }}>
+        <div style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--content)', opacity: 0.5, pointerEvents: 'none' }}>
+          <Search size={16} />
+        </div>
+        <input
+          type="text"
+          placeholder={t('Search by customer name, phone or order code...', { defaultValue: 'Search by customer name, phone or order code...' })}
+          value={filters.search}
+          onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+          style={{ width: '100%', backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--content)', borderRadius: '12px', padding: '10px 40px 10px 16px', fontSize: '0.875rem', outline: 'none' }}
+        />
+      </div>
+
+      {/* Inline Filters Row (Side-by-side flex row, NO card, NO outer container or border) */}
+      <div className="merchant-filters-row" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', width: '100%', marginBottom: '24px' }}>
+        
+        {/* Date Input */}
+        <div style={{ flex: '1 1 140px', minWidth: '140px' }}>
+          <input
+            lang={locale === 'ar' ? 'ar-EG' : 'en-GB'}
+            type="date"
+            value={filters.date_from}
+            onChange={(event) => setFilters((current) => ({
+              ...current,
+              date_from: event.target.value,
+              date_to: event.target.value,
+            }))}
+            style={{ width: '100%', height: '42px', backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--content)', borderRadius: '12px', padding: '10px 16px', fontSize: '0.875rem', outline: 'none' }}
+          />
+        </div>
+
+        {/* All Dates toggle button */}
+        <div style={{ flex: '1 1 140px', minWidth: '140px' }}>
+          <button
+            type="button"
+            onClick={() => setFilters((current) => ({ ...current, date_from: '', date_to: '' }))}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', padding: '10px 16px', fontSize: '0.875rem', borderRadius: '12px', transition: '0.2s', width: '100%', height: '42px',
+              backgroundColor: !filters.date_from ? 'rgba(255,122,0,0.15)' : 'var(--surface)',
+              border: !filters.date_from ? '1px solid rgba(255,122,0,0.5)' : '1px solid var(--border)',
+              color: !filters.date_from ? '#FF7A00' : 'var(--content)',
+              fontWeight: !filters.date_from ? '600' : 'normal',
+            }}
+          >
+            <Calendar size={15} />
+            {t('All Dates', { defaultValue: 'All Dates' })}
+          </button>
+        </div>
+
+        {/* Status dropdown */}
+        <div style={{ flex: '1 1 140px', minWidth: '140px' }}>
+          <SearchableSelect
+            value={filters.status}
+            placeholder={t('All statuses', { defaultValue: 'All statuses' })}
+            searchPlaceholder={t('Search status...', { defaultValue: 'Search status...' })}
+            emptyMessage={t('No status found.', { defaultValue: 'No status found.' })}
+            options={[
+              { label: t('All statuses', { defaultValue: 'All statuses' }), value: '' },
+              { label: t('draft', { defaultValue: 'draft' }), value: 'draft' },
+              { label: t('pending_review', { defaultValue: 'pending_review' }), value: 'pending_review' },
+              { label: t('confirmed', { defaultValue: 'confirmed' }), value: 'confirmed' },
+              { label: t('cancelled', { defaultValue: 'cancelled' }), value: 'cancelled' },
+            ]}
+            onChange={(value) => setFilters((current) => ({ ...current, status: value }))}
+          />
+        </div>
+
+        {/* Order Type dropdown */}
+        <div style={{ flex: '1 1 140px', minWidth: '140px' }}>
+          <SearchableSelect
+            value={filters.order_type}
+            placeholder={t('All orders', { defaultValue: 'All orders' })}
+            searchPlaceholder={t('Search order type...', { defaultValue: 'Search order type...' })}
+            emptyMessage={t('No order type found.', { defaultValue: 'No order type found.' })}
+            options={[
+              { label: t('All orders', { defaultValue: 'All orders' }), value: '' },
+              { label: t('delivery', { defaultValue: 'delivery' }), value: 'delivery' },
+              { label: t('swap', { defaultValue: 'swap' }), value: 'swap' },
+              { label: t('return', { defaultValue: 'return' }), value: 'return' },
+            ]}
+            onChange={(value) => setFilters((current) => ({ ...current, order_type: value }))}
+          />
+        </div>
+
+        {/* Payment Type dropdown */}
+        <div style={{ flex: '1 1 140px', minWidth: '140px' }}>
+          <SearchableSelect
+            value={filters.payment_type}
+            placeholder={t('All payments', { defaultValue: 'All payments' })}
+            searchPlaceholder={t('Search payment type...', { defaultValue: 'Search payment type...' })}
+            emptyMessage={t('No payment type found.', { defaultValue: 'No payment type found.' })}
+            options={[
+              { label: t('All payments', { defaultValue: 'All payments' }), value: '' },
+              { label: t('cod', { defaultValue: 'cod' }), value: 'cod' },
+              { label: t('prepaid', { defaultValue: 'prepaid' }), value: 'prepaid' },
+            ]}
+            onChange={(value) => setFilters((current) => ({ ...current, payment_type: value }))}
+          />
+        </div>
+
+        {/* Reset Filters Icon Button - ICON ONLY */}
+        <div style={{ flex: '0 0 auto' }}>
+          <button
+            type="button"
+            onClick={() => setFilters(initialFilters)}
+            title={t('Reset filters', { defaultValue: 'Reset filters' })}
+            aria-label={t('Reset filters', { defaultValue: 'Reset filters' })}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', borderRadius: '12px', cursor: 'pointer', backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--content)', transition: '0.2s' }}
+          >
+            <RotateCcw size={15} />
+          </button>
+        </div>
+      </div>
+
+      {/* Table Section */}
+      <main className="w-full">
+        <Card className="table-card bg-[#182331]/90 border-slate-700/60 rounded-2xl">
+          <CardContent className="p-4">
             {successMessage ? <div className="form-success">{successMessage}</div> : null}
             {confirmMutation.error ? <div className="form-error">{getApiErrorMessage(confirmMutation.error)}</div> : null}
             {cancelMutation.error ? <div className="form-error">{getApiErrorMessage(cancelMutation.error)}</div> : null}
@@ -391,7 +286,7 @@ export function MerchantOrdersListPage() {
                   : t('No orders matched the selected filters.', { defaultValue: 'No orders matched the selected filters.' })}
               />
             ) : (
-              <TableContainer>
+              <TableContainer className="merchant-data-table-scroll">
                 <Table variant="striped">
                   <thead>
                     <tr>
@@ -418,11 +313,11 @@ export function MerchantOrdersListPage() {
                         <TableCell>{order.customer_name}</TableCell>
                         <TableCell>{order.customer_phone}</TableCell>
                         <TableCell>
-                          <MerchantOrderStatusBadge label={order.status_label} value={order.status} />
+                          <MerchantOrderStatusBadge className="order-table-badge order-table-badge--status" label={order.status_label} value={order.status} />
                         </TableCell>
                         <TableCell>{order.order_type ? t(order.order_type, { defaultValue: order.order_type }) : '-'}</TableCell>
                         <TableCell>
-                          <MerchantOrderStatusBadge label={order.payment_type_label} value={order.payment_type} />
+                          <MerchantOrderStatusBadge className="order-table-badge order-table-badge--payment" label={order.payment_type_label} value={order.payment_type} />
                         </TableCell>
                         <TableCell><MoneyDisplay value={order.cod_amount} /></TableCell>
                         <TableCell><MoneyDisplay value={order.shipping_fee} /></TableCell>
@@ -433,8 +328,11 @@ export function MerchantOrdersListPage() {
                               ...
                             </DropdownTrigger>
                             <DropdownContent>
+                              <DropdownItem onClick={() => setQuickViewOrderId(order.id)}>
+                                {t('Quick Preview', { defaultValue: 'Quick Preview' })}
+                              </DropdownItem>
                               <Link className="ui-link-reset" to={merchantPath(`/orders/${order.id}`)}>
-                                <DropdownItem>{t('View', { defaultValue: 'View' })}</DropdownItem>
+                                <DropdownItem>{t('View Details', { defaultValue: 'View Details' })}</DropdownItem>
                               </Link>
                               
                               {canShowEdit(order) ? (
@@ -526,6 +424,11 @@ export function MerchantOrdersListPage() {
           triggerLabel={t('Print Label', { defaultValue: 'Print Label' })}
         />
       ) : null}
+      <OrderQuickViewDrawer
+        orderId={quickViewOrderId}
+        open={!!quickViewOrderId}
+        onClose={() => setQuickViewOrderId(null)}
+      />
     </section>
   )
 }

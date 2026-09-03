@@ -52,10 +52,13 @@ export async function getMerchantPortalWarehouseProductLabel(id: number | string
   return response.data
 }
 
-export async function bulkPrintMerchantPortalWarehouseProductLabels(productIds: number[]) {
+export async function bulkPrintMerchantPortalWarehouseProductLabels(
+  items: Array<{ warehouse_product_id: number; quantity: number }>,
+  format: 'html' | 'pdf' | 'zpl' | 'tspl' = 'html',
+) {
   const response = await apiClient.post<any>(
     '/merchant-portal/warehouse/products/labels/bulk',
-    { product_ids: productIds }
+    { items, format }
   )
   return response.data
 }

@@ -54,8 +54,8 @@ export async function getMerchantPortalMe() {
   return response.data
 }
 
-export async function getMerchantPortalDashboardSummary() {
-  const response = await apiClient.get<{ data: MerchantPortalDashboardSummaryResponse }>('/merchant-portal/dashboard/summary')
+export async function getMerchantPortalDashboardSummary(params?: { date_from?: string, date_to?: string, delivery_governorate_id?: string }) {
+  const response = await apiClient.get<{ data: MerchantPortalDashboardSummaryResponse }>('/merchant-portal/dashboard/summary', { params })
   return response.data
 }
 

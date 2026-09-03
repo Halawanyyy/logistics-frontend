@@ -3,6 +3,7 @@ import type { AppLocale } from '../../../shared/i18n/locale'
 import type { LabelDocument, LabelRequestOptions } from '../../../shared/types/labels.types'
 import {
   buildEntityLabelHtml,
+  createBulkEntityLabelDocument,
   createEntityLabelDocument,
   createLabelFullWidthRow,
   createLabelPairRow,
@@ -26,8 +27,51 @@ function resolveOrderBarcodeValue(order: Order) {
   ])
 }
 
+
+function getOrderCustomerName(order: any) {
+  return order.customer_name ?? order.customer?.name ?? order.customer?.customer_name ?? '-'
+}
+
+function getOrderCustomerPhone(order: any) {
+  return order.customer_phone ?? order.customer?.phone ?? order.customer?.customer_phone ?? '-'
+}
+
+function getOrderMerchantName(order: any) {
+  return order.merchant_name ?? order.merchant?.name ?? '-'
+}
+
+function getOrderCodAmount(order: any) {
+  return order.cod_amount ?? order.payment_summary?.cod_amount ?? order.payment?.cod_amount ?? order.amounts?.cod_amount ?? null
+}
+
+function getOrderShippingFee(order: any) {
+  return order.shipping_fee ?? order.delivery_fee ?? order.payment_summary?.shipping_fee ?? order.amounts?.shipping_fee ?? order.amounts?.delivery_fee ?? null
+}
+
+function getOrderDeliveryGov(order: any) {
+  return order.delivery_governorate_name ?? order.delivery?.governorate_name ?? order.governorate_name ?? order.delivery_governorate?.name ?? order.delivery_governorate?.name_ar ?? order.delivery_governorate_id ?? '-'
+}
+
+function getOrderDeliveryArea(order: any) {
+  return order.delivery_area_name ?? order.delivery?.area_name ?? order.area_name ?? order.delivery_area?.name ?? order.delivery_area?.name_ar ?? order.delivery_area_id ?? '-'
+}
+
+function getOrderDeliveryAddress(order: any) {
+  return order.delivery_address ?? order.delivery?.address ?? order.address ?? '-'
+}
+
+function getOrderItemsCount(order: any) {
+  return order.items?.length ?? order.items_count ?? order.order_items?.length ?? 0
+}
+
+function getOrderPaymentTypeLabel(order: any, t: TFunction) {
+  const value = order.payment_type ?? order.payment_summary?.payment_type ?? order.payment?.type ?? null
+  const label = order.payment_type_label ?? order.payment_summary?.payment_type_label ?? order.payment?.type_label ?? null
+  return resolveDisplayLabel(t, value, label)
+}
+
 function buildOrderSubtitle(order: Order) {
-  return [order.customer_name, order.customer_phone, order.merchant_name].filter(Boolean).join(' • ')
+  return [getOrderCustomerName(order), getOrderCustomerPhone(order), getOrderMerchantName(order)].filter(Boolean).join(' • ')
 }
 
 export function buildOrderLabelHtml({
@@ -45,7 +89,7 @@ export function buildOrderLabelHtml({
   order: Order
   t: TFunction
 }) {
-  const paymentType = resolveDisplayLabel(t, order.payment_type, order.payment_type_label)
+  const paymentType = getOrderPaymentTypeLabel(order, t)
   const fulfillmentType = resolveDisplayLabel(t, order.fulfillment_type, order.fulfillment_type_label)
   const orderType = resolveDisplayLabel(t, order.order_type, null)
   const orderStatus = resolveDisplayLabel(t, order.status, order.status_label)
@@ -60,15 +104,15 @@ export function buildOrderLabelHtml({
     ),
     createLabelPairRow(
       t('Merchant', { defaultValue: 'Merchant' }),
-      formatLabelText(order.merchant_name),
+      formatLabelText(getOrderMerchantName(order)),
       t('Status', { defaultValue: 'Status' }),
       formatLabelText(orderStatus),
     ),
     createLabelPairRow(
       t('Customer Name', { defaultValue: 'Customer Name' }),
-      formatLabelText(order.customer_name),
+      formatLabelText(getOrderCustomerName(order)),
       t('Customer Phone', { defaultValue: 'Customer Phone' }),
-      formatLabelText(order.customer_phone),
+      formatLabelText(getOrderCustomerPhone(order)),
     ),
     createLabelPairRow(
       t('Payment Type', { defaultValue: 'Payment Type' }),
@@ -84,15 +128,15 @@ export function buildOrderLabelHtml({
     ),
     createLabelPairRow(
       t('COD Amount', { defaultValue: 'COD Amount' }),
-      formatLabelMoney(order.cod_amount, locale),
+      formatLabelMoney(getOrderCodAmount(order), locale),
       t('Shipping Fee', { defaultValue: 'Shipping Fee' }),
-      formatLabelMoney(order.shipping_fee, locale),
+      formatLabelMoney(getOrderShippingFee(order), locale),
     ),
     createLabelPairRow(
       t('Governorate / Area', { defaultValue: 'Governorate / Area' }),
-      formatLabelText([order.delivery_governorate_name, order.delivery_area_name].filter(Boolean).join(' / ')),
+      formatLabelText([getOrderDeliveryGov(order), getOrderDeliveryArea(order)].filter(Boolean).join(' / ')),
       t('Items', { defaultValue: 'Items' }),
-      formatLabelText(String(order.items.length)),
+      formatLabelText(String(getOrderItemsCount(order))),
     ),
     createLabelFullWidthRow(
       t('Barcode', { defaultValue: 'Barcode' }),
@@ -100,7 +144,7 @@ export function buildOrderLabelHtml({
     ),
     createLabelFullWidthRow(
       t('Address', { defaultValue: 'Address' }),
-      formatLabelText(order.delivery_address),
+      formatLabelText(getOrderDeliveryAddress(order)),
     ),
   ]
 
@@ -111,7 +155,7 @@ export function buildOrderLabelHtml({
     codeText: order.order_number,
     details,
     dimensions,
-    eyebrow: t('Order Label', { defaultValue: 'Order Label' }),
+    eyebrow: t('Order Waybill', { defaultValue: 'Order Waybill' }),
     subtitle: buildOrderSubtitle(order),
     title: order.order_number,
   })
@@ -151,6 +195,43 @@ export async function buildOrderLabelDocument({
     html,
     locale,
     title,
+  })
+}
+
+export async function buildBulkOrderLabelDocument({
+  dimensions,
+  locale,
+  orders,
+  t,
+}: {
+  dimensions?: LabelDimensions
+  locale: AppLocale
+  orders: Order[]
+  t: TFunction
+}) {
+  const labels = await Promise.all(orders.map(async (order) => {
+    const barcodeValue = resolveOrderBarcodeValue(order) || order.order_number
+    const barcodeMarkup = await generateBarcodeMarkup(barcodeValue)
+
+    return buildOrderLabelHtml({
+      barcodeDisplayValue: barcodeValue || t('Missing barcode value', { defaultValue: 'Missing barcode value' }),
+      barcodeMarkup,
+      dimensions,
+      locale,
+      order,
+      t,
+    })
+  }))
+
+  return createBulkEntityLabelDocument({
+    dimensions,
+    fileName: `bulk-order-labels-${orders.length}.html`,
+    labels,
+    locale,
+    title: t('Bulk Order Labels ({{count}})', {
+      count: orders.length,
+      defaultValue: `Bulk Order Labels (${orders.length})`,
+    }),
   })
 }
 

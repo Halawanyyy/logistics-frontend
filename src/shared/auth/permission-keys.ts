@@ -84,6 +84,7 @@ export const PERMISSIONS = {
   DRIVER_SHIPMENTS_VIEW: 'driver.shipments.view',
   DRIVER_MANIFEST_VIEW: 'driver.manifest.view',
   DRIVER_CASH_VIEW: 'driver.cash.view',
+  DRIVER_CASH_CLOSURES_VERIFY: 'drivers.cash_closure.verify',
 
   FINANCE_VIEW: 'finance.view',
   PAYOUTS_VIEW: 'payouts.view',

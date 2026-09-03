@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { getMerchantIntegrationDocs } from '../api/merchantPortalIntegrations.api'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../shared/components/ui/Card'
-import { LoadingState } from '../../../../shared/components/states/LoadingState'
-import { ErrorState } from '../../../../shared/components/states/ErrorState'
-import { getApiErrorMessage } from '../../../../shared/api/api-error'
+import { getMerchantIntegrationDocs } from '../../api/merchantPortalIntegrations.api'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../../shared/components/ui/Card'
+import { LoadingState } from '../../../../../shared/components/states/LoadingState'
+import { ErrorState } from '../../../../../shared/components/states/ErrorState'
+import { getApiErrorMessage } from '../../../../../shared/api/api-error'
 import { useState } from 'react'
-import { Button } from '../../../../shared/components/ui/Button'
+import { Button } from '../../../../../shared/components/ui/Button'
 import { Copy, Check } from 'lucide-react'
 
 function CopyButton({ text }: { text: string }) {
@@ -84,7 +84,7 @@ export function MerchantIntegrationDocsTab() {
                 </div>
               </div>
             )}
-            {docs.endpoints && Array.isArray(docs.endpoints) && docs.endpoints.map((ep, idx) => (
+            {docs.endpoints && Array.isArray(docs.endpoints) && docs.endpoints.map((ep: any, idx: number) => (
               <div key={idx} className="border border-border rounded-md p-4">
                 <h4 className="font-medium text-md">{ep.name || ep.path}</h4>
                 {ep.description && <p className="text-sm text-muted mt-1">{ep.description}</p>}

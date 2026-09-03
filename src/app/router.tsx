@@ -1,4 +1,10 @@
 import { lazy, Suspense, type ReactNode } from "react";
+
+import { MerchantIntegrationsPage } from "../features/merchant-portal/integrations/pages/MerchantIntegrationsPage";
+import { MerchantExportsPage } from "../features/merchant-portal/exports/pages/MerchantExportsPage";
+import { MerchantExportCreatePage } from "../features/merchant-portal/exports/pages/MerchantExportCreatePage";
+import { MerchantExportDetailsPage } from "../features/merchant-portal/exports/pages/MerchantExportDetailsPage";
+import { MerchantStorePage } from "../features/merchant-portal/store/pages/MerchantStorePage";
 import { Navigate, createBrowserRouter, useLocation } from "react-router-dom";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { AuthLayout } from "../layouts/AuthLayout";
@@ -72,6 +78,10 @@ import { WarehouseKpisPage } from "../features/warehouse/pages/WarehouseKpisPage
 import { WarehouseTransferDetailsPage } from "../features/warehouse/pages/WarehouseTransferDetailsPage";
 import { WarehouseTransfersPage } from "../features/warehouse/pages/WarehouseTransfersPage";
 import { MerchantInboundStockRequestsPage } from "../features/warehouse/pages/MerchantInboundStockRequestsPage";
+import { WarehouseInboundPage } from "../features/warehouse/pages/WarehouseInboundPage";
+import { WarehouseInventoryPage } from "../features/warehouse/pages/WarehouseInventoryPage";
+import { WarehouseFulfillmentPage } from "../features/warehouse/pages/WarehouseFulfillmentPage";
+import { WarehouseConfigPage } from "../features/warehouse/pages/WarehouseConfigPage";
 import { WarehouseBinDetailsPage } from "../features/warehouse/pages/WarehouseBinDetailsPage";
 import { BarcodeOperationsPage } from "../features/barcodes/pages/BarcodeOperationsPage";
 import { AuditLogsPage } from "../features/audit/pages/AuditLogsPage";
@@ -101,12 +111,11 @@ import { MerchantFinanceOverviewPage } from "../features/merchant-portal/finance
 import { MerchantWalletPage } from "../features/merchant-portal/finance/pages/MerchantWalletPage";
 import { MerchantWalletTransactionsPage } from "../features/merchant-portal/finance/pages/MerchantWalletTransactionsPage";
 import { MerchantWalletTransactionDetailsPage } from "../features/merchant-portal/finance/pages/MerchantWalletTransactionDetailsPage";
-import { MerchantInvoicesPage } from "../features/merchant-portal/finance/pages/MerchantInvoicesPage";
 import { MerchantInvoiceDetailsPage } from "../features/merchant-portal/finance/pages/MerchantInvoiceDetailsPage";
-import { MerchantPayoutsPage } from "../features/merchant-portal/finance/pages/MerchantPayoutsPage";
 import { MerchantPayoutRequestPage } from "../features/merchant-portal/finance/pages/MerchantPayoutRequestPage";
 import { MerchantPayoutDetailsPage } from "../features/merchant-portal/finance/pages/MerchantPayoutDetailsPage";
 import { MerchantProfilePage } from "../features/merchant-portal/pages/MerchantProfilePage";
+import { MerchantUsersPage } from "../features/merchant-portal/users/pages/MerchantUsersPage";
 import { MerchantSettingsPage } from "../features/merchant-portal/pages/MerchantSettingsPage";
 import { MerchantForbiddenPage } from "../features/merchant-portal/pages/MerchantForbiddenPage";
 import { MerchantNotFoundPage } from "../features/merchant-portal/pages/MerchantNotFoundPage";
@@ -120,6 +129,16 @@ const DashboardPage = lazy(() =>
 const FinanceReportsPage = lazy(() =>
   import("../features/finance/pages/FinanceReportsPage").then((module) => ({
     default: module.FinanceReportsPage,
+  })),
+);
+const FinanceOperationsPage = lazy(() =>
+  import("../features/finance/pages/FinanceOperationsPage").then((module) => ({
+    default: module.FinanceOperationsPage,
+  })),
+);
+const FinanceTreasuryPage = lazy(() =>
+  import("../features/finance/pages/FinanceTreasuryPage").then((module) => ({
+    default: module.FinanceTreasuryPage,
   })),
 );
 const MerchantPayoutsPage = lazy(() =>
@@ -255,6 +274,21 @@ const StockReservationsPage = lazy(() =>
     (module) => ({ default: module.StockReservationsPage }),
   ),
 );
+const CompanyCatalogListPage = lazy(() =>
+  import("../features/company-catalog/pages/CompanyCatalogListPage").then(
+    (module) => ({ default: module.CompanyCatalogListPage }),
+  ),
+);
+const CompanyCatalogCreatePage = lazy(() =>
+  import("../features/company-catalog/pages/CompanyCatalogFormPage").then(
+    (module) => ({ default: () => <module.CompanyCatalogFormPage mode="create" /> }),
+  ),
+);
+const CompanyCatalogEditPage = lazy(() =>
+  import("../features/company-catalog/pages/CompanyCatalogFormPage").then(
+    (module) => ({ default: () => <module.CompanyCatalogFormPage mode="edit" /> }),
+  ),
+);
 const WarehouseCreatePage = lazy(() =>
   import("../features/warehouse/pages/WarehouseRecordFormPage").then(
     (module) => ({
@@ -368,7 +402,15 @@ function lazyElement(node: ReactNode) {
   return <Suspense fallback={null}>{node}</Suspense>;
 }
 
-import { RequireMerchantCapability } from "../features/merchant-portal/components/RequireMerchantCapability";
+import { RequireMerchantCapability, RequireMerchantRole } from "../features/merchant-portal/components/RequireMerchantCapability";
+
+function requireRole(node: ReactNode, role: string) {
+  return (
+    <RequireMerchantRole role={role}>
+      {node}
+    </RequireMerchantRole>
+  );
+}
 
 function requireCapability(node: ReactNode, capability: string) {
   return (
@@ -441,6 +483,20 @@ function LegacyRouteHandler() {
 export const router = createBrowserRouter([
   {
     path: adminPath("/login"),
+    element: (
+      <PublicRoute>
+        <AuthLayout />
+      </PublicRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <LoginPage />,
+      },
+    ],
+  },
+  {
+    path: merchantPath("/login"),
     element: (
       <PublicRoute>
         <AuthLayout />
@@ -830,6 +886,22 @@ export const router = createBrowserRouter([
         ]),
       },
       {
+        path: "finance/operations",
+        element: requireAnyPermission(lazyElement(<FinanceOperationsPage />), [
+          PERMISSIONS.PAYOUTS_VIEW,
+          PERMISSIONS.FINANCE_INVOICES_VIEW,
+          PERMISSIONS.EXPENSES_VIEW,
+          PERMISSIONS.CASH_CLOSURES_VIEW,
+        ]),
+      },
+      {
+        path: "finance/treasury",
+        element: requirePermission(
+          lazyElement(<FinanceTreasuryPage />),
+          PERMISSIONS.FINANCE_TREASURY_VIEW,
+        ),
+      },
+      {
         path: "finance/merchant-payouts",
         element: requirePermission(
           lazyElement(<MerchantPayoutsPage />),
@@ -975,6 +1047,51 @@ export const router = createBrowserRouter([
           <TreasuryTransactionsPage />,
           PERMISSIONS.FINANCE_TREASURY_VIEW,
         ),
+      },
+      {
+        path: "warehouse/inbound",
+        element: requireAnyPermission(<WarehouseInboundPage />, [
+          PERMISSIONS.MERCHANT_INBOUND_REQUESTS_VIEW,
+          PERMISSIONS.MERCHANT_INBOUND_REQUESTS_MANAGE,
+          PERMISSIONS.INVENTORY_VIEW,
+        ]),
+      },
+      {
+        path: "warehouse/inventory",
+        element: requireAnyPermission(<WarehouseInventoryPage />, [
+          PERMISSIONS.INVENTORY_VIEW,
+          PERMISSIONS.STOCK_MOVEMENTS_VIEW,
+          PERMISSIONS.COMPANY_CATALOG_VIEW,
+          PERMISSIONS.WAREHOUSE_LOCATIONS_VIEW,
+        ]),
+      },
+      {
+        path: "warehouse/fulfillment",
+        element: requireAnyPermission(<WarehouseFulfillmentPage />, [
+          PERMISSIONS.PICKING_LISTS_VIEW,
+          PERMISSIONS.PACKING_TASKS_VIEW,
+        ]),
+      },
+      {
+        path: "warehouse/config",
+        element: requireAnyPermission(<WarehouseConfigPage />, [
+          PERMISSIONS.WAREHOUSE_RETURNS_VIEW,
+          PERMISSIONS.WAREHOUSE_CHARGES_VIEW,
+          PERMISSIONS.STORAGE_FEE_RULES_VIEW,
+          PERMISSIONS.PICK_PACK_FEE_RULES_VIEW,
+        ]),
+      },
+      {
+        path: "company-catalog",
+        element: requirePermission(lazyElement(<CompanyCatalogListPage />), PERMISSIONS.COMPANY_CATALOG_VIEW),
+      },
+      {
+        path: "company-catalog/create",
+        element: requirePermission(lazyElement(<CompanyCatalogCreatePage />), PERMISSIONS.COMPANY_CATALOG_CREATE),
+      },
+      {
+        path: "company-catalog/:companyCatalogItemId/edit",
+        element: requirePermission(lazyElement(<CompanyCatalogEditPage />), PERMISSIONS.COMPANY_CATALOG_UPDATE),
       },
       {
         path: "warehouses",
@@ -1430,8 +1547,12 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "profile",
-        element: requireCapability(<MerchantProfilePage />, "profile.view"),
+        path: "profile/*",
+        element: requireRole(<MerchantProfilePage />, "owner"),
+      },
+      {
+        path: "users",
+        element: requireCapability(<MerchantUsersPage />, "users.view"),
       },
       {
         path: "settings",

@@ -9,11 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../../shared/com
 import { PageHeader } from '../../../../shared/components/ui/PageHeader'
 import { Button } from '../../../../shared/components/ui/Button'
 import { merchantPath } from '../../../../shared/routing/paths'
-import { formatMoney } from '../../../../shared/utils/formatters'
 import { getMerchantPortalFinanceSummary } from '../api/merchantPortalFinance.api'
 import { CanMerchant } from '../../components/CanMerchant'
-import { MoneyDisplay } from '../../../../shared/components/ui/MoneyDisplay'
-import { StatusBadge } from '../../../../shared/components/ui/StatusBadge'
+import { MoneyDisplay } from '../../../../shared/components/display/MoneyDisplay'
 
 export function MerchantFinanceOverviewPage() {
   const { t } = useTranslation()
@@ -30,7 +28,7 @@ export function MerchantFinanceOverviewPage() {
   if (isError) {
     return (
       <ErrorState
-        message={getApiErrorMessage(error, t('Failed to load finance overview.'))}
+        message={getApiErrorMessage(error)}
         onRetry={refetch}
       />
     )
@@ -54,7 +52,7 @@ export function MerchantFinanceOverviewPage() {
         title={t('Finance')}
         actions={
           <CanMerchant capability="payouts.request">
-            <Button asChild>
+            <Button>
               <Link to={merchantPath('/finance/payouts/request')}>
                 {t('Request Payout')}
               </Link>
@@ -65,7 +63,7 @@ export function MerchantFinanceOverviewPage() {
 
       <div className="stats-grid mb-6">
         {summary.available_balance !== undefined && (
-          <Card variant="stat" className="stat-card">
+          <Card variant="stat" className="stat-card animate-fade-up animate-delay-0 stat-card--gradient-primary" data-accent="finance">
             <CardHeader className="stat-card__header">
               <div className="stat-card__title">{t('Available Balance')}</div>
               <div className="stat-card__icon bg-primary/10 text-primary">
@@ -74,14 +72,14 @@ export function MerchantFinanceOverviewPage() {
             </CardHeader>
             <CardContent className="stat-card__content">
               <div className="stat-card__value">
-                <MoneyDisplay amount={summary.available_balance} currency={summary.currency} />
+                <MoneyDisplay value={summary.available_balance} currency={summary.currency} />
               </div>
             </CardContent>
           </Card>
         )}
         
         {summary.pending_balance !== undefined && (
-          <Card variant="stat" className="stat-card">
+          <Card variant="stat" className="stat-card animate-fade-up animate-delay-100 stat-card--gradient-success" data-accent="warning">
             <CardHeader className="stat-card__header">
               <div className="stat-card__title">{t('Pending Balance')}</div>
               <div className="stat-card__icon bg-warning/10 text-warning">
@@ -90,14 +88,14 @@ export function MerchantFinanceOverviewPage() {
             </CardHeader>
             <CardContent className="stat-card__content">
               <div className="stat-card__value">
-                <MoneyDisplay amount={summary.pending_balance} currency={summary.currency} />
+                <MoneyDisplay value={summary.pending_balance} currency={summary.currency} />
               </div>
             </CardContent>
           </Card>
         )}
 
         {summary.total_invoices !== undefined && (
-          <Card variant="stat" className="stat-card">
+          <Card variant="stat" className="stat-card animate-fade-up animate-delay-200 stat-card--gradient-primary" data-accent="finance">
             <CardHeader className="stat-card__header">
               <div className="stat-card__title">{t('Total Invoices')}</div>
               <div className="stat-card__icon bg-info/10 text-info">
@@ -114,7 +112,7 @@ export function MerchantFinanceOverviewPage() {
         )}
 
         {summary.pending_payouts !== undefined && (
-          <Card variant="stat" className="stat-card">
+          <Card variant="stat" className="stat-card animate-fade-up animate-delay-300 stat-card--gradient-success" data-accent="warning">
             <CardHeader className="stat-card__header">
               <div className="stat-card__title">{t('Pending Payouts')}</div>
               <div className="stat-card__icon bg-success/10 text-success">
@@ -140,13 +138,13 @@ export function MerchantFinanceOverviewPage() {
             {summary.total_cod !== undefined && (
               <div className="flex items-center justify-between py-2 border-b">
                 <span className="text-muted">{t('Total COD')}</span>
-                <span className="font-medium"><MoneyDisplay amount={summary.total_cod} currency={summary.currency} /></span>
+                <span className="font-medium"><MoneyDisplay value={summary.total_cod} currency={summary.currency} /></span>
               </div>
             )}
             {summary.total_shipping_fees !== undefined && (
               <div className="flex items-center justify-between py-2 border-b">
                 <span className="text-muted">{t('Total Shipping Fees')}</span>
-                <span className="font-medium"><MoneyDisplay amount={summary.total_shipping_fees} currency={summary.currency} /></span>
+                <span className="font-medium"><MoneyDisplay value={summary.total_shipping_fees} currency={summary.currency} /></span>
               </div>
             )}
           </CardContent>

@@ -8,20 +8,26 @@ import { formatDate } from '../../../shared/utils/formatters'
 import { ApiFilterBar, compactFilters } from '../../../shared/components/data/ApiFilterBar'
 
 const initialFilters = {
-  order_id: '',
   warehouse_id: '',
-  warehouse_product_id: '',
   status: '',
   merchant_id: '',
 }
 
-export function StockReservationsPage() {
+export function StockReservationsPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const params = compactFilters(filters)
 
   return (
     <ResourceListPage<StockReservation>
+      hideHeader={embedded}
+      onCountChange={onCountChange}
       title={t('Stock Reservations')}
       description={t('Order stock reservations across warehouses.', { defaultValue: 'Order stock reservations across warehouses.' })}
       queryKey={['stock-reservations', params]}
@@ -30,11 +36,9 @@ export function StockReservationsPage() {
         <ApiFilterBar
           filters={filters}
           fields={[
-            { label: 'Order ID', name: 'order_id', type: 'number' },
-            { label: 'Warehouse ID', name: 'warehouse_id', type: 'number' },
-            { label: 'Product ID', name: 'warehouse_product_id', type: 'number' },
+            { label: 'Warehouse', name: 'warehouse_id', type: 'warehouse' },
             { label: 'Status', name: 'status', type: 'select', options: [{ label: 'reserved', value: 'reserved' }, { label: 'fulfilled', value: 'fulfilled' }, { label: 'released', value: 'released' }] },
-            { label: 'Merchant ID', name: 'merchant_id', type: 'number' },
+            { label: 'Merchant', name: 'merchant_id', type: 'merchant' },
           ]}
           onChange={(name, value) => setFilters((current) => ({ ...current, [name]: value }))}
           onReset={() => setFilters(initialFilters)}
@@ -50,4 +54,8 @@ export function StockReservationsPage() {
       ]}
     />
   )
+}
+
+export function StockReservationsPage() {
+  return <StockReservationsPanel />
 }

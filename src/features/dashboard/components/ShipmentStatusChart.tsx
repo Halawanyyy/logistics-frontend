@@ -24,10 +24,10 @@ type ShipmentStatusChartProps = {
 export function ShipmentStatusChart({ summary }: ShipmentStatusChartProps) {
   const { t } = useTranslation()
   const rawData = [
-    { key: 'delivered', name: t('Delivered'), value: summary.shipments.delivered, fill: '#0b3da8' },
-    { key: 'assigned', name: t('Assigned'), value: summary.shipments.assigned, fill: '#325dff' },
-    { key: 'pending_pickup', name: t('Pending pickup'), value: summary.shipments.pending_pickup, fill: '#ff6a13' },
-    { key: 'unassigned', name: t('Unassigned'), value: summary.shipments.unassigned, fill: '#e2e8f0' },
+    { key: 'delivered', name: t('Delivered'), value: summary.shipments.delivered, fill: 'var(--success)' },
+    { key: 'assigned', name: t('Assigned'), value: summary.shipments.assigned, fill: 'rgb(var(--brand-primary))' },
+    { key: 'pending_pickup', name: t('Pending pickup'), value: summary.shipments.pending_pickup, fill: 'var(--warning)' },
+    { key: 'unassigned', name: t('Unassigned'), value: summary.shipments.unassigned, fill: 'var(--muted)' },
   ].filter((item) => item.value > 0)
 
   const total = rawData.reduce((sum, item) => sum + item.value, 0)

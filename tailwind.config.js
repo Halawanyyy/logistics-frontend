@@ -5,13 +5,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: '#6D4AFF',
-        'brand-50': '#EEE9FF',
-        'brand-500': '#6D4AFF',
-        'brand-600': '#4F2FD8',
-        primary: '#6D4AFF',
-        'primary-dark': '#4F2FD8',
-        'primary-light': '#EEE9FF',
+        brand: 'rgb(var(--brand-primary) / <alpha-value>)',
+        'brand-50': 'rgb(var(--brand-primary-light) / <alpha-value>)',
+        'brand-500': 'rgb(var(--brand-primary) / <alpha-value>)',
+        'brand-600': 'rgb(var(--brand-primary-dark) / <alpha-value>)',
+        primary: 'rgb(var(--brand-primary) / <alpha-value>)',
+        'primary-dark': 'rgb(var(--brand-primary-dark) / <alpha-value>)',
+        'primary-light': 'rgb(var(--brand-primary-light) / <alpha-value>)',
         surface: '#ffffff',
         'surface-dark': '#111827',
         'surface-elevated': '#1F2937',
@@ -34,7 +34,7 @@ export default {
         modal: '0 20px 60px rgba(0,0,0,0.15)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Cairo', 'system-ui', 'sans-serif'],
       },
     },
   },

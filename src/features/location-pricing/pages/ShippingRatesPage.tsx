@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
-import { deleteShippingRate, listShippingRates } from '../api/location-pricing.api'
+import { deleteShippingRate, listShippingRates, restoreShippingRate, forceDeleteShippingRate } from '../api/location-pricing.api'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
 import { ErrorState } from '../../../shared/components/feedback/ErrorState'
@@ -11,28 +12,67 @@ import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { formatDate, formatMoney } from '../../../shared/utils/formatters'
 import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
-import { Input } from '../../../shared/components/ui/Input'
-import { Select } from '../../../shared/components/ui/Select'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { Button } from '../../../shared/components/ui/Button'
 import { Dropdown, DropdownContent, DropdownItem, DropdownMenu, DropdownTrigger } from '../../../shared/components/ui/Dropdown'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
+import { GovernorateAreaSelector } from '../../../shared/components/selectors/GovernorateAreaSelector'
 
 export function ShippingRatesPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [queryText, setQueryText] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [governorateId, setGovernorateId] = useState('')
+  const [areaId, setAreaId] = useState('')
+  const [undoToast, setUndoToast] = useState<{ id: string | number; timeoutId: ReturnType<typeof setTimeout> } | null>(null)
+  const [timeLeft, setTimeLeft] = useState(5)
   const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: ['shipping-rates'],
     queryFn: listShippingRates,
   })
+
+  const forceDeleteMutation = useMutation({
+    mutationFn: forceDeleteShippingRate,
+    onSuccess: () => {
+      setUndoToast(null)
+    },
+  })
+
+  const restoreMutation = useMutation({
+    mutationFn: restoreShippingRate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shipping-rates'] })
+      setUndoToast(null)
+    },
+  })
+
   const deleteMutation = useMutation({
     mutationFn: deleteShippingRate,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shipping-rates'] }),
+    onSuccess: (_, deletedId) => {
+      queryClient.invalidateQueries({ queryKey: ['shipping-rates'] })
+      
+      if (undoToast) {
+        clearTimeout(undoToast.timeoutId)
+        forceDeleteMutation.mutate(undoToast.id)
+      }
+
+      setTimeLeft(5)
+      const timeoutId = setTimeout(() => {
+        forceDeleteMutation.mutate(deletedId)
+      }, 5000)
+
+      setUndoToast({ id: deletedId, timeoutId })
+    },
   })
+
+  useEffect(() => {
+    if (!undoToast) return
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => Math.max(0, prev - 1))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [undoToast])
 
   if (query.isLoading) {
     return <LoadingState />
@@ -61,12 +101,9 @@ export function ShippingRatesPage() {
   }
 
   const shippingRates = query.data.data.filter((rate) => {
-    const matchesSearch =
-      !queryText ||
-      [rate.governorate_name, rate.area_name ?? '', rate.delivery_fee, rate.swap_fee, rate.return_fee].join(' ').toLowerCase().includes(queryText.toLowerCase())
-    const statusValue = rate.is_active ? 'active' : 'inactive'
-    const matchesStatus = statusFilter === 'all' || statusValue === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesGovernorate = !governorateId || String(rate.governorate_id) === governorateId
+    const matchesArea = !areaId || String(rate.area_id) === areaId
+    return matchesGovernorate && matchesArea
   })
 
   return (
@@ -83,13 +120,16 @@ export function ShippingRatesPage() {
         </CardHeader>
         <CardContent>
           {deleteMutation.error ? <div className="form-error">{getApiErrorMessage(deleteMutation.error)}</div> : null}
-          <div className="filters-bar">
-            <Input placeholder={t('Search rates', { defaultValue: 'Search rates' })} value={queryText} onChange={(event) => setQueryText(event.target.value)} />
-            <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              <option value="all">{t('All statuses', { defaultValue: 'All statuses' })}</option>
-              <option value="active">{t('Active')}</option>
-              <option value="inactive">{t('Inactive')}</option>
-            </Select>
+          <div className="filters-bar filters-bar--spaced">
+            <GovernorateAreaSelector
+              governorateId={governorateId}
+              areaId={areaId}
+              onChange={({ governorate_id, area_id }) => {
+                setGovernorateId(governorate_id)
+                setAreaId(area_id)
+              }}
+              includeAllOption
+            />
           </div>
         <TableContainer>
         <Table variant="compact">
@@ -148,6 +188,39 @@ export function ShippingRatesPage() {
         </TableContainer>
         </CardContent>
       </Card>
+
+      {undoToast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '1.5rem',
+          right: '1.5rem',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          borderRadius: 'var(--radius-lg)',
+          backgroundColor: 'var(--brand)',
+          padding: '0.75rem 1.25rem',
+          boxShadow: 'var(--shadow-modal)',
+          color: '#ffffff',
+          fontWeight: 600,
+          letterSpacing: '0.025em'
+        }}>
+          <span>{t('Shipping rate deleted.', { defaultValue: 'Shipping rate deleted.' })}</span>
+          <Button 
+            variant="secondary" 
+            style={{ border: 'none', backgroundColor: '#ffffff', color: 'var(--brand)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+            onClick={() => {
+              clearTimeout(undoToast.timeoutId)
+              restoreMutation.mutate(undoToast.id)
+            }}
+            disabled={restoreMutation.isPending}
+          >
+            <Undo2 size={16} />
+            {t('Undo')} ({timeLeft}s)
+          </Button>
+        </div>
+      )}
     </section>
   )
 }

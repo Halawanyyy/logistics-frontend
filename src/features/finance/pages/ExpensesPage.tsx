@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { MoreVertical } from 'lucide-react'
 import {
   approveExpense,
   listExpenses,
@@ -13,7 +14,6 @@ import type { Expense, FinanceFilters, MarkExpensePaidRequest } from '../types/f
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
-import { ApprovalActionButtons } from '../../../shared/components/actions/ApprovalActionButtons'
 import { FieldError } from '../../../shared/components/forms/FieldError'
 import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
 import { TreasuryAccountSelector } from '../../../shared/components/selectors/TreasuryAccountSelector'
@@ -33,6 +33,7 @@ import { useFormApiErrors } from '../../../shared/hooks/useFormApiErrors'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
+import { DropdownContent, DropdownItem, DropdownMenu, DropdownTrigger } from '../../../shared/components/ui/Dropdown'
 
 type ExpenseFiltersState = {
   date_from: string
@@ -169,7 +170,13 @@ function MarkExpensePaidDialog({
   )
 }
 
-export function ExpensesPage() {
+export function ExpensesPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<ExpenseFiltersState>(initialFilters)
@@ -229,23 +236,52 @@ export function ExpensesPage() {
     },
   })
   const expenses = expensesQuery.data?.data ?? []
+  const currentMonth = new Date().toISOString().slice(0, 7)
+  const monthExpenses = expenses.filter((expense) => expense.expense_date?.startsWith(currentMonth))
+  const monthTotal = monthExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0)
+  const categoryTotals = monthExpenses.reduce<Record<string, number>>((totals, expense) => {
+    totals[expense.category] = (totals[expense.category] ?? 0) + Number(expense.amount || 0)
+    return totals
+  }, {})
+  const topCategory = Object.entries(categoryTotals).sort(([, left], [, right]) => right - left)[0]
+
+  useEffect(() => {
+    if (expensesQuery.data) {
+      onCountChange?.(expensesQuery.data.data.length)
+    }
+  }, [expensesQuery.data, onCountChange])
 
   return (
     <section className="page-section">
-      <PageHeader
-        title={t('Expenses', { defaultValue: 'Expenses' })}
-        description={t('Approve, reject, and mark expenses paid through documented finance actions.', { defaultValue: 'Approve, reject, and mark expenses paid through documented finance actions.' })}
-        actions={(
+      {!embedded ? <div className="finance-page-header animate-fade-up">
+        <PageHeader
+          title={t('Expenses', { defaultValue: 'Expenses' })}
+          description={t('Approve, reject, and mark expenses paid through documented finance actions.', { defaultValue: 'Approve, reject, and mark expenses paid through documented finance actions.' })}
+          actions={(
+            <Can permission={PERMISSIONS.EXPENSES_CREATE}>
+              <Link className="ui-link-reset" to={adminPath('/finance/expenses/create')}>
+                <Button>{t('Create Expense', { defaultValue: 'Create Expense' })}</Button>
+              </Link>
+            </Can>
+          )}
+        />
+      </div> : (
+        <div className="page-header__button-row">
           <Can permission={PERMISSIONS.EXPENSES_CREATE}>
             <Link className="ui-link-reset" to={adminPath('/finance/expenses/create')}>
               <Button>{t('Create Expense', { defaultValue: 'Create Expense' })}</Button>
             </Link>
           </Can>
-        )}
-      />
+        </div>
+      )}
+
+      <div className="stats-grid finance-summary-grid">
+        <Card variant="stat" className="finance-summary-card finance-summary-card--danger" data-accent="warning"><CardContent><div className="compact-stat"><span className="compact-stat__label">{t('Total This Month', { defaultValue: 'Total This Month' })}</span><span className="compact-stat__value text-danger"><MoneyDisplay value={monthTotal} /></span><span className="compact-stat__count">{t('{{count}} expenses', { count: monthExpenses.length, defaultValue: `${monthExpenses.length} expenses` })}</span></div></CardContent></Card>
+        <Card variant="stat" className="finance-summary-card finance-summary-card--warning" data-accent="warning"><CardContent><div className="compact-stat"><span className="compact-stat__label">{t('Top Category', { defaultValue: 'Top Category' })}</span><span className="compact-stat__value text-warning">{topCategory ? pickDisplayLabel(topCategory[0]) : '-'}</span><span className="compact-stat__count">{topCategory ? <MoneyDisplay value={topCategory[1]} /> : t('No expenses this month', { defaultValue: 'No expenses this month' })}</span></div></CardContent></Card>
+      </div>
 
       <Card variant="flat" className="dashboard-filter-card">
-        <CardContent className="dashboard-filters">
+        <CardContent className="dashboard-filters finance-filter-bar">
           <DateRangeFilter
             dateFrom={filters.date_from}
             dateTo={filters.date_to}
@@ -284,13 +320,9 @@ export function ExpensesPage() {
               <option value="cancelled">cancelled</option>
             </Select>
           </label>
-        </CardContent>
-        <CardContent>
-          <div className="form-actions">
-            <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
-              {t('Reset filters')}
-            </Button>
-          </div>
+          <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
+            {t('Reset filters')}
+          </Button>
         </CardContent>
       </Card>
 
@@ -336,7 +368,7 @@ export function ExpensesPage() {
                           {pickDisplayLabel(expense.category, expense.category_label)}
                         </Link>
                       </TableCell>
-                      <TableCell><MoneyDisplay value={expense.amount} /></TableCell>
+                      <TableCell className="amount-cell"><MoneyDisplay value={expense.amount} /></TableCell>
                       <TableCell>
                         <StatusBadge value={expense.status ?? 'pending'}>
                           {pickDisplayLabel(expense.status ?? 'pending', expense.status_label)}
@@ -346,34 +378,18 @@ export function ExpensesPage() {
                       <TableCell>{expense.expense_date}</TableCell>
                       <TableCell>{formatDate(expense.created_at)}</TableCell>
                       <TableCell>
-                        <div className="page-header__button-row">
-                          <Link className="table-link" to={adminPath(`/finance/expenses/${expense.id}`)}>
-                            {t('View')}
-                          </Link>
-                          <Can permission={PERMISSIONS.EXPENSES_UPDATE}>
-                            <Link className="table-link" to={adminPath(`/finance/expenses/${expense.id}/edit`)}>
-                              {t('Edit')}
-                            </Link>
-                          </Can>
+                        <div className="finance-row-actions">
+                          <Link className="ui-link-reset" to={adminPath(`/finance/expenses/${expense.id}`)}><Button size="sm" variant="ghost">{t('View')}</Button></Link>
+                          {expense.status === 'pending' ? <><Can permission={PERMISSIONS.FINANCE_EXPENSES_APPROVE}><Button size="sm" className="finance-action--approve" loading={approveMutation.isPending} onClick={() => approveMutation.mutate(expense.id)}>{t('Approve', { defaultValue: 'Approve' })}</Button></Can><Can permission={PERMISSIONS.FINANCE_EXPENSES_REJECT}><Button size="sm" variant="danger" onClick={() => setExpensePendingReject(expense)}>{t('Reject', { defaultValue: 'Reject' })}</Button></Can></> : null}
+                          <DropdownMenu>
+                            <DropdownTrigger aria-label={t('More actions', { defaultValue: 'More actions' })}><MoreVertical size={18} /></DropdownTrigger>
+                            <DropdownContent>
+                              <Can permission={PERMISSIONS.EXPENSES_UPDATE}><DropdownItem><Link className="ui-link-reset" to={adminPath(`/finance/expenses/${expense.id}/edit`)}>{t('Edit')}</Link></DropdownItem></Can>
+                              {expense.status === 'approved' ? <Can permission={PERMISSIONS.FINANCE_EXPENSES_PAY}><DropdownItem onClick={() => setExpensePendingPaid(expense)}>{t('Mark Paid', { defaultValue: 'Mark Paid' })}</DropdownItem></Can> : null}
+                              {expense.status === 'approved' ? <Can permission={PERMISSIONS.FINANCE_EXPENSES_REJECT}><DropdownItem destructive onClick={() => setExpensePendingReject(expense)}>{t('Reject', { defaultValue: 'Reject' })}</DropdownItem></Can> : null}
+                            </DropdownContent>
+                          </DropdownMenu>
                         </div>
-                        <ApprovalActionButtons
-                          approve={expense.status === 'pending' ? {
-                            label: t('Approve', { defaultValue: 'Approve' }),
-                            permission: PERMISSIONS.FINANCE_EXPENSES_APPROVE,
-                            loading: approveMutation.isPending,
-                            onClick: () => approveMutation.mutate(expense.id),
-                          } : undefined}
-                          reject={['pending', 'approved'].includes(expense.status ?? '') ? {
-                            label: t('Reject', { defaultValue: 'Reject' }),
-                            permission: PERMISSIONS.FINANCE_EXPENSES_REJECT,
-                            onClick: () => setExpensePendingReject(expense),
-                          } : undefined}
-                          markPaid={expense.status === 'approved' ? {
-                            label: t('Mark Paid', { defaultValue: 'Mark Paid' }),
-                            permission: PERMISSIONS.FINANCE_EXPENSES_PAY,
-                            onClick: () => setExpensePendingPaid(expense),
-                          } : undefined}
-                        />
                       </TableCell>
                     </tr>
                   ))}
@@ -408,4 +424,8 @@ export function ExpensesPage() {
       />
     </section>
   )
+}
+
+export function ExpensesPage() {
+  return <ExpensesPanel />
 }

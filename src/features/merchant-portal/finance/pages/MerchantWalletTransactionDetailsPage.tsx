@@ -10,7 +10,7 @@ import { PageHeader } from '../../../../shared/components/ui/PageHeader'
 import { merchantPath } from '../../../../shared/routing/paths'
 import { formatDate } from '../../../../shared/utils/formatters'
 import { getMerchantPortalWalletTransaction } from '../api/merchantPortalFinance.api'
-import { MoneyDisplay } from '../../../../shared/components/ui/MoneyDisplay'
+import { MoneyDisplay } from '../../../../shared/components/display/MoneyDisplay'
 import { StatusBadge } from '../../../../shared/components/ui/StatusBadge'
 
 export function MerchantWalletTransactionDetailsPage() {
@@ -35,7 +35,7 @@ export function MerchantWalletTransactionDetailsPage() {
             {t('Back to Transactions')}
           </Link>
         }
-        message={getApiErrorMessage(error, t('Failed to load transaction details.'))}
+        message={getApiErrorMessage(error)}
         onRetry={refetch}
       />
     )
@@ -95,7 +95,7 @@ export function MerchantWalletTransactionDetailsPage() {
                 <div>
                   <dt className="text-sm font-medium text-muted">{t('Amount')}</dt>
                   <dd className="mt-1 text-lg font-bold">
-                    <MoneyDisplay amount={transaction.amount} currency={transaction.currency} />
+                    <MoneyDisplay value={transaction.amount} currency={transaction.currency} />
                   </dd>
                 </div>
                 <div>
@@ -110,7 +110,7 @@ export function MerchantWalletTransactionDetailsPage() {
                   <dt className="text-sm font-medium text-muted">{t('Balance After')}</dt>
                   <dd className="mt-1 text-sm font-medium text-muted">
                     {transaction.balance_after !== undefined && transaction.balance_after !== null ? (
-                      <MoneyDisplay amount={transaction.balance_after} currency={transaction.currency} />
+                      <MoneyDisplay value={transaction.balance_after} currency={transaction.currency} />
                     ) : '-'}
                   </dd>
                 </div>

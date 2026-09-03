@@ -1,13 +1,13 @@
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { Dialog } from '../../../../shared/components/ui/Dialog'
-import { CardTitle } from '../../../../shared/components/ui/Card'
-import { StatusBadge } from '../../../../shared/components/ui/StatusBadge'
-import { LoadingState } from '../../../../shared/components/states/LoadingState'
-import { ErrorState } from '../../../../shared/components/states/ErrorState'
-import { getApiErrorMessage } from '../../../../shared/api/api-error'
-import { formatDate } from '../../../../shared/utils/formatters'
-import { getMerchantIntegrationToken } from '../api/merchantPortalIntegrations.api'
+import { Dialog } from '../../../../../shared/components/ui/Dialog'
+import { CardTitle } from '../../../../../shared/components/ui/Card'
+import { StatusBadge } from '../../../../../shared/components/ui/StatusBadge'
+import { LoadingState } from '../../../../../shared/components/states/LoadingState'
+import { ErrorState } from '../../../../../shared/components/states/ErrorState'
+import { getApiErrorMessage } from '../../../../../shared/api/api-error'
+import { formatDate } from '../../../../../shared/utils/formatters'
+import { getMerchantIntegrationToken } from '../../api/merchantPortalIntegrations.api'
 
 type MerchantTokenDetailsModalProps = {
   tokenId: number | null

@@ -1,13 +1,13 @@
-import { apiClient } from '../../../shared/api/client'
-import { ApiResponse } from '../../../shared/types/api.types'
-import {
+import { apiClient } from '../../../../shared/api/axios'
+import type { ApiResponse } from '../../../../shared/types/api.types'
+import type {
   MerchantIntegrationToken,
   CreateMerchantIntegrationTokenPayload,
   RevokeMerchantIntegrationTokenPayload,
   MerchantIntegrationDocs,
   TestMerchantIntegrationPayload,
   MerchantIntegrationTestResult,
-} from './merchantPortalIntegrations.types'
+} from '../types/merchantPortalIntegrations.types'
 
 /**
  * Lists all integration tokens for the authenticated merchant.

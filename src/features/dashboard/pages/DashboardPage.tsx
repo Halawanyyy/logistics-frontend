@@ -28,12 +28,13 @@ import { Skeleton } from '../../../shared/components/ui/Skeleton'
 import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { Button } from '../../../shared/components/ui/Button'
+import { Select } from '../../../shared/components/ui/Select'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { pickDisplayLabel } from '../../../shared/i18n/locale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
 import { listOrders } from '../../orders/api/orders.api'
-import { getShipment, listShipments } from '../../shipments/api/shipments.api'
+import { listShipments } from '../../shipments/api/shipments.api'
 import { getDashboardSummary, getFinanceOverview } from '../api/dashboard.api'
 import { FinanceOverviewChart } from '../components/FinanceOverviewChart'
 import { ShipmentStatusChart } from '../components/ShipmentStatusChart'
@@ -53,7 +54,7 @@ function StatSkeletonGrid() {
   return (
     <div className="stats-grid">
       {Array.from({ length: 4 }).map((_, index) => (
-        <Card key={index} variant="stat" className="stat-card">
+        <Card key={index} variant="stat" className="stat-card" data-accent={(['orders', 'shipments', 'success', 'success'] as const)[index]}>
           <CardHeader className="stat-card__header">
             <Skeleton className="dashboard-skeleton dashboard-skeleton--label" />
             <Skeleton className="dashboard-skeleton dashboard-skeleton--icon" />
@@ -76,28 +77,36 @@ function formatPercent(value: number) {
   return `${Math.round(value)}%`
 }
 
-function getTrackingTone(status: string) {
-  if (/deliver/i.test(status)) {
-    return 'success'
+type DashboardDatePreset = 'all' | 'today' | 'this_week' | 'this_month' | 'last_month' | 'custom'
+
+function toInputDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getPresetRange(preset: Exclude<DashboardDatePreset, 'all' | 'custom'>) {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const end = new Date(start)
+
+  if (preset === 'this_week') {
+    const day = start.getDay() || 7
+    start.setDate(start.getDate() - day + 1)
+  } else if (preset === 'this_month') {
+    start.setDate(1)
+  } else if (preset === 'last_month') {
+    start.setMonth(start.getMonth() - 1, 1)
+    end.setDate(0)
   }
 
-  if (/transit|dispatch|assign|pickup|ship/i.test(status)) {
-    return 'info'
-  }
-
-  if (/pending|attempt/i.test(status)) {
-    return 'warning'
-  }
-
-  if (/failed|return|cancel/i.test(status)) {
-    return 'danger'
-  }
-
-  return 'neutral'
+  return { date_from: toInputDate(start), date_to: toInputDate(end) }
 }
 
 export function DashboardPage() {
   const { t } = useTranslation()
+  const [datePreset, setDatePreset] = useState<DashboardDatePreset>('all')
   const [filters, setFilters] = useState<DashboardFilters>({
     date_from: '',
     date_to: '',
@@ -131,15 +140,6 @@ export function DashboardPage() {
   const overview = financeOverviewQuery.data?.data
   const recentOrders = (ordersQuery.data?.data ?? []).slice(0, 5)
   const recentShipments = (shipmentsQuery.data?.data ?? []).slice(0, 5)
-  const trackingShipmentId = recentShipments[0]?.id
-
-  const trackingShipmentQuery = useQuery({
-    queryKey: ['shipments', trackingShipmentId, 'dashboard-tracking'],
-    queryFn: () => getShipment(trackingShipmentId!),
-    enabled: Boolean(trackingShipmentId),
-  })
-
-  const trackingShipment = trackingShipmentQuery.data?.data ?? recentShipments[0]
   const shipmentTotal = summary?.shipments.total ?? overview?.total_shipments ?? 0
   const assignmentCoverage = shipmentTotal ? ((summary?.shipments.assigned ?? 0) / shipmentTotal) * 100 : 0
   const deliveryCompletion = shipmentTotal ? ((summary?.shipments.delivered ?? overview?.delivered_shipments ?? 0) / shipmentTotal) * 100 : 0
@@ -150,61 +150,61 @@ export function DashboardPage() {
       {
         title: t('Total Orders', { defaultValue: 'Total Orders' }),
         value: overview?.total_orders ?? '--',
-        description: t('Live count from the finance overview endpoint.', {
-          defaultValue: 'Live count from the finance overview endpoint.',
-        }),
+        description: t('{{count}} recent orders shown below', { count: recentOrders.length, defaultValue: `${recentOrders.length} recent orders shown below` }),
         icon: <ClipboardList size={20} />,
+        accent: 'orders' as const,
         tone: 'info' as const,
       },
       {
         title: t('Total Shipments', { defaultValue: 'Total Shipments' }),
         value: summary?.shipments.total ?? overview?.total_shipments ?? '--',
-        description: t('Current shipment load across the dashboard summary.', {
-          defaultValue: 'Current shipment load across the dashboard summary.',
-        }),
+        description: t('{{coverage}} assigned in this period', { coverage: formatPercent(assignmentCoverage), defaultValue: `${formatPercent(assignmentCoverage)} assigned in this period` }),
         icon: <Truck size={20} />,
+        accent: 'shipments' as const,
         tone: 'info' as const,
       },
       {
         title: t('Delivered Shipments', { defaultValue: 'Delivered Shipments' }),
         value: summary?.shipments.delivered ?? overview?.delivered_shipments ?? '--',
-        description: t('Completed deliveries reflected by the live backend summary.', {
-          defaultValue: 'Completed deliveries reflected by the live backend summary.',
-        }),
+        description: t('{{completion}} delivery completion', { completion: formatPercent(deliveryCompletion), defaultValue: `${formatPercent(deliveryCompletion)} delivery completion` }),
         icon: <Package size={20} />,
+        accent: 'success' as const,
         tone: 'success' as const,
       },
       {
         title: t('Net Company Profit', { defaultValue: 'Net Company Profit' }),
         value: overview?.company_net_profit ? <MoneyDisplay value={overview.company_net_profit} /> : summary?.company_profit ? <MoneyDisplay value={summary.company_profit} /> : '--',
-        description: t('Operational profit using the documented finance summary.', {
-          defaultValue: 'Operational profit using the documented finance summary.',
-        }),
+        description: t('Net result for the selected period', { defaultValue: 'Net result for the selected period' }),
         icon: <Landmark size={20} />,
+        accent: 'success' as const,
         tone: 'warning' as const,
       },
     ],
-    [overview, summary, t],
+    [assignmentCoverage, deliveryCompletion, overview, recentOrders.length, summary, t],
   )
 
   const shipmentBreakdown = useMemo(
     () => [
       {
+        key: 'delivered',
         label: t('Delivered'),
         value: summary?.shipments.delivered ?? 0,
         share: formatPercent(deliveryCompletion),
       },
       {
+        key: 'assigned',
         label: t('Assigned'),
         value: summary?.shipments.assigned ?? 0,
         share: formatPercent(assignmentCoverage),
       },
       {
+        key: 'pending',
         label: t('Pending pickup'),
         value: summary?.shipments.pending_pickup ?? 0,
         share: formatPercent(pendingPickupShare),
       },
       {
+        key: 'unassigned',
         label: t('Unassigned'),
         value: summary?.shipments.unassigned ?? 0,
         share: shipmentTotal ? formatPercent(((summary?.shipments.unassigned ?? 0) / shipmentTotal) * 100) : '0%',
@@ -213,31 +213,16 @@ export function DashboardPage() {
     [assignmentCoverage, deliveryCompletion, pendingPickupShare, shipmentTotal, summary, t],
   )
 
-  const trackingSteps = useMemo(() => {
-    const histories = trackingShipment?.histories ?? []
-
-    if (!histories.length && trackingShipment) {
-      return [
-        {
-          id: trackingShipment.id,
-          label: pickDisplayLabel(trackingShipment.status, trackingShipment.status_label),
-          timestamp: trackingShipment.created_at,
-          tone: getTrackingTone(trackingShipment.status),
-        },
-      ]
-    }
-
-    return histories
-      .slice(-4)
-      .map((history) => ({
-        id: history.id,
-        label: pickDisplayLabel(history.status, null),
-        timestamp: history.created_at,
-        tone: getTrackingTone(history.status),
-      }))
-  }, [trackingShipment])
-
   const hasDashboardData = Boolean(summary || overview)
+
+  const updateDatePreset = (preset: DashboardDatePreset) => {
+    setDatePreset(preset)
+    if (preset === 'all') {
+      setFilters((current) => ({ ...current, date_from: '', date_to: '' }))
+    } else if (preset !== 'custom') {
+      setFilters((current) => ({ ...current, ...getPresetRange(preset) }))
+    }
+  }
 
   return (
     <section className="page-section dashboard-page">
@@ -246,37 +231,38 @@ export function DashboardPage() {
         description={t("Welcome back! Here's what's happening across logistics operations today.", {
           defaultValue: "Welcome back! Here's what's happening across logistics operations today.",
         })}
+        actions={(
+          <div className="dashboard-header-date-filter">
+            <label className="field">
+              <span>{t('Date Range', { defaultValue: 'Date Range' })}</span>
+              <Select value={datePreset} onChange={(event) => updateDatePreset(event.target.value as DashboardDatePreset)}>
+                <option value="all">{t('All Time', { defaultValue: 'All Time' })}</option>
+                <option value="today">{t('Today', { defaultValue: 'Today' })}</option>
+                <option value="this_week">{t('This Week', { defaultValue: 'This Week' })}</option>
+                <option value="this_month">{t('This Month', { defaultValue: 'This Month' })}</option>
+                <option value="last_month">{t('Last Month', { defaultValue: 'Last Month' })}</option>
+                <option value="custom">{t('Custom Range', { defaultValue: 'Custom Range' })}</option>
+              </Select>
+            </label>
+            <DateRangeFilter
+              dateFrom={filters.date_from}
+              dateTo={filters.date_to}
+              onChange={({ date_from, date_to }) => {
+                setDatePreset('custom')
+                setFilters((current) => ({ ...current, date_from, date_to }))
+              }}
+            />
+          </div>
+        )}
       />
 
-      <Card className="dashboard-filter-card dashboard-filter-card--framed">
-        <CardContent className="dashboard-filters">
-          <DateRangeFilter
-            dateFrom={filters.date_from}
-            dateTo={filters.date_to}
-            onChange={({ date_from, date_to }) =>
-              setFilters((current) => ({ ...current, date_from, date_to }))
-            }
-          />
-          <label className="dashboard-filter">
-            <span className="eyebrow">{t('Merchant')}</span>
-            <MerchantSelector
-              includeAllOption
-              value={String(filters.merchant_id ?? '')}
-              onChange={(merchant_id) => setFilters((current) => ({ ...current, merchant_id }))}
-            />
-          </label>
-          <label className="dashboard-filter">
-            <span className="eyebrow">{t('Assigned Driver')}</span>
-            <DriverSelector
-              includeAllOption
-              value={String(filters.assigned_driver_id ?? '')}
-              onChange={(assigned_driver_id) =>
-                setFilters((current) => ({ ...current, assigned_driver_id }))
-              }
-            />
-          </label>
-        </CardContent>
-      </Card>
+      <details className="dashboard-more-filters">
+        <summary>{t('More Filters', { defaultValue: 'More Filters' })}</summary>
+        <div className="dashboard-more-filters__content">
+          <label className="dashboard-filter"><span className="eyebrow">{t('Merchant')}</span><MerchantSelector includeAllOption value={String(filters.merchant_id ?? '')} onChange={(merchant_id) => setFilters((current) => ({ ...current, merchant_id }))} /></label>
+          <label className="dashboard-filter"><span className="eyebrow">{t('Assigned Driver')}</span><DriverSelector includeAllOption value={String(filters.assigned_driver_id ?? '')} onChange={(assigned_driver_id) => setFilters((current) => ({ ...current, assigned_driver_id }))} /></label>
+        </div>
+      </details>
 
       {dashboardSummaryQuery.isLoading || financeOverviewQuery.isLoading ? <StatSkeletonGrid /> : null}
 
@@ -297,100 +283,96 @@ export function DashboardPage() {
       ) : null}
 
       {!dashboardSummaryQuery.isLoading &&
-      !financeOverviewQuery.isLoading &&
-      !dashboardSummaryQuery.isError &&
-      !financeOverviewQuery.isError &&
-      !hasDashboardData ? (
+        !financeOverviewQuery.isLoading &&
+        !dashboardSummaryQuery.isError &&
+        !financeOverviewQuery.isError &&
+        !hasDashboardData ? (
         <EmptyState title={t('No dashboard data', { defaultValue: 'No dashboard data' })} description={t('The API returned no dashboard metrics.', { defaultValue: 'The API returned no dashboard metrics.' })} />
       ) : null}
 
       {hasDashboardData ? (
-        <div className="stats-grid">
+        <div className="stats-grid dashboard-stat-grid">
           {statCards.map((card) => (
             <StatCard key={card.title} {...card} />
           ))}
         </div>
       ) : null}
 
-      <div className="dashboard-grid">
+      <div className="dashboard-grid dashboard-layout">
         <Card className="dashboard-panel-card dashboard-grid__orders">
-            <CardHeader className="dashboard-panel-card__header">
-              <div>
-                <CardTitle>{t('Live Orders', { defaultValue: 'Live Orders' })}</CardTitle>
-                <CardDescription>
-                  {t('Recent orders from the live orders API, shown without fake placeholders.', {
-                    defaultValue: 'Recent orders from the live orders API, shown without fake placeholders.',
-                  })}
-                </CardDescription>
-              </div>
-              <Link className="dashboard-panel-link" to={adminPath('/orders')}>
-                {t('View all orders', { defaultValue: 'View all orders' })}
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {ordersQuery.isLoading ? <ChartSkeleton /> : null}
-              {ordersQuery.isError ? (
-                <ErrorState
-                  title={t('Recent orders failed', { defaultValue: 'Recent orders failed' })}
-                  message={getApiErrorMessage(ordersQuery.error)}
-                  onRetry={() => void ordersQuery.refetch()}
-                />
-              ) : null}
-              {!ordersQuery.isLoading && !ordersQuery.isError && recentOrders.length === 0 ? (
-                <EmptyState
-                  title={t('No recent orders', { defaultValue: 'No recent orders' })}
-                  description={t('The backend returned no recent orders for the selected filters.', {
-                    defaultValue: 'The backend returned no recent orders for the selected filters.',
-                  })}
-                  action={(
-                    <Link className="ui-link-reset" to={adminPath('/orders')}>
-                      <Button variant="secondary">{t('Open Orders', { defaultValue: 'Open Orders' })}</Button>
-                    </Link>
-                  )}
-                />
-              ) : null}
-              {recentOrders.length > 0 ? (
-                <TableContainer>
-                  <Table variant="compact">
-                    <thead>
-                      <tr>
-                        <TableHead>{t('Order')}</TableHead>
-                        <TableHead>{t('Customer')}</TableHead>
-                        <TableHead>{t('Area', { defaultValue: 'Area' })}</TableHead>
-                        <TableHead>{t('Status')}</TableHead>
-                        <TableHead>{t('COD')}</TableHead>
+          <CardHeader className="dashboard-panel-card__header">
+            <div>
+              <CardTitle>{t('Recent Orders', { defaultValue: 'Recent Orders' })}</CardTitle>
+              <CardDescription>
+                {t('Recent orders from the live orders API, shown without fake placeholders.', {
+                  defaultValue: 'Recent orders from the live orders API, shown without fake placeholders.',
+                })}
+              </CardDescription>
+            </div>
+            <Link className="dashboard-panel-link" to={adminPath('/orders')}>
+              {t('View all orders', { defaultValue: 'View all orders' })} <ArrowRight size={14} />
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {ordersQuery.isLoading ? <ChartSkeleton /> : null}
+            {ordersQuery.isError ? (
+              <ErrorState
+                title={t('Recent orders failed', { defaultValue: 'Recent orders failed' })}
+                message={getApiErrorMessage(ordersQuery.error)}
+                onRetry={() => void ordersQuery.refetch()}
+              />
+            ) : null}
+            {!ordersQuery.isLoading && !ordersQuery.isError && recentOrders.length === 0 ? (
+              <EmptyState
+                title={t('No recent orders', { defaultValue: 'No recent orders' })}
+                description={t('The backend returned no recent orders for the selected filters.', {
+                  defaultValue: 'The backend returned no recent orders for the selected filters.',
+                })}
+                action={(
+                  <Link className="ui-link-reset" to={adminPath('/orders')}>
+                    <Button variant="secondary">{t('Open Orders', { defaultValue: 'Open Orders' })}</Button>
+                  </Link>
+                )}
+              />
+            ) : null}
+            {recentOrders.length > 0 ? (
+              <TableContainer>
+                <Table variant="compact">
+                  <thead>
+                    <tr>
+                      <TableHead>{t('Order')}</TableHead>
+                      <TableHead>{t('Customer')}</TableHead>
+                      <TableHead>{t('Status')}</TableHead>
+                      <TableHead>{t('Amount')}</TableHead>
+                      <TableHead>{t('Date', { defaultValue: 'Date' })}</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentOrders.map((order) => (
+                      <tr key={order.id}>
+                        <TableCell>
+                          <Link className="table-link" to={adminPath(`/orders/${order.id}`)}>
+                            {order.order_number}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          {order.customer_name}
+                          <p className="table-meta">{order.merchant_name}</p>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge value={order.status}>
+                            {pickDisplayLabel(order.status, order.status_label)}
+                          </StatusBadge>
+                        </TableCell>
+                        <TableCell><MoneyDisplay value={order.cod_amount} /></TableCell>
+                        <TableCell>{formatDate(order.created_at)}</TableCell>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {recentOrders.map((order) => (
-                        <tr key={order.id}>
-                          <TableCell>
-                            <Link className="table-link" to={adminPath(`/orders/${order.id}`)}>
-                              {order.order_number}
-                            </Link>
-                            <p className="table-meta">{formatDate(order.created_at)}</p>
-                          </TableCell>
-                          <TableCell>
-                            {order.customer_name}
-                            <p className="table-meta">{order.merchant_name}</p>
-                          </TableCell>
-                          <TableCell>
-                            {order.delivery_governorate_name}
-                            <p className="table-meta">{order.delivery_area_name ?? t('No area')}</p>
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge value={order.status}>
-                              {pickDisplayLabel(order.status, order.status_label)}
-                            </StatusBadge>
-                          </TableCell>
-                          <TableCell><MoneyDisplay value={order.cod_amount} /></TableCell>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </TableContainer>
-              ) : null}
-            </CardContent>
+                    ))}
+                  </tbody>
+                </Table>
+              </TableContainer>
+            ) : null}
+          </CardContent>
         </Card>
 
         <Card className="dashboard-panel-card dashboard-grid__performance">
@@ -421,9 +403,9 @@ export function DashboardPage() {
             {summary ? (
               <div className="dashboard-breakdown-list">
                 {shipmentBreakdown.map((item) => (
-                  <div key={item.label} className="dashboard-breakdown-item">
+                  <div key={item.key} className={`dashboard-breakdown-item dashboard-breakdown-item--${item.key}`}>
                     <div>
-                      <strong>{item.label}</strong>
+                      <strong><span className="dashboard-breakdown-item__dot" aria-hidden="true" />{item.label}</strong>
                       <p>{item.value}</p>
                     </div>
                     <span>{item.share}</span>
@@ -434,190 +416,112 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="dashboard-panel-card dashboard-grid__tracking">
-            <CardHeader className="dashboard-panel-card__header">
-              <div>
-                <CardTitle>{t('Order Tracking', { defaultValue: 'Order Tracking' })}</CardTitle>
-                <CardDescription>
-                  {trackingShipment
-                    ? t('Latest shipment progress based on real shipment history records.', {
-                      defaultValue: 'Latest shipment progress based on real shipment history records.',
-                    })
-                    : t('Tracking will appear here when a recent shipment is available.', {
-                      defaultValue: 'Tracking will appear here when a recent shipment is available.',
-                    })}
-                </CardDescription>
-              </div>
-              <Link className="dashboard-panel-link" to={adminPath('/shipments')}>
-                {t('Track another shipment', { defaultValue: 'Track another shipment' })}
-              </Link>
-            </CardHeader>
-            <CardContent className="page-stack">
-              {trackingShipmentQuery.isLoading ? <ChartSkeleton /> : null}
-              {trackingShipmentQuery.isError ? (
-                <ErrorState
-                  title={t('Shipment tracking failed', { defaultValue: 'Shipment tracking failed' })}
-                  message={getApiErrorMessage(trackingShipmentQuery.error)}
-                  onRetry={() => void trackingShipmentQuery.refetch()}
-                />
-              ) : null}
-              {!trackingShipment && !trackingShipmentQuery.isLoading && !trackingShipmentQuery.isError ? (
-                <EmptyState
-                  title={t('No tracking data', { defaultValue: 'No tracking data' })}
-                  description={t('Open Shipments to review tracking history once records are available.', {
-                    defaultValue: 'Open Shipments to review tracking history once records are available.',
-                  })}
-                  action={(
-                    <Link className="ui-link-reset" to={adminPath('/shipments')}>
-                      <Button variant="secondary">{t('Open Shipments', { defaultValue: 'Open Shipments' })}</Button>
-                    </Link>
-                  )}
-                />
-              ) : null}
-              {trackingShipment ? (
-                <>
-                  <div className="tracking-steps">
-                    {trackingSteps.map((step, index) => (
-                      <div key={step.id} className="tracking-step">
-                        <div className={`tracking-step__dot tracking-step__dot--${step.tone}`} />
-                        <div className="tracking-step__body">
-                          <strong>{step.label}</strong>
-                          <p>{formatDate(step.timestamp)}</p>
-                        </div>
-                        {index < trackingSteps.length - 1 ? <div className="tracking-step__line" /> : null}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="tracking-summary">
-                    <div>
-                      <span>{t('Shipment')}</span>
-                      <strong>{trackingShipment.shipment_number}</strong>
-                    </div>
-                    <div>
-                      <span>{t('Customer')}</span>
-                      <strong>{trackingShipment.customer_name}</strong>
-                    </div>
-                    <div>
-                      <span>{t('Courier', { defaultValue: 'Courier' })}</span>
-                      <strong>{trackingShipment.assigned_driver_name ?? t('Unassigned')}</strong>
-                    </div>
-                    <div>
-                      <span>{t('COD')}</span>
-                      <strong><MoneyDisplay value={trackingShipment.cod_amount} /></strong>
-                    </div>
-                  </div>
-                </>
-              ) : null}
-            </CardContent>
-        </Card>
-
         <Card className="dashboard-panel-card dashboard-grid__finance">
-            <CardHeader>
-              <CardTitle>{t('Finance Snapshot', { defaultValue: 'Finance Snapshot' })}</CardTitle>
-              <CardDescription>
-                {t('Revenue-related finance metrics from the documented overview endpoint.', {
-                  defaultValue: 'Revenue-related finance metrics from the documented overview endpoint.',
-                })}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="page-stack">
-              {financeOverviewQuery.isLoading ? <ChartSkeleton /> : null}
-              {financeOverviewQuery.isError ? (
-                <ErrorState
-                  title={t('Finance chart failed', { defaultValue: 'Finance chart failed' })}
-                  message={getApiErrorMessage(financeOverviewQuery.error)}
-                  onRetry={() => void financeOverviewQuery.refetch()}
-                />
-              ) : null}
-              {overview ? <FinanceOverviewChart overview={overview} /> : null}
-              {!financeOverviewQuery.isLoading && !financeOverviewQuery.isError && !overview ? (
-                <EmptyState
-                  title={t('No finance metrics', { defaultValue: 'No finance metrics' })}
-                  description={t('The API returned no finance overview.', { defaultValue: 'The API returned no finance overview.' })}
-                />
-              ) : null}
-            </CardContent>
+          <CardHeader>
+            <CardTitle>{t('Finance Snapshot', { defaultValue: 'Finance Snapshot' })}</CardTitle>
+            <CardDescription>
+              {t('Revenue-related finance metrics from the documented overview endpoint.', {
+                defaultValue: 'Revenue-related finance metrics from the documented overview endpoint.',
+              })}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="page-stack">
+            {financeOverviewQuery.isLoading ? <ChartSkeleton /> : null}
+            {financeOverviewQuery.isError ? (
+              <ErrorState
+                title={t('Finance chart failed', { defaultValue: 'Finance chart failed' })}
+                message={getApiErrorMessage(financeOverviewQuery.error)}
+                onRetry={() => void financeOverviewQuery.refetch()}
+              />
+            ) : null}
+            {overview ? <FinanceOverviewChart overview={overview} /> : null}
+            {!financeOverviewQuery.isLoading && !financeOverviewQuery.isError && !overview ? (
+              <EmptyState
+                title={t('No finance metrics', { defaultValue: 'No finance metrics' })}
+                description={t('The API returned no finance overview.', { defaultValue: 'The API returned no finance overview.' })}
+              />
+            ) : null}
+          </CardContent>
         </Card>
 
         <Card className="dashboard-panel-card dashboard-grid__shipments">
-            <CardHeader className="dashboard-panel-card__header">
-              <div>
-                <CardTitle>{t('Recent Shipments', { defaultValue: 'Recent Shipments' })}</CardTitle>
-                <CardDescription>
-                  {t('Fresh operational updates from the shipments API.', {
-                    defaultValue: 'Fresh operational updates from the shipments API.',
-                  })}
-                </CardDescription>
-              </div>
-              <Link className="dashboard-panel-link" to={adminPath('/shipments')}>
-                {t('View all', { defaultValue: 'View all' })}
-              </Link>
-            </CardHeader>
-            <CardContent className="page-stack">
-              {shipmentsQuery.isLoading ? <ChartSkeleton /> : null}
-              {shipmentsQuery.isError ? (
-                <ErrorState
-                  title={t('Recent shipments failed', { defaultValue: 'Recent shipments failed' })}
-                  message={getApiErrorMessage(shipmentsQuery.error)}
-                  onRetry={() => void shipmentsQuery.refetch()}
-                />
-              ) : null}
-              {!shipmentsQuery.isLoading && !shipmentsQuery.isError && recentShipments.length === 0 ? (
-                <EmptyState
-                  title={t('No recent shipments', { defaultValue: 'No recent shipments' })}
-                  description={t('The backend returned no recent shipments for the selected filters.', {
-                    defaultValue: 'The backend returned no recent shipments for the selected filters.',
-                  })}
-                />
-              ) : null}
-              {recentShipments.length ? (
-                <div className="activity-list">
-                  {recentShipments.map((shipment) => (
-                    <Link key={shipment.id} className="activity-row" to={adminPath(`/shipments/${shipment.id}`)}>
-                      <div>
-                        <p className="activity-row__title">{shipment.shipment_number}</p>
-                        <p className="activity-row__meta">{shipment.customer_name}</p>
-                      </div>
-                      <div className="activity-row__side">
-                        <StatusBadge value={shipment.status}>
-                          {pickDisplayLabel(shipment.status, shipment.status_label)}
-                        </StatusBadge>
-                        <p className="activity-row__meta">{formatDate(shipment.created_at)}</p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : null}
-            </CardContent>
+          <CardHeader className="dashboard-panel-card__header">
+            <div>
+              <CardTitle>{t('Recent Shipments', { defaultValue: 'Recent Shipments' })}</CardTitle>
+              <CardDescription>
+                {t('Fresh operational updates from the shipments API.', {
+                  defaultValue: 'Fresh operational updates from the shipments API.',
+                })}
+              </CardDescription>
+            </div>
+            <Link className="dashboard-panel-link" to={adminPath('/shipments')}>
+              {t('View all shipments', { defaultValue: 'View all shipments' })} <ArrowRight size={14} />
+            </Link>
+          </CardHeader>
+          <CardContent className="page-stack">
+            {shipmentsQuery.isLoading ? <ChartSkeleton /> : null}
+            {shipmentsQuery.isError ? (
+              <ErrorState
+                title={t('Recent shipments failed', { defaultValue: 'Recent shipments failed' })}
+                message={getApiErrorMessage(shipmentsQuery.error)}
+                onRetry={() => void shipmentsQuery.refetch()}
+              />
+            ) : null}
+            {!shipmentsQuery.isLoading && !shipmentsQuery.isError && recentShipments.length === 0 ? (
+              <EmptyState
+                title={t('No recent shipments', { defaultValue: 'No recent shipments' })}
+                description={t('The backend returned no recent shipments for the selected filters.', {
+                  defaultValue: 'The backend returned no recent shipments for the selected filters.',
+                })}
+              />
+            ) : null}
+            {recentShipments.length ? (
+              <TableContainer>
+                <Table variant="compact">
+                  <thead><tr><TableHead>{t('Shipment')}</TableHead><TableHead>{t('Driver', { defaultValue: 'Driver' })}</TableHead><TableHead>{t('Status')}</TableHead><TableHead>{t('Area', { defaultValue: 'Area' })}</TableHead><TableHead>{t('Date', { defaultValue: 'Date' })}</TableHead></tr></thead>
+                  <tbody>
+                    {recentShipments.map((shipment) => (
+                      <tr key={shipment.id}>
+                        <TableCell><Link className="table-link" to={adminPath(`/shipments/${shipment.id}`)}>{shipment.shipment_number}</Link></TableCell>
+                        <TableCell>{shipment.assigned_driver_name ?? t('Unassigned')}</TableCell>
+                        <TableCell><StatusBadge value={shipment.status}>{pickDisplayLabel(shipment.status, shipment.status_label)}</StatusBadge></TableCell>
+                        <TableCell>{shipment.delivery_area_name ?? shipment.delivery_governorate_name}</TableCell>
+                        <TableCell>{formatDate(shipment.created_at)}</TableCell>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </TableContainer>
+            ) : null}
+          </CardContent>
         </Card>
 
         <Card className="dashboard-coverage-card dashboard-grid__coverage">
-            <CardContent className="dashboard-coverage-card__content">
-              <div className="dashboard-coverage-card__copy">
-                <span className="eyebrow">{t('Fulfillment Coverage', { defaultValue: 'Fulfillment Coverage' })}</span>
-                <h3>{t('Keep orders, inventory, and dispatch aligned nationwide.', {
-                  defaultValue: 'Keep orders, inventory, and dispatch aligned nationwide.',
-                })}</h3>
-                <p>{t('Use Warehouses, Shipments, and Orders to coordinate the full logistics workflow from one place.', {
-                  defaultValue: 'Use Warehouses, Shipments, and Orders to coordinate the full logistics workflow from one place.',
-                })}</p>
-              </div>
-              <div className="dashboard-coverage-card__actions">
-                <Link className="ui-link-reset" to={adminPath('/warehouses')}>
-                  <Button variant="secondary">
-                    <Boxes size={16} />
-                    {t('Open Warehouses', { defaultValue: 'Open Warehouses' })}
-                  </Button>
-                </Link>
-                <Link className="ui-link-reset" to={adminPath('/shipments')}>
-                  <Button>
-                    {t('See Shipments', { defaultValue: 'See Shipments' })}
-                    <ArrowRight size={16} />
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
+          <CardContent className="dashboard-coverage-card__content">
+            <div className="dashboard-coverage-card__copy">
+              <span className="eyebrow">{t('Fulfillment Coverage', { defaultValue: 'Fulfillment Coverage' })}</span>
+              <h3>{t('Keep orders, inventory, and dispatch aligned nationwide.', {
+                defaultValue: 'Keep orders, inventory, and dispatch aligned nationwide.',
+              })}</h3>
+              <p>{t('Use Warehouses, Shipments, and Orders to coordinate the full logistics workflow from one place.', {
+                defaultValue: 'Use Warehouses, Shipments, and Orders to coordinate the full logistics workflow from one place.',
+              })}</p>
+            </div>
+            <div className="dashboard-coverage-card__actions">
+              <Link className="ui-link-reset" to={adminPath('/warehouses')}>
+                <Button variant="secondary">
+                  <Boxes size={16} />
+                  {t('Open Warehouses', { defaultValue: 'Open Warehouses' })}
+                </Button>
+              </Link>
+              <Link className="ui-link-reset" to={adminPath('/shipments')}>
+                <Button>
+                  {t('See Shipments', { defaultValue: 'See Shipments' })}
+                  <ArrowRight size={16} />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
         </Card>
       </div>
     </section>

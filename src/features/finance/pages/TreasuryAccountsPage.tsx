@@ -15,7 +15,13 @@ import { adminPath } from '../../../shared/routing/paths'
 
 const initialStatus = ''
 
-export function TreasuryAccountsPage() {
+export function TreasuryAccountsPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const [status, setStatus] = useState(initialStatus)
 
@@ -24,6 +30,8 @@ export function TreasuryAccountsPage() {
       <ResourceListPage<TreasuryAccount>
         title={t('Treasury Accounts')}
         description={t('Treasury account balances and statuses returned by finance APIs.', { defaultValue: 'Treasury account balances and statuses returned by finance APIs.' })}
+        hideHeader={embedded}
+        onCountChange={onCountChange}
         actions={(
           <Can permission={PERMISSIONS.FINANCE_TREASURY_CREATE}>
             <Link className="ui-link-reset" to={adminPath('/finance/treasury/accounts/create')}>
@@ -73,4 +81,8 @@ export function TreasuryAccountsPage() {
       />
     </section>
   )
+}
+
+export function TreasuryAccountsPage() {
+  return <TreasuryAccountsPanel />
 }

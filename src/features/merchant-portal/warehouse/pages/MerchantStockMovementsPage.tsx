@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 import { getApiErrorMessage } from '../../../../shared/api/api-error'
 import { EmptyState } from '../../../../shared/components/states/EmptyState'
@@ -56,7 +56,7 @@ export function MerchantStockMovementsPage() {
     if (isError) {
       return (
         <ErrorState
-          message={getApiErrorMessage(error, t('Failed to load stock movements.'))}
+          message={getApiErrorMessage(error)}
           onRetry={refetch}
         />
       )

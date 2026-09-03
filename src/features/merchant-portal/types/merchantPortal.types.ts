@@ -43,6 +43,10 @@ export type MerchantPortalDashboardSummaryResponse = {
     total_available_quantity: number
     total_reserved_quantity: number
     inbound_requests_pending_count: number
+    total_products?: number
+    total_stock?: number
+    low_stock_products?: number
+    total_inbound_requests?: number
   } | null
   finance?: {
     available_balance: string | number

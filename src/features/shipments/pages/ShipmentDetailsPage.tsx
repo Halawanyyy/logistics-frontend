@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { inferStatAccent, type StatAccent } from '../../../shared/utils/statAccent'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
@@ -6,7 +7,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
 import { getOrder } from '../../orders/api/orders.api'
-import { getShipmentLabel, getShipmentWaybill } from '../../../shared/api/labels.api'
+import { getShipmentLabel } from '../../../shared/api/labels.api'
 import {
   assignShipmentDriver,
   completeShipmentDelivery,
@@ -27,7 +28,6 @@ import { getApiErrorMessage, isApiNotFound } from '../../../shared/api/api-error
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { hasPermission } from '../../../shared/auth/permissions'
-import { ApprovalActionButtons } from '../../../shared/components/actions/ApprovalActionButtons'
 import { Attachments } from '../../../shared/components/attachments/Attachments'
 import { FieldError } from '../../../shared/components/forms/FieldError'
 import { LabelDocumentDialog } from '../../../shared/components/labels/LabelDocumentDialog'
@@ -82,6 +82,16 @@ const shipmentStatuses: ShipmentStatus[] = [
   'returned_to_warehouse',
   'cancelled',
 ]
+
+const terminalShipmentStatuses = new Set<string>([
+  'delivered',
+  'returned',
+  'cancelled',
+  'partially_delivered',
+  'failed',
+  'returned_to_hub',
+  'returned_to_warehouse',
+])
 
 const manualShipmentStatuses = shipmentStatuses.filter((status) => !['delivered', 'partially_delivered', 'failed'].includes(status))
 
@@ -618,7 +628,7 @@ export function ShipmentDetailsPage() {
   const [assignOpen, setAssignOpen] = useState(false)
   const [completeDeliveryOpen, setCompleteDeliveryOpen] = useState(false)
   const [deliveryAttemptOpen, setDeliveryAttemptOpen] = useState(false)
-  const [shipmentLabelOpen, setShipmentLabelOpen] = useState(false)
+
   const [printOpen, setPrintOpen] = useState(false)
   const [printData, setPrintData] = useState<ShipmentPrintListResponse['data'] | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
@@ -742,9 +752,12 @@ export function ShipmentDetailsPage() {
   const shipment = query.data.data
   const order = orderQuery.data?.data
   const orderItems = order?.items ?? []
-  const canAssignDriver = !['delivered', 'cancelled'].includes(shipment.status)
-  const canCompleteDelivery = !['delivered', 'partially_delivered', 'failed', 'cancelled', 'returned', 'returned_to_hub', 'returned_to_warehouse'].includes(shipment.status)
-  
+  const canUpdateStatus = hasPermission(user, PERMISSIONS.SHIPMENTS_UPDATE_STATUS)
+  const canAssignDriver = hasPermission(user, PERMISSIONS.SHIPMENTS_ASSIGN_DRIVER)
+  const canCreateDeliveryAttempt = hasPermission(user, PERMISSIONS.DELIVERY_ATTEMPTS_CREATE)
+  const isTerminalShipment = terminalShipmentStatuses.has(shipment.status)
+  const canRecordDeliveryAttempt = ['in_transit', 'out_for_delivery'].includes(shipment.status)
+  const canCompleteDelivery = shipment.status === 'delivery_attempted'
 
   const defaultPrintDate = shipment.histories[shipment.histories.length - 1]?.created_at?.slice(0, 10)
     ?? shipment.created_at.slice(0, 10)
@@ -759,54 +772,55 @@ export function ShipmentDetailsPage() {
         })}
         actions={
           <div className="page-header__button-row">
-            <Can permission={PERMISSIONS.SHIPMENTS_UPDATE_STATUS}>
-              {canAssignDriver ? (
-                <Button variant="secondary" onClick={() => setStatusOpen(true)}>
-                  {t('Update Status', { defaultValue: 'Update Status' })}
-                </Button>
-              ) : null}
-            </Can>
-            <Can permission={PERMISSIONS.SHIPMENTS_ASSIGN_DRIVER}>
-              {canAssignDriver ? (
-                <Button variant="secondary" onClick={() => setAssignOpen(true)}>
-                  {t('Assign Driver', { defaultValue: 'Assign Driver' })}
-                </Button>
-              ) : null}
-            </Can>
-            <Can permission={PERMISSIONS.DELIVERY_ATTEMPTS_CREATE}>
-              <Button variant="secondary" onClick={() => setDeliveryAttemptOpen(true)}>
+            {canAssignDriver && !isTerminalShipment ? (
+              <Button type="button" variant="secondary" onClick={() => setAssignOpen(true)}>
+                {shipment.assigned_driver_id
+                  ? t('Change Driver', { defaultValue: 'Change Driver' })
+                  : t('Assign Driver', { defaultValue: 'Assign Driver' })}
+              </Button>
+            ) : null}
+            {canUpdateStatus && !isTerminalShipment ? (
+              <Button type="button" onClick={() => setStatusOpen(true)}>
+                {t('Update Status', { defaultValue: 'Update Status' })}
+              </Button>
+            ) : null}
+            {canCreateDeliveryAttempt && canRecordDeliveryAttempt ? (
+              <Button type="button" variant="secondary" onClick={() => setDeliveryAttemptOpen(true)}>
                 {t('Add Delivery Attempt', { defaultValue: 'Add Delivery Attempt' })}
               </Button>
-            </Can>
-            <Can permission={PERMISSIONS.SHIPMENTS_UPDATE_STATUS}>
-              {canCompleteDelivery ? (
-                <Button variant="secondary" onClick={() => setCompleteDeliveryOpen(true)}>
-                  {t('Complete Delivery', { defaultValue: 'Complete Delivery' })}
-                </Button>
-              ) : null}
-            </Can>
+            ) : null}
+            {canUpdateStatus && canCompleteDelivery ? (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={orderQuery.isLoading || !orderItems.length}
+                onClick={() => setCompleteDeliveryOpen(true)}
+              >
+                {t('Complete Delivery', { defaultValue: 'Complete Delivery' })}
+              </Button>
+            ) : null}
             <Can permission={PERMISSIONS.SHIPMENTS_PRINT}>
               <Button variant="secondary" onClick={() => setPrintOpen(true)} loading={printMutation.isPending}>
                 {t('Load Print View', { defaultValue: 'Load Print View' })}
               </Button>
             </Can>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                logShipmentLabelEntry('ShipmentDetailsPage label action clicked', {
+            <LabelDocumentDialog
+              defaultFormat="html"
+              fetchDocument={(options) => {
+                logShipmentLabelEntry('ShipmentDetailsPage label action invoked', {
                   shipmentId: shipment.id,
                   shipmentNumber: shipment.shipment_number,
                 })
-                setShipmentLabelOpen(true)
+
+                return getShipmentPrintableLabelDocument({
+                  fetchDocument: (requestOptions) => getShipmentLabel(shipment.id, requestOptions),
+                  locale,
+                  options,
+                  shipment,
+                  t,
+                })
               }}
-            >
-              {t('Label', { defaultValue: 'Label' })}
-            </Button>
-            <LabelDocumentDialog
-              defaultFormat="html"
               formats={['html', 'pdf']}
-              fetchDocument={(options) => getShipmentWaybill(shipment.id, options)}
               title={t('Shipment Waybill - {{shipmentNumber}}', {
                 shipmentNumber: shipment.shipment_number,
                 defaultValue: `Shipment Waybill - ${shipment.shipment_number}`,
@@ -944,11 +958,6 @@ export function ShipmentDetailsPage() {
                 defaultValue: 'Driver attempts linked to this shipment.',
               })}</CardDescription>
             </div>
-            <Can permission={PERMISSIONS.DELIVERY_ATTEMPTS_CREATE}>
-              <Button variant="secondary" onClick={() => setDeliveryAttemptOpen(true)}>
-                {t('Add Delivery Attempt', { defaultValue: 'Add Delivery Attempt' })}
-              </Button>
-            </Can>
           </CardHeader>
           <CardContent>
             {attemptsQuery.isLoading ? <LoadingState title={t('Loading delivery attempts', { defaultValue: 'Loading delivery attempts' })} /> : null}
@@ -1011,20 +1020,11 @@ export function ShipmentDetailsPage() {
       <Card className="table-card">
         <CardHeader className="section-title-row">
           <div>
-            <CardTitle>{t('Complete Delivery', { defaultValue: 'Complete Delivery' })}</CardTitle>
-            <CardDescription>{t('Item-level delivery results and returned/damaged warehouse handling.', {
-              defaultValue: 'Item-level delivery results and returned/damaged warehouse handling.',
+            <CardTitle>{t('Delivery Item Results', { defaultValue: 'Delivery Item Results' })}</CardTitle>
+            <CardDescription>{t('Recorded item-level delivery results and returned or damaged warehouse handling.', {
+              defaultValue: 'Recorded item-level delivery results and returned or damaged warehouse handling.',
             })}</CardDescription>
           </div>
-          <Can permission={PERMISSIONS.SHIPMENTS_UPDATE_STATUS}>
-            <ApprovalActionButtons
-              complete={{
-                label: t('Complete Delivery', { defaultValue: 'Complete Delivery' }),
-                onClick: () => setCompleteDeliveryOpen(true),
-                disabled: !canCompleteDelivery || !orderItems.length,
-              }}
-            />
-          </Can>
         </CardHeader>
         <CardContent>
           {orderQuery.isLoading ? (
@@ -1164,29 +1164,35 @@ export function ShipmentDetailsPage() {
         </PrintView>
       ) : null}
 
-      <UpdateStatusDialog
-        error={statusMutation.error}
-        isSubmitting={statusMutation.isPending}
-        onClose={() => setStatusOpen(false)}
-        onSubmit={(values) => statusMutation.mutate(values)}
-        open={statusOpen}
-        currentStatus={shipment.status}
-      />
-      <AssignDriverDialog
-        currentDriverId={shipment.assigned_driver_id}
-        error={assignMutation.error}
-        isSubmitting={assignMutation.isPending}
-        onClose={() => setAssignOpen(false)}
-        onSubmit={(values) => assignMutation.mutate(values)}
-        open={assignOpen}
-      />
-      <DeliveryAttemptDialog
-        error={deliveryAttemptMutation.error}
-        isSubmitting={deliveryAttemptMutation.isPending}
-        onClose={() => setDeliveryAttemptOpen(false)}
-        onSubmit={(values) => deliveryAttemptMutation.mutate(values)}
-        open={deliveryAttemptOpen}
-      />
+      {!isTerminalShipment ? (
+        <UpdateStatusDialog
+          error={statusMutation.error}
+          isSubmitting={statusMutation.isPending}
+          onClose={() => setStatusOpen(false)}
+          onSubmit={(values) => statusMutation.mutate(values)}
+          open={statusOpen}
+          currentStatus={shipment.status}
+        />
+      ) : null}
+      {!isTerminalShipment ? (
+        <AssignDriverDialog
+          currentDriverId={shipment.assigned_driver_id}
+          error={assignMutation.error}
+          isSubmitting={assignMutation.isPending}
+          onClose={() => setAssignOpen(false)}
+          onSubmit={(values) => assignMutation.mutate(values)}
+          open={assignOpen}
+        />
+      ) : null}
+      {canRecordDeliveryAttempt ? (
+        <DeliveryAttemptDialog
+          error={deliveryAttemptMutation.error}
+          isSubmitting={deliveryAttemptMutation.isPending}
+          onClose={() => setDeliveryAttemptOpen(false)}
+          onSubmit={(values) => deliveryAttemptMutation.mutate(values)}
+          open={deliveryAttemptOpen}
+        />
+      ) : null}
       <ShipmentPrintDialog
         error={printMutation.error}
         initialDate={defaultPrintDate}
@@ -1205,49 +1211,26 @@ export function ShipmentDetailsPage() {
         }}
         open={printOpen}
       />
-      <LabelDocumentDialog
-        defaultFormat="html"
-        fetchDocument={(options) => {
-          logShipmentLabelEntry('ShipmentDetailsPage label action invoked', {
-            shipmentId: shipment.id,
-            shipmentNumber: shipment.shipment_number,
-          })
 
-          return getShipmentPrintableLabelDocument({
-            fetchDocument: (requestOptions) => getShipmentLabel(shipment.id, requestOptions),
-            locale,
-            options,
-            shipment,
-            t,
-          })
-        }}
-        formats={['html', 'pdf']}
-        hideTrigger
-        onOpenChange={setShipmentLabelOpen}
-        open={shipmentLabelOpen}
-        title={t('Shipment Label - {{shipmentNumber}}', {
-          shipmentNumber: shipment.shipment_number,
-          defaultValue: `Shipment Label - ${shipment.shipment_number}`,
-        })}
-        triggerLabel={t('Label', { defaultValue: 'Label' })}
-      />
-      <CompleteDeliveryDialog
-        error={completeDeliveryMutation.error}
-        fulfillmentType={shipment.fulfillment_type}
-        isSubmitting={completeDeliveryMutation.isPending}
-        merchantId={shipment.merchant_id}
-        onClose={() => setCompleteDeliveryOpen(false)}
-        onSubmit={(values) => completeDeliveryMutation.mutate(values)}
-        open={completeDeliveryOpen}
-        orderItems={orderItems}
-      />
+      {canCompleteDelivery ? (
+        <CompleteDeliveryDialog
+          error={completeDeliveryMutation.error}
+          fulfillmentType={shipment.fulfillment_type}
+          isSubmitting={completeDeliveryMutation.isPending}
+          merchantId={shipment.merchant_id}
+          onClose={() => setCompleteDeliveryOpen(false)}
+          onSubmit={(values) => completeDeliveryMutation.mutate(values)}
+          open={completeDeliveryOpen}
+          orderItems={orderItems}
+        />
+      ) : null}
     </section>
   )
 }
 
-function StatTile({ label, value }: { label: string; value: string | number | ReactNode }) {
+function StatTile({ accent, label, value }: { accent?: StatAccent; label: string; value: string | number | ReactNode }) {
   return (
-    <Card variant="stat" className="stat-card stat-card--neutral">
+    <Card variant="stat" className="stat-card stat-card--neutral" data-accent={accent ?? inferStatAccent(label, 'shipments')}>
       <CardHeader className="stat-card__header">
         <span className="eyebrow">{label}</span>
       </CardHeader>

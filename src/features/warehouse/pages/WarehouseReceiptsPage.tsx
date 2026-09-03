@@ -279,7 +279,13 @@ function WarehouseReceiptFormDialog({
   )
 }
 
-export function WarehouseReceiptsPage() {
+export function WarehouseReceiptsPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const [successMessage, setSuccessMessage] = useState('')
@@ -335,9 +341,15 @@ export function WarehouseReceiptsPage() {
   const receipts = query.data?.data ?? []
   const formMutation = receiptInForm?.id ? updateMutation : createMutation
 
+  useEffect(() => {
+    if (query.data) {
+      onCountChange?.(query.data.data.length)
+    }
+  }, [onCountChange, query.data])
+
   return (
     <section className="page-section page-section--with-sidebar">
-      <PageHeader
+      {!embedded ? <PageHeader
         title={t('Warehouse Receipts')}
         description={t('Inbound merchant receipts, draft review, and stock-in confirmation.')}
         actions={
@@ -345,7 +357,7 @@ export function WarehouseReceiptsPage() {
             {t('Create Receipt')}
           </Button>
         }
-      />
+      /> : null}
 
       <aside className="page-sidebar-filters">
         <Card variant="flat" className="dashboard-filter-card">
@@ -511,4 +523,8 @@ export function WarehouseReceiptsPage() {
       </main>
     </section>
   )
+}
+
+export function WarehouseReceiptsPage() {
+  return <WarehouseReceiptsPanel />
 }

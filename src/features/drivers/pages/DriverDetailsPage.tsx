@@ -81,7 +81,7 @@ export function DriverDetailsPage() {
             </dl>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="stat-card" data-accent="drivers">
           <CardHeader><CardTitle>{t('Expected Cash', { defaultValue: 'Expected Cash' })}</CardTitle></CardHeader>
           <CardContent>
             {cashQuery.isLoading ? <LoadingState title={t('Loading expected cash', { defaultValue: 'Loading expected cash' })} /> : null}

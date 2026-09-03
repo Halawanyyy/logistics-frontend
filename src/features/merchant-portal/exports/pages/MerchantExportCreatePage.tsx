@@ -67,7 +67,6 @@ export function MerchantExportCreatePage() {
       <PageHeader
         title={t('Create Export', { defaultValue: 'Create Export' })}
         description={t('Request a new data export from your account.', { defaultValue: 'Request a new data export from your account.' })}
-        backTo={merchantPath('/exports')}
       />
 
       <Card>

@@ -7,6 +7,7 @@ type BarcodeScannerInputProps = {
   onScan: (value: string) => void
   autoFocus?: boolean
   clearOnScan?: boolean
+  className?: string
   disabled?: boolean
   placeholder?: string
 }
@@ -17,6 +18,7 @@ export function BarcodeScannerInput({
   onScan,
   autoFocus = false,
   clearOnScan = true,
+  className,
   disabled = false,
   placeholder = 'Scan or enter barcode',
 }: BarcodeScannerInputProps) {
@@ -30,6 +32,7 @@ export function BarcodeScannerInput({
 
   return (
     <Input
+      className={className}
       ref={inputRef}
       disabled={disabled}
       placeholder={placeholder}

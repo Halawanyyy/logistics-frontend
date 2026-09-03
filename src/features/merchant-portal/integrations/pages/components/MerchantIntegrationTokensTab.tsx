@@ -5,23 +5,23 @@ import {
   listMerchantIntegrationTokens,
   revokeMerchantIntegrationToken,
   deleteMerchantIntegrationToken,
-} from '../api/merchantPortalIntegrations.api'
-import type { MerchantIntegrationToken } from '../types/merchantPortalIntegrations.types'
-import { getApiErrorMessage } from '../../../../shared/api/api-error'
-import { CanMerchant } from '../../components/CanMerchant'
-import { Button } from '../../../../shared/components/ui/Button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../shared/components/ui/Card'
-import { Table, TableCell, TableContainer, TableHead } from '../../../../shared/components/ui/Table'
-import { StatusBadge } from '../../../../shared/components/ui/StatusBadge'
-import { LoadingState } from '../../../../shared/components/states/LoadingState'
-import { ErrorState } from '../../../../shared/components/states/ErrorState'
-import { EmptyState } from '../../../../shared/components/states/EmptyState'
-import { formatDate } from '../../../../shared/utils/formatters'
-import { ConfirmActionModal } from '../../../../shared/components/modals/ConfirmActionModal'
+} from '../../api/merchantPortalIntegrations.api'
+import type { MerchantIntegrationToken } from '../../types/merchantPortalIntegrations.types'
+import { getApiErrorMessage } from '../../../../../shared/api/api-error'
+import { CanMerchant } from '../../../components/CanMerchant'
+import { Button } from '../../../../../shared/components/ui/Button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../../shared/components/ui/Card'
+import { Table, TableCell, TableContainer, TableHead } from '../../../../../shared/components/ui/Table'
+import { StatusBadge } from '../../../../../shared/components/ui/StatusBadge'
+import { LoadingState } from '../../../../../shared/components/states/LoadingState'
+import { ErrorState } from '../../../../../shared/components/states/ErrorState'
+import { EmptyState } from '../../../../../shared/components/states/EmptyState'
+import { formatDate } from '../../../../../shared/utils/formatters'
+import { ConfirmActionModal } from '../../../../../shared/components/modals/ConfirmActionModal'
 import { MerchantCreateTokenModal } from './MerchantCreateTokenModal'
 import { MerchantTokenDetailsModal } from './MerchantTokenDetailsModal'
-import { Input } from '../../../../shared/components/ui/Input'
-import { Dialog } from '../../../../shared/components/ui/Dialog'
+import { Input } from '../../../../../shared/components/ui/Input'
+import { Dialog } from '../../../../../shared/components/ui/Dialog'
 
 export function MerchantIntegrationTokensTab() {
   const { t } = useTranslation()
@@ -145,7 +145,7 @@ export function MerchantIntegrationTokensTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tokens.map((token) => (
+                  {tokens.map((token: any) => (
                     <tr key={token.id}>
                       <TableCell>{token.name}</TableCell>
                       <TableCell><StatusBadge value={token.provider}>{token.provider}</StatusBadge></TableCell>
@@ -203,7 +203,6 @@ export function MerchantIntegrationTokensTab() {
             <ErrorState
               title={t('Failed to revoke token', { defaultValue: 'Failed to revoke token' })}
               message={getApiErrorMessage(revokeMutation.error)}
-              className="mb-4"
             />
           ) : null}
           <div className="form-group">

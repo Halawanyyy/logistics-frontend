@@ -45,7 +45,12 @@ export function MerchantInboundRequestsPage() {
     queryFn: () => listMerchantPortalInboundRequests(page, params),
   })
 
-    function handleClearFilters() {
+    function handleFilterChange(key: string, value: any) {
+    setFilters((prev: any) => ({ ...prev, [key]: value }))
+    setPage(1)
+  }
+
+  function handleClearFilters() {
     setFilters({ ...initialFilters })
     setPage(1)
   }
@@ -60,7 +65,7 @@ export function MerchantInboundRequestsPage() {
     if (isError) {
       return (
         <ErrorState
-          message={getApiErrorMessage(error, t('Failed to load inbound requests.'))}
+          message={getApiErrorMessage(error)}
           onRetry={refetch}
         />
       )

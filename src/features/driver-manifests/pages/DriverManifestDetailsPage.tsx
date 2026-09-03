@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { inferStatAccent, type StatAccent } from '../../../shared/utils/statAccent'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -29,6 +30,29 @@ import { DriverManifestPrintDialog } from '../components/DriverManifestPrintDial
 type CloseManifestFormValues = {
   actual_received_amount: number
   notes: string
+}
+
+function getManifestStatusAccent(status: string): StatAccent {
+  if (status === 'closed') {
+    return 'success'
+  }
+  if (status === 'cancelled') {
+    return 'danger'
+  }
+  if (status === 'open' || status === 'dispatched') {
+    return 'warning'
+  }
+  return 'drivers'
+}
+
+function getLoadoutRowClass(status: string) {
+  if (status === 'loaded' || status === 'out_for_delivery') {
+    return 'manifest-shipment-row manifest-shipment-row--loaded'
+  }
+  if (status === 'pending' || status === 'ready_for_dispatch') {
+    return 'manifest-shipment-row manifest-shipment-row--pending'
+  }
+  return 'manifest-shipment-row'
 }
 
 function CloseManifestDialog({
@@ -84,7 +108,7 @@ function CloseManifestDialog({
           <Input {...register('notes')} />
           <FieldError error={errors.notes?.message ?? getFieldError('notes')} />
         </label>
-        {formError ? <div className="form-error">{formError}</div> : null}
+        {formError ? <div className="form-error" role="alert">{formError}</div> : null}
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
             {t('Cancel')}
@@ -140,6 +164,15 @@ export function DriverManifestDetailsPage() {
   }
 
   const manifest = query.data.data
+  const isOpenForClosure = manifest.status === 'open' || manifest.status === 'dispatched'
+  const undeliveredShipments = manifest.items.filter((item) => item.current_status !== 'delivered')
+  const canCloseManifest = isOpenForClosure && manifest.items.length > 0 && undeliveredShipments.length === 0
+  const hasCashDifference = Number(manifest.summary.difference_amount ?? 0) !== 0
+  const totalCod = manifest.items.reduce((total, item) => total + Number(item.cod_amount || 0), 0)
+  const totalDeliveredCod = manifest.items.reduce(
+    (total, item) => total + Number(item.delivered_cod_amount || 0),
+    0,
+  )
 
   return (
     <section className="page-section">
@@ -158,7 +191,7 @@ export function DriverManifestDetailsPage() {
               </Button>
             </Can>
             <Can permission={PERMISSIONS.DRIVER_MANIFESTS_CLOSE}>
-              {manifest.status === 'open' ? (
+              {canCloseManifest ? (
                 <Button type="button" variant="secondary" onClick={() => setCloseOpen(true)}>
                   {t('Close Manifest', { defaultValue: 'Close Manifest' })}
                 </Button>
@@ -171,14 +204,14 @@ export function DriverManifestDetailsPage() {
         )}
       />
 
-      {closeMutation.error ? <div className="form-error">{getApiErrorMessage(closeMutation.error)}</div> : null}
+      {closeMutation.error ? <div className="form-error" role="alert">{getApiErrorMessage(closeMutation.error)}</div> : null}
 
       <div className="stats-grid">
-        <StatTile label={t('Status')} value={<StatusBadge value={manifest.status} />} />
-        <StatTile label={t('Total Shipments', { defaultValue: 'Total Shipments' })} value={manifest.summary.total_shipments} />
-        <StatTile label={t('Expected COD', { defaultValue: 'Expected COD' })} value={<MoneyDisplay value={manifest.summary.expected_cod_amount} />} />
-        <StatTile label={t('Actual Received', { defaultValue: 'Actual Received' })} value={<MoneyDisplay value={manifest.summary.actual_received_amount} />} />
-        <StatTile label={t('Difference', { defaultValue: 'Difference' })} value={<MoneyDisplay value={manifest.summary.difference_amount} />} />
+        <StatTile accent={getManifestStatusAccent(manifest.status)} label={t('Status')} value={<StatusBadge value={manifest.status} />} />
+        <StatTile accent="shipments" label={t('Total Shipments', { defaultValue: 'Total Shipments' })} value={manifest.summary.total_shipments} />
+        <StatTile accent="finance" label={t('Expected COD', { defaultValue: 'Expected COD' })} value={<MoneyDisplay value={manifest.summary.expected_cod_amount} />} />
+        <StatTile accent="success" label={t('Actual Received', { defaultValue: 'Actual Received' })} value={<MoneyDisplay value={manifest.summary.actual_received_amount} />} />
+        <StatTile accent={hasCashDifference ? 'danger' : 'success'} label={t('Difference', { defaultValue: 'Difference' })} value={<MoneyDisplay value={manifest.summary.difference_amount} />} />
       </div>
 
       <div className="details-grid">
@@ -204,12 +237,28 @@ export function DriverManifestDetailsPage() {
           </CardContent>
         </Card>
 
-        <Card className="detail-card">
+        <Card className={`detail-card manifest-cash-closure${canCloseManifest ? ' manifest-cash-closure--required' : ''}`}>
           <CardHeader>
-            <CardTitle>{t('Cash Closure', { defaultValue: 'Cash Closure' })}</CardTitle>
-            <CardDescription>{t('COD expectation and discrepancy snapshot returned by backend.', {
-              defaultValue: 'COD expectation and discrepancy snapshot returned by backend.',
-            })}</CardDescription>
+            <CardTitle>
+              {canCloseManifest
+                ? t('Cash Closure Required', { defaultValue: 'Cash Closure Required' })
+                : isOpenForClosure
+                  ? t('Delivery Completion Required', { defaultValue: 'Delivery Completion Required' })
+                  : t('Cash Closure', { defaultValue: 'Cash Closure' })}
+            </CardTitle>
+            <CardDescription>
+              {canCloseManifest
+                ? t('Enter the actual received amount to close this manifest.', {
+                    defaultValue: 'Enter the actual received amount to close this manifest.',
+                  })
+                : isOpenForClosure
+                  ? t('Every shipment must be delivered before cash closure becomes available.', {
+                      defaultValue: 'Every shipment must be delivered before cash closure becomes available.',
+                    })
+                  : t('COD expectation and discrepancy snapshot returned by backend.', {
+                      defaultValue: 'COD expectation and discrepancy snapshot returned by backend.',
+                    })}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {manifest.cash_closure ? (
@@ -221,12 +270,30 @@ export function DriverManifestDetailsPage() {
                 <div><dt>{t('Closed By', { defaultValue: 'Closed By' })}</dt><dd>{manifest.closed_by_name ?? '-'}</dd></div>
                 <div><dt>{t('Closed At', { defaultValue: 'Closed At' })}</dt><dd>{manifest.closed_at ? formatDate(manifest.closed_at) : '-'}</dd></div>
               </dl>
+            ) : canCloseManifest ? (
+              <div className="manifest-cash-closure__action">
+                <p>{t('Cash collection is still pending verification for this driver manifest.', {
+                  defaultValue: 'Cash collection is still pending verification for this driver manifest.',
+                })}</p>
+                <Can permission={PERMISSIONS.DRIVER_MANIFESTS_CLOSE}>
+                  <Button type="button" onClick={() => setCloseOpen(true)}>
+                    {t('Enter Received Amount', { defaultValue: 'Enter Received Amount' })}
+                  </Button>
+                </Can>
+              </div>
             ) : (
               <EmptyState
-                title={t('Manifest still open', { defaultValue: 'Manifest still open' })}
-                description={t('Cash closure details will appear after the manifest is closed.', {
-                  defaultValue: 'Cash closure details will appear after the manifest is closed.',
-                })}
+                title={isOpenForClosure
+                  ? t('Deliver all shipments first', { defaultValue: 'Deliver all shipments first' })
+                  : t('Manifest closed', { defaultValue: 'Manifest closed' })}
+                description={isOpenForClosure
+                  ? t('{{count}} shipment(s) are not delivered yet. Complete their delivery before closing the manifest.', {
+                      count: undeliveredShipments.length,
+                      defaultValue: `${undeliveredShipments.length} shipment(s) are not delivered yet. Complete their delivery before closing the manifest.`,
+                    })
+                  : t('Cash closure details are not available for this manifest.', {
+                      defaultValue: 'Cash closure details are not available for this manifest.',
+                    })}
               />
             )}
           </CardContent>
@@ -257,31 +324,44 @@ export function DriverManifestDetailsPage() {
                 </tr>
               </thead>
               <tbody>
-                {manifest.items.map((item) => (
-                  <tr key={item.id}>
-                    <TableCell>
-                      <Link className="table-link" to={adminPath(`/shipments/${item.shipment_id}`)}>
-                        {item.shipment_number}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link className="table-link" to={adminPath(`/orders/${item.order_id}`)}>
-                        {item.order_number}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{item.merchant_name}</TableCell>
-                    <TableCell>
-                      {item.customer_name}
-                      <p className="table-meta">{item.customer_phone}</p>
-                    </TableCell>
-                    <TableCell>{item.delivery_address}</TableCell>
-                    <TableCell><StatusBadge value={item.shipment_status_at_loadout} /></TableCell>
-                    <TableCell>{item.final_status ? <StatusBadge value={item.final_status} /> : '-'}</TableCell>
-                    <TableCell><MoneyDisplay value={item.cod_amount} /></TableCell>
-                    <TableCell><MoneyDisplay value={item.delivered_cod_amount} /></TableCell>
-                  </tr>
-                ))}
+                {manifest.items.map((item) => {
+                  const loadoutStatus = item.loadout_status ?? item.shipment_status_at_loadout
+
+                  return (
+                    <tr className={getLoadoutRowClass(loadoutStatus)} key={item.id}>
+                      <TableCell>
+                        <Link className="table-link" to={adminPath(`/shipments/${item.shipment_id}`)}>
+                          {item.shipment_number}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Link className="table-link" to={adminPath(`/orders/${item.order_id}`)}>
+                          {item.order_number}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{item.merchant_name}</TableCell>
+                      <TableCell>
+                        {item.customer_name}
+                        <p className="table-meta">{item.customer_phone}</p>
+                      </TableCell>
+                      <TableCell>{item.delivery_address}</TableCell>
+                      <TableCell><StatusBadge value={loadoutStatus} /></TableCell>
+                      <TableCell>{item.final_status ? <StatusBadge value={item.final_status} /> : '-'}</TableCell>
+                      <TableCell><MoneyDisplay value={item.cod_amount} /></TableCell>
+                      <TableCell><MoneyDisplay value={item.delivered_cod_amount} /></TableCell>
+                    </tr>
+                  )
+                })}
               </tbody>
+              <tfoot>
+                <tr className="manifest-shipments-total-row">
+                  <td className="ui-table__cell manifest-shipments-total-row__label" colSpan={7}>
+                    {t('Total', { defaultValue: 'Total' })}
+                  </td>
+                  <TableCell><MoneyDisplay value={totalCod} /></TableCell>
+                  <TableCell><MoneyDisplay value={totalDeliveredCod} /></TableCell>
+                </tr>
+              </tfoot>
             </Table>
           </TableContainer>
         </CardContent>
@@ -313,9 +393,9 @@ export function DriverManifestDetailsPage() {
   )
 }
 
-function StatTile({ label, value }: { label: string; value: string | number | ReactNode }) {
+function StatTile({ accent, label, value }: { accent?: StatAccent; label: string; value: string | number | ReactNode }) {
   return (
-    <Card variant="stat" className="stat-card stat-card--neutral">
+    <Card variant="stat" className="stat-card stat-card--neutral" data-accent={accent ?? inferStatAccent(label, 'drivers')}>
       <CardHeader className="stat-card__header">
         <span className="eyebrow">{label}</span>
       </CardHeader>

@@ -11,7 +11,16 @@ export function useFormApiErrors(error?: unknown) {
   }, [error])
 
   function getFieldErrors(name: string) {
-    return normalizedError?.fieldErrors[name] ?? []
+    if (!normalizedError) {
+      return []
+    }
+
+    const directErrors = normalizedError.fieldErrors[name] ?? []
+    const nestedErrors = Object.entries(normalizedError.fieldErrors)
+      .filter(([fieldName]) => fieldName.startsWith(`${name}.`))
+      .flatMap(([, errors]) => errors)
+
+    return Array.from(new Set([...directErrors, ...nestedErrors]))
   }
 
   function getFieldError(name: string) {
@@ -25,7 +34,8 @@ export function useFormApiErrors(error?: unknown) {
     ),
   )
 
-  const formError = normalizedError && !normalizedError.isValidationError
+  const hasFieldErrors = Boolean(normalizedError && Object.keys(normalizedError.fieldErrors).length > 0)
+  const formError = normalizedError && (!normalizedError.isValidationError || !hasFieldErrors)
     ? normalizedError.message
     : null
 

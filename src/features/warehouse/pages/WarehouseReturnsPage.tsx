@@ -12,23 +12,28 @@ import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { useTranslation } from 'react-i18next'
 
 const initialFilters = {
-  shipment_id: '',
-  order_id: '',
   warehouse_id: '',
   merchant_id: '',
-  warehouse_product_id: '',
   condition: '',
   status: '',
   date_from: '',
   date_to: '',
 }
 
-export function WarehouseReturnsPage() {
+export function WarehouseReturnsPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const params = compactFilters(filters)
   return (
     <ResourceListPage<WarehouseReturn>
+      hideHeader={embedded}
+      onCountChange={onCountChange}
       title={t('Warehouse Returns')}
       description={t('Returned warehouse items and their stock condition.')}
       actions={<Can permission={PERMISSIONS.WAREHOUSE_RETURNS_CREATE}><Link className="ui-link-reset" to="/warehouse-returns/create"><Button>{t('Create Return')}</Button></Link></Can>}
@@ -38,11 +43,8 @@ export function WarehouseReturnsPage() {
         <ApiFilterBar
           filters={filters}
           fields={[
-            { label: t('Shipment ID'), name: 'shipment_id', type: 'number' },
-            { label: t('Order ID'), name: 'order_id', type: 'number' },
-            { label: t('Warehouse ID'), name: 'warehouse_id', type: 'number' },
-            { label: t('Merchant ID'), name: 'merchant_id', type: 'number' },
-            { label: t('Product ID'), name: 'warehouse_product_id', type: 'number' },
+            { label: t('Warehouse', { defaultValue: 'Warehouse' }), name: 'warehouse_id', type: 'warehouse' },
+            { label: t('Merchant', { defaultValue: 'Merchant' }), name: 'merchant_id', type: 'merchant' },
             { label: t('Condition'), name: 'condition', type: 'select', options: [{ label: t('sellable'), value: 'sellable' }, { label: t('damaged'), value: 'damaged' }, { label: t('disposed'), value: 'disposed' }] },
             { label: t('Status'), name: 'status', type: 'select', options: [{ label: t('pending'), value: 'pending' }, { label: t('received'), value: 'received' }, { label: t('inspected'), value: 'inspected' }, { label: t('restocked'), value: 'restocked' }, { label: t('damaged'), value: 'damaged' }, { label: t('rejected'), value: 'rejected' }, { label: t('closed'), value: 'closed' }] },
             { label: t('Date From'), name: 'date_from', type: 'date' },
@@ -62,4 +64,8 @@ export function WarehouseReturnsPage() {
       ]}
     />
   )
+}
+
+export function WarehouseReturnsPage() {
+  return <WarehouseReturnsPanel />
 }

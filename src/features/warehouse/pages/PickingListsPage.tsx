@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
@@ -177,7 +177,13 @@ function GeneratePickingListDialog({
   )
 }
 
-export function PickingListsPage() {
+export function PickingListsPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [generateOpen, setGenerateOpen] = useState(false)
@@ -211,9 +217,15 @@ export function PickingListsPage() {
   })
   const pickingLists = pickingListsQuery.data?.data ?? []
 
+  useEffect(() => {
+    if (pickingListsQuery.data) {
+      onCountChange?.(pickingListsQuery.data.data.length)
+    }
+  }, [onCountChange, pickingListsQuery.data])
+
   return (
     <section className="page-section">
-      <PageHeader
+      {!embedded ? <PageHeader
         title={t('Picking Lists', { defaultValue: 'Picking Lists' })}
         description={t('Generate and manage warehouse picking lists for from_warehouse orders.', { defaultValue: 'Generate and manage warehouse picking lists for from_warehouse orders.' })}
         actions={(
@@ -223,7 +235,7 @@ export function PickingListsPage() {
             </Button>
           </Can>
         )}
-      />
+      /> : null}
 
       <Card className="table-card">
         <CardHeader>
@@ -322,4 +334,8 @@ export function PickingListsPage() {
       />
     </section>
   )
+}
+
+export function PickingListsPage() {
+  return <PickingListsPanel />
 }

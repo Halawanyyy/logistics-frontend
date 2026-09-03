@@ -63,9 +63,11 @@ export function MerchantAttachmentsPage() {
         description={t('Manage files attached to your merchant account.', { defaultValue: 'Manage files attached to your merchant account.' })}
         actions={
           <CanMerchant capability="attachments.upload">
-            <Button as={Link} to={merchantPath('/attachments/upload')} variant="primary">
-              {t('Upload Attachment', { defaultValue: 'Upload Attachment' })}
-            </Button>
+            <Link className="ui-link-reset" to={merchantPath('/attachments/upload')}>
+              <Button variant="primary">
+                {t('Upload Attachment', { defaultValue: 'Upload Attachment' })}
+              </Button>
+            </Link>
           </CanMerchant>
         }
       />
@@ -142,14 +144,14 @@ export function MerchantAttachmentsPage() {
                     <TableCell>{formatDate(attachment.created_at)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          as={Link}
-                          to={merchantPath(`/attachments/${attachment.id}`)}
-                          variant="secondary"
-                          size="sm"
-                        >
-                          {t('View', { defaultValue: 'View' })}
-                        </Button>
+                        <Link className="ui-link-reset" to={merchantPath(`/attachments/${attachment.id}`)}>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                          >
+                            {t('View', { defaultValue: 'View' })}
+                          </Button>
+                        </Link>
                         <CanMerchant capability="attachments.download">
                           <MerchantAttachmentDownloadButton attachment={attachment} />
                         </CanMerchant>

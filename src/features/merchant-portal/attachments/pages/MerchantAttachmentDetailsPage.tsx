@@ -40,7 +40,7 @@ export function MerchantAttachmentDetailsPage() {
   if (attachmentQuery.isLoading) {
     return (
       <div className="page-stack">
-        <PageHeader title={t('Attachment Details', { defaultValue: 'Attachment Details' })} backTo={merchantPath('/attachments')} />
+        <PageHeader title={t('Attachment Details', { defaultValue: 'Attachment Details' })} />
         <Card>
           <LoadingState title={t('Loading attachment...', { defaultValue: 'Loading attachment...' })} />
         </Card>
@@ -51,7 +51,7 @@ export function MerchantAttachmentDetailsPage() {
   if (attachmentQuery.isError) {
     return (
       <div className="page-stack">
-        <PageHeader title={t('Attachment Details', { defaultValue: 'Attachment Details' })} backTo={merchantPath('/attachments')} />
+        <PageHeader title={t('Attachment Details', { defaultValue: 'Attachment Details' })} />
         <Card>
           <ErrorState
             title={t('Failed to load attachment.', { defaultValue: 'Failed to load attachment.' })}
@@ -77,7 +77,6 @@ export function MerchantAttachmentDetailsPage() {
     <div className="page-stack">
       <PageHeader
         title={t('Attachment Details', { defaultValue: 'Attachment Details' })}
-        backTo={merchantPath('/attachments')}
         actions={
           <div className="flex gap-2">
             <CanMerchant capability="attachments.delete">

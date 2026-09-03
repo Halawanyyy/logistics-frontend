@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { listMerchantIntegrationTokens, testMerchantIntegration } from '../api/merchantPortalIntegrations.api'
-import type { TestMerchantIntegrationPayload } from '../types/merchantPortalIntegrations.types'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../shared/components/ui/Card'
-import { Button } from '../../../../shared/components/ui/Button'
-import { Input } from '../../../../shared/components/ui/Input'
-import { Select } from '../../../../shared/components/ui/Select'
-import { ErrorState } from '../../../../shared/components/states/ErrorState'
-import { getApiErrorMessage } from '../../../../shared/api/api-error'
-import { StatusBadge } from '../../../../shared/components/ui/StatusBadge'
-import { LoadingState } from '../../../../shared/components/states/LoadingState'
+import { listMerchantIntegrationTokens, testMerchantIntegration } from '../../api/merchantPortalIntegrations.api'
+import type { TestMerchantIntegrationPayload } from '../../types/merchantPortalIntegrations.types'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../../shared/components/ui/Card'
+import { Button } from '../../../../../shared/components/ui/Button'
+import { Input } from '../../../../../shared/components/ui/Input'
+import { Select } from '../../../../../shared/components/ui/Select'
+import { ErrorState } from '../../../../../shared/components/states/ErrorState'
+import { getApiErrorMessage } from '../../../../../shared/api/api-error'
+import { StatusBadge } from '../../../../../shared/components/ui/StatusBadge'
+import { LoadingState } from '../../../../../shared/components/states/LoadingState'
 
 export function MerchantIntegrationTestTab() {
   const { t } = useTranslation()
@@ -68,7 +68,7 @@ export function MerchantIntegrationTestTab() {
               onChange={(e) => setTokenId(e.target.value === '' ? '' : Number(e.target.value))}
             >
               <option value="">{t('None', { defaultValue: 'None' })}</option>
-              {tokens.map((token) => (
+              {tokens.map((token: any) => (
                 <option key={token.id} value={token.id}>{token.name} ({token.token_prefix})</option>
               ))}
             </Select>

@@ -43,6 +43,9 @@ export function ShippingRateForm({
 }: ShippingRateFormProps) {
   const { t } = useTranslation()
   const validationErrors = getApiValidationErrors(error)
+  if (validationErrors.shipping_fee && !validationErrors.delivery_fee) {
+    validationErrors.delivery_fee = validationErrors.shipping_fee
+  }
   const {
     control,
     register,

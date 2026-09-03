@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { inferStatAccent, type StatAccent } from '../../../shared/utils/statAccent'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -280,10 +281,10 @@ export function MerchantOrdersPanel({ merchantId }: { merchantId: string }) {
 
       {!ordersQuery.isLoading && !ordersQuery.isError ? (
         <div className="stats-grid">
-          <StatTile label={t('Total Orders', { defaultValue: 'Total Orders' })} value={orders.length} />
-          <StatTile label={t('Draft', { defaultValue: 'Draft' })} value={draftCount} />
-          <StatTile label={t('Confirmed', { defaultValue: 'Confirmed' })} value={confirmedCount} />
-          <StatTile label={t('Shipment Created', { defaultValue: 'Shipment Created' })} value={shipmentCreatedCount} />
+          <StatTile accent="orders" label={t('Total Orders', { defaultValue: 'Total Orders' })} value={orders.length} />
+          <StatTile accent="warning" label={t('Draft', { defaultValue: 'Draft' })} value={draftCount} />
+          <StatTile accent="success" label={t('Confirmed', { defaultValue: 'Confirmed' })} value={confirmedCount} />
+          <StatTile accent="shipments" label={t('Shipment Created', { defaultValue: 'Shipment Created' })} value={shipmentCreatedCount} />
         </div>
       ) : null}
 
@@ -1654,9 +1655,9 @@ export function MerchantIntegrationTokensPanel({ merchantId }: { merchantId: str
 }
 
 
-function StatTile({ label, value }: { label: string; value: ReactNode }) {
+function StatTile({ accent, label, value }: { accent?: StatAccent; label: string; value: ReactNode }) {
   return (
-    <Card variant="stat" className="stat-card stat-card--neutral">
+    <Card variant="stat" className="stat-card stat-card--neutral" data-accent={accent ?? inferStatAccent(label)}>
       <CardHeader className="stat-card__header">
         <span className="eyebrow">{label}</span>
       </CardHeader>

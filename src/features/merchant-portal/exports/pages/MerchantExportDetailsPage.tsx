@@ -2,7 +2,6 @@ import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { getMerchantPortalExport } from '../api/merchantPortalExports.api'
-import { merchantPath } from '../../../../shared/routing/paths'
 import { PageHeader } from '../../../../shared/components/ui/PageHeader'
 import { Card, CardContent } from '../../../../shared/components/ui/Card'
 import { StatusBadge } from '../../../../shared/components/ui/StatusBadge'
@@ -26,7 +25,7 @@ export function MerchantExportDetailsPage() {
   if (exportQuery.isLoading) {
     return (
       <div className="page-stack">
-        <PageHeader title={t('Export Details', { defaultValue: 'Export Details' })} backTo={merchantPath('/exports')} />
+        <PageHeader title={t('Export Details', { defaultValue: 'Export Details' })} />
         <Card>
           <LoadingState title={t('Loading export...', { defaultValue: 'Loading export...' })} />
         </Card>
@@ -37,7 +36,7 @@ export function MerchantExportDetailsPage() {
   if (exportQuery.isError) {
     return (
       <div className="page-stack">
-        <PageHeader title={t('Export Details', { defaultValue: 'Export Details' })} backTo={merchantPath('/exports')} />
+        <PageHeader title={t('Export Details', { defaultValue: 'Export Details' })} />
         <Card>
           <ErrorState
             title={t('Failed to load export.', { defaultValue: 'Failed to load export.' })}
@@ -56,7 +55,6 @@ export function MerchantExportDetailsPage() {
     <div className="page-stack">
       <PageHeader
         title={t('Export Details', { defaultValue: 'Export Details' })}
-        backTo={merchantPath('/exports')}
         actions={
           <CanMerchant capability="exports.download">
             <MerchantExportDownloadButton exportItem={exportData} />

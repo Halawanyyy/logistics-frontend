@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Box, Boxes, Calendar, MapPin, Package } from 'lucide-react'
+import { ArrowLeft, Boxes, Calendar, MapPin, Package } from 'lucide-react'
+import { Button } from '../../../../shared/components/ui/Button'
 import { getApiErrorMessage } from '../../../../shared/api/api-error'
 import { ErrorState } from '../../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../../shared/components/states/LoadingState'
@@ -30,11 +31,11 @@ export function MerchantInventoryStockDetailsPage() {
     return (
       <ErrorState
         actions={
-          <Button variant="secondary" asChild>
-            <Link to={merchantPath('/warehouse/inventory')}>{t('Back to Inventory')}</Link>
-          </Button>
+          <Link className="ui-link-reset" to={merchantPath('/warehouse/inventory')}>
+            <Button variant="secondary">{t('Back to Inventory')}</Button>
+          </Link>
         }
-        message={getApiErrorMessage(error, t('Failed to load inventory details.'))}
+        message={getApiErrorMessage(error)}
         onRetry={refetch}
       />
     )
@@ -44,9 +45,9 @@ export function MerchantInventoryStockDetailsPage() {
     return (
       <ErrorState
         actions={
-          <Button variant="secondary" asChild>
-            <Link to={merchantPath('/warehouse/inventory')}>{t('Back to Inventory')}</Link>
-          </Button>
+          <Link className="ui-link-reset" to={merchantPath('/warehouse/inventory')}>
+            <Button variant="secondary">{t('Back to Inventory')}</Button>
+          </Link>
         }
         message={t('Inventory stock not found.')}
       />
@@ -70,13 +71,14 @@ export function MerchantInventoryStockDetailsPage() {
       <PageHeader
         description={t('Detailed view of inventory stock quantities and location.')}
         title={t('Inventory Details')}
-      >
+      />
+      <div className="mb-6">
         {stock.low_stock ? (
           <Badge variant="danger">{t('Low Stock')}</Badge>
         ) : (
           <Badge variant="success">{t('In Stock')}</Badge>
         )}
-      </PageHeader>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Card>

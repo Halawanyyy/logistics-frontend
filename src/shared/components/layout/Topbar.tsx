@@ -52,14 +52,16 @@ export function Topbar({
         >
           <Menu size={18} />
         </Button>
-        <div>
-          <p className="eyebrow">{topbarEyebrow}</p>
-          <h2 className="app-topbar__title">{topbarTitle}</h2>
-        </div>
+        {portalType !== 'merchant' && (
+          <div>
+            <p className="eyebrow">{topbarEyebrow}</p>
+            <h2 className="app-topbar__title">{topbarTitle}</h2>
+          </div>
+        )}
       </div>
 
       <div className="app-topbar__actions">
-        <TopbarGlobalSearch user={user} />
+        {portalType !== 'merchant' && <TopbarGlobalSearch user={user} />}
         <Button
           className="app-topbar__button"
           variant="secondary"
@@ -90,13 +92,15 @@ export function Topbar({
             <p className="app-topbar__brand-chip-name">{companyName}</p>
           </div>
         </div>
-        <div className="app-topbar__profile">
-          <div className="app-topbar__avatar">{userName[0] ?? 'A'}</div>
-          <div>
-            <p className="app-topbar__profile-name">{userName}</p>
-            <p className="app-topbar__profile-role">{userRole || companyName}</p>
+        {portalType !== 'merchant' && (
+          <div className="app-topbar__profile">
+            <div className="app-topbar__avatar">{userName[0] ?? 'A'}</div>
+            <div>
+              <p className="app-topbar__profile-name">{userName}</p>
+              <p className="app-topbar__profile-role">{userRole || companyName}</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </header>
   )

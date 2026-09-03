@@ -249,7 +249,7 @@ export function MerchantOrderDetailsPage() {
   const queryClient = useQueryClient()
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [successMessage, setSuccessMessage] = useState('')
-  const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false)
+
   const query = useQuery({
     queryKey: ['merchant-portal-order', orderId],
     queryFn: () => getMerchantPortalOrder(orderId!),
@@ -356,9 +356,22 @@ export function MerchantOrderDetailsPage() {
             ) : null}
 
             {hasMerchantCapability('labels.print') ? (
-              <Button variant="secondary" onClick={() => setIsLabelDialogOpen(true)}>
-                {t('Print Label', { defaultValue: 'Print Label' })}
-              </Button>
+              <LabelDocumentDialog
+                defaultFormat="html"
+                fetchDocument={(options) => getOrderPrintableLabelDocument({
+                  fetchDocument: (requestOptions) => getMerchantPortalOrderLabel(order.id, requestOptions),
+                  locale,
+                  options,
+                  order: order as unknown as Order,
+                  t,
+                })}
+                formats={['html', 'pdf']}
+                title={t('Order Waybill - {{orderNumber}}', {
+                  defaultValue: `Order Waybill - ${order.order_number}`,
+                  orderNumber: order.order_number,
+                })}
+                triggerLabel={t('Print Waybill', { defaultValue: 'Print Waybill' })}
+              />
             ) : null}
 
             <Link className="ui-link-reset" to={merchantPath('/orders')}>
@@ -567,26 +580,6 @@ export function MerchantOrderDetailsPage() {
 
           cancelMutation.mutate()
         }}
-      />
-
-      <LabelDocumentDialog
-        defaultFormat="html"
-        fetchDocument={(options) => getOrderPrintableLabelDocument({
-          fetchDocument: (requestOptions) => getMerchantPortalOrderLabel(order.id, requestOptions),
-          locale,
-          options,
-          order: order as unknown as Order,
-          t,
-        })}
-        formats={['html', 'pdf']}
-        hideTrigger
-        onOpenChange={setIsLabelDialogOpen}
-        open={isLabelDialogOpen}
-        title={t('Order Label - {{orderNumber}}', {
-          defaultValue: `Order Label - ${order.order_number}`,
-          orderNumber: order.order_number,
-        })}
-        triggerLabel={t('Print Label', { defaultValue: 'Print Label' })}
       />
     </section>
   )

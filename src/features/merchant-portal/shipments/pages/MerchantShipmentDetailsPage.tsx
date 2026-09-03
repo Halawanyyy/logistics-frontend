@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
 import { merchantPath } from '../../../../shared/routing/paths'
-import { getMerchantPortalShipment, getMerchantPortalShipmentLabel, getMerchantPortalShipmentWaybill } from '../api/merchantPortalShipments.api'
+import { getMerchantPortalShipment, getMerchantPortalShipmentLabel } from '../api/merchantPortalShipments.api'
 import { PageHeader } from '../../../../shared/components/ui/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../shared/components/ui/Card'
 import { LoadingState } from '../../../../shared/components/states/LoadingState'
@@ -103,11 +103,6 @@ export function MerchantShipmentDetailsPage() {
           <CanMerchant capability="labels.print">
             <LabelDocumentDialog
               fetchDocument={(opts) => getMerchantPortalShipmentLabel(shipment.id, opts)}
-              title={t('Print Label', { defaultValue: 'Print Label' })}
-              triggerLabel={t('Print Label', { defaultValue: 'Print Label' })}
-            />
-            <LabelDocumentDialog
-              fetchDocument={(opts) => getMerchantPortalShipmentWaybill(shipment.id, opts)}
               title={t('Print Waybill', { defaultValue: 'Print Waybill' })}
               triggerLabel={t('Print Waybill', { defaultValue: 'Print Waybill' })}
             />

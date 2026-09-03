@@ -253,7 +253,13 @@ function WarehouseTransferFormDialog({
   )
 }
 
-export function WarehouseTransfersPage() {
+export function WarehouseTransfersPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const [successMessage, setSuccessMessage] = useState('')
@@ -319,13 +325,19 @@ export function WarehouseTransfersPage() {
   const transfers = query.data?.data ?? []
   const formMutation = transferInForm?.id ? updateMutation : createMutation
 
+  useEffect(() => {
+    if (query.data) {
+      onCountChange?.(query.data.data.length)
+    }
+  }, [onCountChange, query.data])
+
   return (
     <section className="page-section page-section--with-sidebar">
-      <PageHeader
+      {!embedded ? <PageHeader
         title={t('Warehouse Transfers')}
         description={t('Inter-warehouse transfer drafts, dispatch, receiving, and cancellation.')}
         actions={<Button type="button" onClick={() => setTransferInForm({} as WarehouseTransfer)}>{t('Create Transfer')}</Button>}
-      />
+      /> : null}
 
       <aside className="page-sidebar-filters">
         <Card variant="flat" className="dashboard-filter-card">
@@ -525,4 +537,8 @@ export function WarehouseTransfersPage() {
       </main>
     </section>
   )
+}
+
+export function WarehouseTransfersPage() {
+  return <WarehouseTransfersPanel />
 }

@@ -12,22 +12,27 @@ import { Link } from 'react-router-dom'
 const initialFilters = {
   warehouse_id: '',
   merchant_id: '',
-  warehouse_product_id: '',
   type: '',
   movement_type: '',
   reference_type: '',
-  reference_id: '',
-  order_id: '',
   date_from: '',
   date_to: '',
 }
 
-export function StockMovementsPage() {
+export function StockMovementsPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const params = compactFilters(filters)
   return (
     <ResourceListPage<StockMovement>
+      hideHeader={embedded}
+      onCountChange={onCountChange}
       title={t('Stock Movements')}
       description={t('Inventory movement history from warehouse operations.', {
         defaultValue: 'Inventory movement history from warehouse operations.',
@@ -38,9 +43,8 @@ export function StockMovementsPage() {
         <ApiFilterBar
           filters={filters}
           fields={[
-            { label: t('Warehouse ID', { defaultValue: 'Warehouse ID' }), name: 'warehouse_id', type: 'number' },
-            { label: t('Merchant ID', { defaultValue: 'Merchant ID' }), name: 'merchant_id', type: 'number' },
-            { label: t('Product ID', { defaultValue: 'Product ID' }), name: 'warehouse_product_id', type: 'number' },
+            { label: t('Warehouse', { defaultValue: 'Warehouse' }), name: 'warehouse_id', type: 'warehouse' },
+            { label: t('Merchant', { defaultValue: 'Merchant' }), name: 'merchant_id', type: 'merchant' },
             {
               label: t('Type'),
               name: 'type',
@@ -54,8 +58,6 @@ export function StockMovementsPage() {
             },
             { label: t('Movement Type', { defaultValue: 'Movement Type' }), name: 'movement_type' },
             { label: t('Reference Type', { defaultValue: 'Reference Type' }), name: 'reference_type' },
-            { label: t('Reference ID', { defaultValue: 'Reference ID' }), name: 'reference_id', type: 'number' },
-            { label: t('Order ID', { defaultValue: 'Order ID' }), name: 'order_id', type: 'number' },
             { label: t('Date From'), name: 'date_from', type: 'date' },
             { label: t('Date To'), name: 'date_to', type: 'date' },
           ]}
@@ -73,4 +75,8 @@ export function StockMovementsPage() {
       ]}
     />
   )
+}
+
+export function StockMovementsPage() {
+  return <StockMovementsPanel />
 }

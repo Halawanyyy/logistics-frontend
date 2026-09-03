@@ -17,8 +17,6 @@ import { getApiErrorMessage } from '../../../shared/api/api-error'
 const initialFilters = {
   warehouse_id: '',
   merchant_id: '',
-  warehouse_product_id: '',
-  warehouse_bin_id: '',
   sku: '',
   barcode: '',
   low_stock: '',
@@ -26,7 +24,13 @@ const initialFilters = {
   available_only: '',
 }
 
-export function InventoryStocksPage() {
+export function InventoryStocksPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const [searchParams] = useSearchParams()
   const [filters, setFilters] = useState(() => ({
@@ -39,8 +43,6 @@ export function InventoryStocksPage() {
   const summaryParams = compactFilters({
     warehouse_id: filters.warehouse_id,
     merchant_id: filters.merchant_id,
-    warehouse_product_id: filters.warehouse_product_id,
-    warehouse_bin_id: filters.warehouse_bin_id,
     sku: filters.sku,
     barcode: filters.barcode,
     has_reserved: filters.has_reserved,
@@ -58,6 +60,8 @@ export function InventoryStocksPage() {
   }).toString()
   return (
     <ResourceListPage<InventoryStock>
+      hideHeader={embedded}
+      onCountChange={onCountChange}
       title={t('Inventory Stocks')}
       description={t('Available, reserved, and damaged stock by warehouse product.', { defaultValue: 'Available, reserved, and damaged stock by warehouse product.' })}
       actions={<Can permission={PERMISSIONS.STOCK_ADJUST}><Link className="ui-link-reset" to="/inventory-stocks/adjust"><Button>{t('Adjust Stock', { defaultValue: 'Adjust Stock' })}</Button></Link></Can>}
@@ -93,10 +97,8 @@ export function InventoryStocksPage() {
           <ApiFilterBar
             filters={filters}
             fields={[
-              { label: 'Warehouse ID', name: 'warehouse_id', type: 'number' },
-              { label: 'Merchant ID', name: 'merchant_id', type: 'number' },
-              { label: 'Product ID', name: 'warehouse_product_id', type: 'number' },
-              { label: 'Bin ID', name: 'warehouse_bin_id', type: 'number' },
+              { label: 'Warehouse', name: 'warehouse_id', type: 'warehouse' },
+              { label: 'Merchant', name: 'merchant_id', type: 'merchant' },
               { label: 'SKU', name: 'sku' },
               { label: 'Barcode', name: 'barcode' },
               { label: 'Low Stock', name: 'low_stock', type: 'select', options: [{ label: 'true', value: 'true' }] },
@@ -118,4 +120,8 @@ export function InventoryStocksPage() {
       ]}
     />
   )
+}
+
+export function InventoryStocksPage() {
+  return <InventoryStocksPanel />
 }

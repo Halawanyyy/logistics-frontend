@@ -3,12 +3,15 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { SearchableSelect } from '../ui/SearchableSelect'
+import { MerchantSelector } from '../selectors/MerchantSelector'
+import { WarehouseSelector } from '../selectors/WarehouseSelector'
+import { DriverSelector } from '../selectors/DriverSelector'
 
 export type FilterField = {
   label: string
   name: string
   options?: { label: string; value: string }[]
-  type?: 'date' | 'number' | 'select' | 'text'
+  type?: 'date' | 'driver' | 'merchant' | 'number' | 'select' | 'text' | 'warehouse'
 }
 
 type ApiFilterBarProps<T extends Record<string, string>> = {
@@ -33,7 +36,25 @@ export function ApiFilterBar<T extends Record<string, string>>({
       {fields.map((field) => (
         <label className="field" key={field.name}>
           <span>{t(field.label, { defaultValue: field.label })}</span>
-          {field.type === 'select' ? (
+          {field.type === 'driver' ? (
+            <DriverSelector
+              includeAllOption
+              value={filters[field.name as keyof T] ?? ''}
+              onChange={(value) => onChange(field.name as keyof T, value)}
+            />
+          ) : field.type === 'merchant' ? (
+            <MerchantSelector
+              includeAllOption
+              value={filters[field.name as keyof T] ?? ''}
+              onChange={(value) => onChange(field.name as keyof T, value)}
+            />
+          ) : field.type === 'warehouse' ? (
+            <WarehouseSelector
+              includeAllOption
+              value={filters[field.name as keyof T] ?? ''}
+              onChange={(value) => onChange(field.name as keyof T, value)}
+            />
+          ) : field.type === 'select' ? (
             <SearchableSelect
               value={filters[field.name as keyof T] ?? ''}
               placeholder={t('All')}

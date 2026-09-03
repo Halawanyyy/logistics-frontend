@@ -1,7 +1,16 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { ArrowRight, Boxes, ClipboardList, PackageCheck, RotateCcw, ScanLine } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { getWarehouseKpis, listLowStockInventoryStocks, listLowStockWarehouseProducts } from '../api/warehouse.api'
+import {
+  getWarehouseKpis,
+  listLowStockInventoryStocks,
+  listLowStockWarehouseProducts,
+  listMerchantInboundStockRequests,
+  listPickingLists,
+  listWarehouseReceipts,
+  listWarehouseReturns,
+} from '../api/warehouse.api'
 import type { WarehouseFilters } from '../types/warehouse.types'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
@@ -13,6 +22,12 @@ import { LoadingState } from '../../../shared/components/states/LoadingState'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { Button } from '../../../shared/components/ui/Button'
+import { BarcodeScannerInput } from '../../../shared/components/barcode/BarcodeScannerInput'
+import { Can } from '../../../shared/auth/Can'
+import { PERMISSIONS } from '../../../shared/auth/permission-keys'
+import { hasAnyPermission, hasPermission } from '../../../shared/auth/permissions'
+import { useAuthStore } from '../../auth/store/auth.store'
+import { lookupBarcode } from '../../barcodes/api/barcodes.api'
 import { adminPath } from '../../../shared/routing/paths'
 import { LowStockQuickCard } from '../components/LowStockQuickCard'
 import { useTranslation } from 'react-i18next'
@@ -33,7 +48,9 @@ const initialFilters: KpiFiltersState = {
 
 export function WarehouseKpisPage() {
   const { t } = useTranslation()
+  const user = useAuthStore((state) => state.user)
   const [filters, setFilters] = useState<KpiFiltersState>(initialFilters)
+  const [barcode, setBarcode] = useState('')
   const params: WarehouseFilters = useMemo(
     () => ({
       ...(filters.warehouse_id ? { warehouse_id: filters.warehouse_id } : {}),
@@ -62,18 +79,134 @@ export function WarehouseKpisPage() {
     queryKey: ['warehouse-products', 'kpis-low-stock', lowStockParams],
     queryFn: () => listLowStockWarehouseProducts(lowStockParams),
   })
+  const canViewInbound = hasAnyPermission(user, [
+    PERMISSIONS.MERCHANT_INBOUND_REQUESTS_VIEW,
+    PERMISSIONS.MERCHANT_INBOUND_REQUESTS_MANAGE,
+  ])
+  const canViewInventory = hasPermission(user, PERMISSIONS.INVENTORY_VIEW)
+  const canViewPicking = hasPermission(user, PERMISSIONS.PICKING_LISTS_VIEW)
+  const canViewReturns = hasPermission(user, PERMISSIONS.WAREHOUSE_RETURNS_VIEW)
+  const inboundQuery = useQuery({
+    queryKey: ['merchant-inbound-stock-requests', 'warehouse-hub', 'pending'],
+    queryFn: () => listMerchantInboundStockRequests({ status: 'pending' }),
+    enabled: canViewInbound,
+  })
+  const receiptsQuery = useQuery({
+    queryKey: ['warehouse-receipts', 'warehouse-hub', 'draft'],
+    queryFn: () => listWarehouseReceipts({ status: 'draft' }),
+    enabled: canViewInventory,
+  })
+  const pickingQuery = useQuery({
+    queryKey: ['picking-lists', 'warehouse-hub'],
+    queryFn: () => listPickingLists(),
+    enabled: canViewPicking,
+  })
+  const returnsQuery = useQuery({
+    queryKey: ['warehouse-returns', 'warehouse-hub', 'awaiting-inspection'],
+    queryFn: () => listWarehouseReturns(),
+    enabled: canViewReturns,
+  })
+  const barcodeLookup = useMutation({ mutationFn: (value: string) => lookupBarcode({ barcode: value }) })
   const lowStockSearch = new URLSearchParams({
     low_stock: 'true',
     ...(filters.warehouse_id ? { warehouse_id: filters.warehouse_id } : {}),
     ...(filters.merchant_id ? { merchant_id: filters.merchant_id } : {}),
   }).toString()
+  const pendingInbound = inboundQuery.data?.data ?? []
+  const pendingReceipts = receiptsQuery.data?.data ?? []
+  const readyPickingLists = (pickingQuery.data?.data ?? []).filter((item) =>
+    !['completed', 'cancelled', 'packed'].includes(item.status ?? 'pending'),
+  )
+  const overduePickingLists = readyPickingLists.filter((item) =>
+    ['overdue', 'delayed'].includes(item.status ?? '')
+      || (pickingQuery.dataUpdatedAt > 0
+        && new Date(item.created_at).getTime() < pickingQuery.dataUpdatedAt - 24 * 60 * 60 * 1000),
+  )
+  const returnsAwaitingInspection = (returnsQuery.data?.data ?? []).filter((item) =>
+    ['pending', 'received'].includes(item.status ?? ''),
+  )
+  const barcodeResult = barcodeLookup.data?.data
+  const barcodeResultPath = barcodeResult?.type === 'order'
+    ? adminPath(`/orders/${barcodeResult.id}`)
+    : barcodeResult?.type === 'shipment'
+      ? adminPath(`/shipments/${barcodeResult.id}`)
+      : barcodeResult?.type === 'warehouse_product'
+        ? adminPath(`/warehouse-products/${barcodeResult.id}`)
+        : barcodeResult?.type === 'bin'
+          ? adminPath(`/warehouse/bins/${barcodeResult.id}`)
+          : null
 
   return (
-    <section className="page-section">
+    <section className="page-section warehouse-hub">
       <PageHeader
-        title={t('Warehouse KPIs')}
-        description={t('Inventory, operations, returns, and warehouse billing summaries.')}
+        title={t('Warehouse Hub', { defaultValue: 'Warehouse Hub' })}
+        description={t('A single operational view for inbound work, inventory, fulfillment, returns, and warehouse billing.', {
+          defaultValue: 'A single operational view for inbound work, inventory, fulfillment, returns, and warehouse billing.',
+        })}
       />
+
+      <Can anyOf={[PERMISSIONS.BARCODES_LOOKUP, PERMISSIONS.BARCODES_SCAN]}>
+        <Card className="warehouse-hub__barcode">
+          <CardContent>
+            <div className="warehouse-hub__barcode-copy">
+              <span className="form-section__icon" aria-hidden="true"><ScanLine size={20} /></span>
+              <div>
+                <CardTitle>{t('Scan or search a barcode', { defaultValue: 'Scan or search a barcode' })}</CardTitle>
+                <CardDescription>{t('Find an order, shipment, warehouse product, or bin without leaving the hub.', {
+                  defaultValue: 'Find an order, shipment, warehouse product, or bin without leaving the hub.',
+                })}</CardDescription>
+              </div>
+            </div>
+            <div className="warehouse-hub__barcode-form barcode-search">
+              <BarcodeScannerInput
+                className="barcode-search__input"
+                value={barcode}
+                clearOnScan={false}
+                disabled={barcodeLookup.isPending}
+                placeholder={t('Scan or enter barcode', { defaultValue: 'Scan or enter barcode' })}
+                onChange={setBarcode}
+                onScan={(value) => barcodeLookup.mutate(value)}
+              />
+              <Button
+                className="barcode-search__btn"
+                disabled={!barcode.trim()}
+                loading={barcodeLookup.isPending}
+                type="button"
+                onClick={() => barcodeLookup.mutate(barcode.trim())}
+              >
+                {t('Lookup', { defaultValue: 'Lookup' })}
+              </Button>
+            </div>
+            {barcodeLookup.error ? <div className="form-error">{getApiErrorMessage(barcodeLookup.error)}</div> : null}
+            {barcodeResult ? (
+              <div className="warehouse-hub__barcode-result">
+                <span><strong>{barcodeResult.barcode}</strong> · {barcodeResult.type}</span>
+                {barcodeResultPath ? (
+                  <Link className="table-link" to={barcodeResultPath}>{t('Open record', { defaultValue: 'Open record' })} <ArrowRight size={15} /></Link>
+                ) : null}
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </Can>
+
+      <div className="warehouse-hub__quick-actions" aria-label={t('Warehouse quick actions', { defaultValue: 'Warehouse quick actions' })}>
+        <Can permission={PERMISSIONS.INVENTORY_CREATE}>
+          <Link className="ui-link-reset" to={`${adminPath('/warehouse/inbound')}?tab=receipts`}>
+            <Button type="button"><PackageCheck size={17} />{t('Receive Goods', { defaultValue: 'Receive Goods' })}</Button>
+          </Link>
+        </Can>
+        <Can permission={PERMISSIONS.PICKING_LISTS_CREATE}>
+          <Link className="ui-link-reset" to={`${adminPath('/warehouse/fulfillment')}?tab=picking`}>
+            <Button type="button" variant="secondary"><ClipboardList size={17} />{t('Start Pick', { defaultValue: 'Start Pick' })}</Button>
+          </Link>
+        </Can>
+        <Can permission={PERMISSIONS.WAREHOUSE_RETURNS_CREATE}>
+          <Link className="ui-link-reset" to={`${adminPath('/warehouse/config')}?tab=returns`}>
+            <Button type="button" variant="secondary"><RotateCcw size={17} />{t('Process Return', { defaultValue: 'Process Return' })}</Button>
+          </Link>
+        </Can>
+      </div>
 
       <Card variant="flat" className="dashboard-filter-card">
         <CardContent className="dashboard-filters">
@@ -98,6 +231,113 @@ export function WarehouseKpisPage() {
             dateTo={filters.date_to}
             onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))}
           />
+        </CardContent>
+      </Card>
+
+      <div className="stat-card-grid warehouse-hub__stats">
+        <HubStatCard
+          accent="orders"
+          icon={<PackageCheck size={20} />}
+          label={t('Inbound Pending', { defaultValue: 'Inbound Pending' })}
+          value={canViewInbound ? pendingInbound.length : '-'}
+          to={`${adminPath('/warehouse/inbound')}?tab=requests`}
+        />
+        <HubStatCard
+          accent="inventory"
+          icon={<Boxes size={20} />}
+          label={t('Inventory Units', { defaultValue: 'Inventory Units' })}
+          value={kpisQuery.data?.data.inventory.total_available ?? '-'}
+          to={`${adminPath('/warehouse/inventory')}?tab=stocks`}
+        />
+        <HubStatCard
+          accent="shipments"
+          icon={<ClipboardList size={20} />}
+          label={t('Ready to Pick', { defaultValue: 'Ready to Pick' })}
+          value={canViewPicking ? readyPickingLists.length : '-'}
+          to={`${adminPath('/warehouse/fulfillment')}?tab=picking`}
+        />
+        <HubStatCard
+          accent="danger"
+          icon={<RotateCcw size={20} />}
+          label={t('Returns to Inspect', { defaultValue: 'Returns to Inspect' })}
+          value={canViewReturns ? returnsAwaitingInspection.length : '-'}
+          to={`${adminPath('/warehouse/config')}?tab=returns`}
+        />
+      </div>
+
+      {kpisQuery.isLoading ? <LoadingState title={t('Loading warehouse KPIs')} /> : null}
+      {kpisQuery.isError ? (
+        <ErrorState
+          title={t('Unable to load warehouse KPIs')}
+          message={getApiErrorMessage(kpisQuery.error)}
+          onRetry={() => void kpisQuery.refetch()}
+        />
+      ) : null}
+      {kpisQuery.data ? (
+        <div className="page-stack warehouse-hub__compact-overview">
+          <div className="details-grid">
+            <CompactStatsCard
+              accent="shipments"
+              title={t('Operations')}
+              items={[
+                { label: t('Picking Total', { defaultValue: 'Picking Total' }), value: kpisQuery.data.data.operations.picking_lists_total },
+                { label: t('Picking Done', { defaultValue: 'Picking Done' }), value: kpisQuery.data.data.operations.picking_lists_completed },
+                { label: t('Packing Total', { defaultValue: 'Packing Total' }), value: kpisQuery.data.data.operations.packing_tasks_total },
+                { label: t('Packing Done', { defaultValue: 'Packing Done' }), value: kpisQuery.data.data.operations.packing_tasks_packed },
+              ]}
+            />
+            <CompactStatsCard
+              accent="danger"
+              title={t('Returns')}
+              items={[
+                { label: t('Total'), value: kpisQuery.data.data.returns.total_returns },
+                { label: t('Sellable'), value: kpisQuery.data.data.returns.sellable_returns, tone: 'success' },
+                { label: t('Damaged'), value: kpisQuery.data.data.returns.damaged_returns, tone: 'warning' },
+                { label: t('Disposed'), value: kpisQuery.data.data.returns.disposed_returns, tone: 'danger' },
+              ]}
+            />
+          </div>
+          <CompactStatsCard
+            accent="finance"
+            title={t('Billing')}
+            items={[
+              { label: t('Storage Charges'), value: <MoneyDisplay value={kpisQuery.data.data.billing.storage_charges} /> },
+              { label: t('Packaging Charges'), value: <MoneyDisplay value={kpisQuery.data.data.billing.packaging_charges} /> },
+              { label: t('Fulfillment Charges'), value: <MoneyDisplay value={kpisQuery.data.data.billing.fulfillment_charges} /> },
+            ]}
+          />
+        </div>
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('Urgent Tasks', { defaultValue: 'Urgent Tasks' })}</CardTitle>
+          <CardDescription>{t('Open warehouse work that needs operational attention.', {
+            defaultValue: 'Open warehouse work that needs operational attention.',
+          })}</CardDescription>
+        </CardHeader>
+        <CardContent className="warehouse-urgent-list urgent-tasks">
+          <Can permission={PERMISSIONS.INVENTORY_VIEW}>
+            <Link className="warehouse-urgent-list__item warehouse-urgent-list__item--pending urgent-task" to={`${adminPath('/warehouse/inbound')}?tab=receipts`}>
+              <span className="warehouse-urgent-list__indicator urgent-task__indicator urgent-task__indicator--warning" aria-hidden="true" />
+              <span>{t('Pending warehouse receipts', { defaultValue: 'Pending warehouse receipts' })}</span>
+              <strong className="urgent-task__count">{pendingReceipts.length}</strong>
+            </Link>
+          </Can>
+          <Can permission={PERMISSIONS.PICKING_LISTS_VIEW}>
+            <Link className="warehouse-urgent-list__item warehouse-urgent-list__item--overdue urgent-task" to={`${adminPath('/warehouse/fulfillment')}?tab=picking`}>
+              <span className="warehouse-urgent-list__indicator urgent-task__indicator urgent-task__indicator--critical" aria-hidden="true" />
+              <span>{t('Overdue picking lists', { defaultValue: 'Overdue picking lists' })}</span>
+              <strong className="urgent-task__count">{overduePickingLists.length}</strong>
+            </Link>
+          </Can>
+          <Can permission={PERMISSIONS.WAREHOUSE_RETURNS_VIEW}>
+            <Link className="warehouse-urgent-list__item warehouse-urgent-list__item--pending urgent-task" to={`${adminPath('/warehouse/config')}?tab=returns`}>
+              <span className="warehouse-urgent-list__indicator urgent-task__indicator urgent-task__indicator--info" aria-hidden="true" />
+              <span>{t('Returns awaiting inspection', { defaultValue: 'Returns awaiting inspection' })}</span>
+              <strong className="urgent-task__count">{returnsAwaitingInspection.length}</strong>
+            </Link>
+          </Can>
         </CardContent>
       </Card>
 
@@ -130,14 +370,6 @@ export function WarehouseKpisPage() {
         />
       </div>
 
-      {kpisQuery.isLoading ? <LoadingState title={t('Loading warehouse KPIs')} /> : null}
-      {kpisQuery.isError ? (
-        <ErrorState
-          title={t('Unable to load warehouse KPIs')}
-          message={getApiErrorMessage(kpisQuery.error)}
-          onRetry={() => void kpisQuery.refetch()}
-        />
-      ) : null}
       {kpisQuery.data ? (
         <div className="page-stack">
           <SectionCards
@@ -149,35 +381,60 @@ export function WarehouseKpisPage() {
               [t('Total SKUs'), kpisQuery.data.data.inventory.total_skus],
             ]}
           />
-          <SectionCards
-            title={t('Operations')}
-            items={[
-              [t('Picking Lists Total'), kpisQuery.data.data.operations.picking_lists_total],
-              [t('Picking Lists Completed'), kpisQuery.data.data.operations.picking_lists_completed],
-              [t('Packing Tasks Total'), kpisQuery.data.data.operations.packing_tasks_total],
-              [t('Packing Tasks Packed'), kpisQuery.data.data.operations.packing_tasks_packed],
-            ]}
-          />
-          <SectionCards
-            title={t('Returns')}
-            items={[
-              [t('Total Returns'), kpisQuery.data.data.returns.total_returns],
-              [t('Sellable Returns'), kpisQuery.data.data.returns.sellable_returns],
-              [t('Damaged Returns'), kpisQuery.data.data.returns.damaged_returns],
-              [t('Disposed Returns'), kpisQuery.data.data.returns.disposed_returns],
-            ]}
-          />
-          <SectionCards
-            title={t('Billing')}
-            items={[
-              [t('Storage Charges'), <MoneyDisplay value={kpisQuery.data.data.billing.storage_charges} />],
-              [t('Packaging Charges'), <MoneyDisplay value={kpisQuery.data.data.billing.packaging_charges} />],
-              [t('Fulfillment Charges'), <MoneyDisplay value={kpisQuery.data.data.billing.fulfillment_charges} />],
-            ]}
-          />
         </div>
       ) : null}
     </section>
+  )
+}
+
+function HubStatCard({ accent, icon, label, to, value }: { accent: 'orders' | 'shipments' | 'inventory' | 'danger'; icon: ReactNode; label: string; to: string; value: ReactNode }) {
+  return (
+    <Link className="ui-link-reset warehouse-hub__stat-link" to={to}>
+      <Card className="warehouse-hub__stat stat-card" variant="stat" data-accent={accent}>
+        <CardHeader className="stat-card__header">
+          <span className="warehouse-hub__stat-icon" aria-hidden="true">{icon}</span>
+          <span className="warehouse-hub__stat-arrow" aria-hidden="true">
+            <ArrowRight size={17} />
+          </span>
+        </CardHeader>
+        <CardContent className="stat-card__content">
+          <CardTitle className="stat-card__value">{value}</CardTitle>
+          <CardDescription className="stat-card__label">{label}</CardDescription>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
+function CompactStatsCard({
+  accent,
+  items,
+  title,
+}: {
+  accent: 'shipments' | 'danger' | 'finance'
+  items: Array<{
+    label: string
+    tone?: 'success' | 'warning' | 'danger'
+    value: ReactNode
+  }>
+  title: string
+}) {
+  return (
+    <Card className="detail-card stat-tile" data-accent={accent}>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="compact-stats-row">
+          {items.map((item) => (
+            <div className="compact-stat" key={item.label}>
+              <span className="compact-stat__label">{item.label}</span>
+              <span className={`compact-stat__value${item.tone ? ` text-${item.tone}` : ''}`}>{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -197,7 +454,7 @@ function SectionCards({
       </CardHeader>
       <CardContent className="stats-grid">
         {items.map(([label, value]) => (
-          <Card variant="stat" className="stat-card stat-card--neutral" key={label}>
+          <Card variant="stat" className="stat-card stat-card--neutral" data-accent="inventory" key={label}>
             <CardHeader className="stat-card__header">
               <span className="eyebrow">{label}</span>
             </CardHeader>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Box, CheckCircle2, Package, Tag, FileText, BarChart2 } from 'lucide-react'
+import { ArrowLeft, Package, Tag, BarChart2 } from 'lucide-react'
 import { getApiErrorMessage } from '../../../../shared/api/api-error'
 import { ErrorState } from '../../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../../shared/components/states/LoadingState'
@@ -18,8 +18,11 @@ import { CanMerchant } from '../../components/CanMerchant'
 import {
   getMerchantPortalWarehouseProduct,
   getMerchantPortalWarehouseProductLabel,
+  listMerchantPortalStockMovements,
 } from '../api/merchantPortalWarehouse.api'
 import { LabelDocumentDialog } from '../../../../shared/components/labels/LabelDocumentDialog'
+import { Table, TableCell, TableContainer, TableHead } from '../../../../shared/components/ui/Table'
+import { Badge } from '../../../../shared/components/ui/Badge'
 
 export function MerchantWarehouseProductDetailsPage() {
   const { t } = useTranslation()
@@ -33,6 +36,12 @@ export function MerchantWarehouseProductDetailsPage() {
     enabled: !!productId,
   })
 
+  const movementsQuery = useQuery({
+    queryKey: ['merchant-portal', 'stock-movements', productId],
+    queryFn: () => listMerchantPortalStockMovements(1, { warehouse_product_id: productId }),
+    enabled: !!productId,
+  })
+
   if (isLoading) {
     return <LoadingState title={t('Loading product details...')} />
   }
@@ -41,11 +50,11 @@ export function MerchantWarehouseProductDetailsPage() {
     return (
       <ErrorState
         actions={
-          <Button variant="secondary" asChild>
-            <Link to={merchantPath('/warehouse/products')}>{t('Back to Products')}</Link>
-          </Button>
+          <Link className="ui-link-reset" to={merchantPath('/warehouse/products')}>
+            <Button variant="secondary">{t('Back to Products')}</Button>
+          </Link>
         }
-        message={getApiErrorMessage(error, t('Failed to load product details.'))}
+        message={getApiErrorMessage(error)}
         onRetry={refetch}
       />
     )
@@ -55,9 +64,9 @@ export function MerchantWarehouseProductDetailsPage() {
     return (
       <ErrorState
         actions={
-          <Button variant="secondary" asChild>
-            <Link to={merchantPath('/warehouse/products')}>{t('Back to Products')}</Link>
-          </Button>
+          <Link className="ui-link-reset" to={merchantPath('/warehouse/products')}>
+            <Button variant="secondary">{t('Back to Products')}</Button>
+          </Link>
         }
         message={t('Product not found.')}
       />
@@ -195,6 +204,58 @@ export function MerchantWarehouseProductDetailsPage() {
         </div>
       </div>
 
+      {/* Stock Movements Audit History */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
+            <BarChart2 className="h-5 w-5 text-violet-400" />
+            {t('Stock Movement History Audit')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {movementsQuery.isLoading ? (
+            <div className="p-4 text-sm text-slate-400">{t('Loading movement history...')}</div>
+          ) : !movementsQuery.data?.data?.length ? (
+            <div className="p-6 text-sm text-slate-400 text-center">{t('No stock movements recorded for this product yet.')}</div>
+          ) : (
+            <TableContainer>
+              <Table>
+                <thead>
+                  <tr>
+                    <TableHead>{t('Date')}</TableHead>
+                    <TableHead>{t('Movement Type')}</TableHead>
+                    <TableHead className="text-right">{t('Quantity Change')}</TableHead>
+                    <TableHead>{t('Reference')}</TableHead>
+                    <TableHead>{t('Notes')}</TableHead>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movementsQuery.data.data.map((movement) => (
+                    <tr key={movement.id}>
+                      <TableCell className="text-xs text-slate-300">{formatDate(movement.created_at)}</TableCell>
+                      <TableCell>
+                        <Badge variant="neutral">
+                          {movement.movement_type_label || movement.movement_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        <span className={movement.quantity > 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                          {movement.quantity > 0 ? `+${movement.quantity}` : movement.quantity}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs font-mono text-slate-300">
+                        {movement.reference_summary?.order_number || movement.reference_summary?.shipment_number || '-'}
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-400">{movement.notes || '-'}</TableCell>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
+
       {printState && (
         <LabelDocumentDialog
           fetchDocument={async () => {
@@ -208,7 +269,11 @@ export function MerchantWarehouseProductDetailsPage() {
           }}
           open={true}
           title={t('Product Label')}
-          triggerLabel="Print" hideTrigger={true} onOpenChange={(open) => { if (!open) () => setPrintState(null); } }
+          triggerLabel="Print"
+          hideTrigger={true}
+          onOpenChange={(open) => {
+            if (!open) setPrintState(null)
+          }}
         />
       )}
     </>

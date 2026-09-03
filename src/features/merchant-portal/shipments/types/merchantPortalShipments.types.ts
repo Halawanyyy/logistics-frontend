@@ -14,6 +14,7 @@ export type MerchantPortalShipment = {
   order_id: number
   order_number?: string | null
   shipment_number: string
+  tracking_number?: string | null
   customer_name: string
   customer_phone: string
   delivery_governorate_id: number

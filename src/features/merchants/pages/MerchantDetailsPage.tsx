@@ -1,7 +1,7 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
+import { useId, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { Landmark, Package, Wallet } from 'lucide-react'
+import { ChevronDown, Landmark, Package, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   getMerchant,
@@ -11,6 +11,7 @@ import {
   getMerchantWarehouseInventory,
   getMerchantWarehouseMovements,
   getMerchantWalletSummary,
+  listMerchantPortalUsers,
 } from '../api/merchants.api'
 import { getApiErrorMessage, isApiNotFound } from '../../../shared/api/api-error'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
@@ -23,7 +24,7 @@ import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { hasAnyPermission, hasPermission } from '../../../shared/auth/permissions'
-import { formatDate } from '../../../shared/utils/formatters'
+import { formatDate, formatMoney } from '../../../shared/utils/formatters'
 import { StatCard } from '../../dashboard/components/StatCard'
 import type {
   Merchant,
@@ -50,26 +51,22 @@ import {
   MerchantShipmentsPanel,
   MerchantWalletPanel,
 } from '../components/MerchantProfilePanels'
-import { MerchantShopPreviewPanel } from '../components/MerchantShopPreviewPanel'
 import { MerchantPortalUsersPanel } from '../components/MerchantPortalUsersPanel'
 import { Attachments } from '../../../shared/components/attachments/Attachments'
+import { listOrders } from '../../orders/api/orders.api'
+import { listShipments } from '../../shipments/api/shipments.api'
 
 type MerchantTabId =
   | 'overview'
-  | 'orders'
-  | 'shipments'
-  | 'wallet'
-  | 'invoices'
-  | 'warehouse'
-  | 'integration-tokens'
-  | 'portal-users'
-  | 'attachments'
-  | 'shop-preview'
-  
+  | 'operations'
+  | 'finance'
+  | 'settings'
 
 type MerchantTab = {
   id: MerchantTabId
   label: string
+  badge?: string | number
+  badgeLoading?: boolean
 }
 
 type MerchantQueryState<T> = {
@@ -99,11 +96,11 @@ function compactDateFilters(filters: MerchantScopedFilters) {
 
 function getLegacyTabAlias(pathname: string): MerchantTabId {
   if (pathname.endsWith('/warehouse')) {
-    return 'warehouse'
+    return 'operations'
   }
 
   if (pathname.endsWith('/finance')) {
-    return 'wallet'
+    return 'finance'
   }
 
   if (pathname.endsWith('/dashboard')) {
@@ -111,6 +108,30 @@ function getLegacyTabAlias(pathname: string): MerchantTabId {
   }
 
   return 'overview'
+}
+
+function normalizeRequestedTab(tab: string | null): MerchantTabId | null {
+  if (tab === 'overview' || tab === 'operations' || tab === 'finance' || tab === 'settings') {
+    return tab
+  }
+
+  if (tab === 'orders' || tab === 'shipments' || tab === 'warehouse') {
+    return 'operations'
+  }
+
+  if (tab === 'wallet' || tab === 'invoices') {
+    return 'finance'
+  }
+
+  if (tab === 'integration-tokens' || tab === 'portal-users' || tab === 'attachments') {
+    return 'settings'
+  }
+
+  if (tab === 'shop-preview') {
+    return 'overview'
+  }
+
+  return null
 }
 
 function MerchantProfileTabs({
@@ -122,6 +143,8 @@ function MerchantProfileTabs({
   tabs: MerchantTab[]
   activeTab: MerchantTabId
 }) {
+  const { t } = useTranslation()
+
   return (
     <div className="tabs">
       {tabs.map((tab) => (
@@ -131,20 +154,98 @@ function MerchantProfileTabs({
           to={adminPath(`/merchants/${merchantId}?tab=${tab.id}`)}
         >
           {tab.label}
+          {tab.badgeLoading || tab.badge !== undefined ? (
+            <span className="merchant-tab__badge">
+              {tab.badgeLoading ? <span className="ui-tabs__badge-spinner" aria-label={t('Loading count', { defaultValue: 'Loading count' })} /> : tab.badge}
+            </span>
+          ) : null}
         </Link>
       ))}
     </div>
   )
 }
 
+type MerchantSectionAccent = 'orders' | 'shipments' | 'inventory' | 'finance' | 'success' | 'warning' | 'drivers'
+
+function MerchantSection({
+  accent,
+  children,
+  description,
+  title,
+}: {
+  accent: MerchantSectionAccent
+  children: ReactNode
+  description: string
+  title: string
+}) {
+  const [isExpanded, setIsExpanded] = useState(true)
+  const contentId = useId()
+
+  return (
+    <Card
+      className={`merchant-section-card${isExpanded ? ' merchant-section-card--expanded' : ''}`}
+      data-accent={accent}
+    >
+      <CardHeader className="merchant-section-card__header">
+        <button
+          aria-controls={contentId}
+          aria-expanded={isExpanded}
+          className="merchant-section-card__toggle"
+          onClick={() => setIsExpanded((current) => !current)}
+          type="button"
+        >
+          <span className="merchant-section-card__heading">
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </span>
+          <span className="merchant-section-card__toggle-icon" aria-hidden="true">
+            <ChevronDown size={20} strokeWidth={2.25} />
+          </span>
+        </button>
+      </CardHeader>
+      <CardContent
+        aria-hidden={!isExpanded}
+        className="merchant-section-card__content"
+        id={contentId}
+        hidden={!isExpanded}
+      >
+        {children}
+      </CardContent>
+    </Card>
+  )
+}
+
+function MerchantProfileCard({ merchant }: { merchant: Merchant }) {
+  const { t } = useTranslation()
+
+  return (
+    <Card className="detail-card merchant-profile-card">
+      <CardHeader>
+        <CardTitle>{t('Merchant Profile', { defaultValue: 'Merchant Profile' })}</CardTitle>
+        <CardDescription>{t('Contact details and operational summary.', { defaultValue: 'Contact details and operational summary.' })}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <dl className="detail-list">
+          <div><dt>{t('Company', { defaultValue: 'Company' })}</dt><dd>{merchant.company_name}</dd></div>
+          <div><dt>{t('Contact', { defaultValue: 'Contact' })}</dt><dd>{merchant.name}</dd></div>
+          <div><dt>{t('Phone')}</dt><dd>{merchant.phone}</dd></div>
+          <div><dt>{t('Email', { defaultValue: 'Email' })}</dt><dd>{merchant.email}</dd></div>
+          <div><dt>{t('Address', { defaultValue: 'Address' })}</dt><dd>{merchant.address}</dd></div>
+          <div><dt>{t('Pricing Plan', { defaultValue: 'Pricing Plan' })}</dt><dd>{merchant.pricing_plan_name ?? '-'}</dd></div>
+          <div><dt>{t('Status')}</dt><dd><StatusBadge value={merchant.status} /></dd></div>
+          <div><dt>{t('Created', { defaultValue: 'Created' })}</dt><dd>{formatDate(merchant.created_at)}</dd></div>
+        </dl>
+      </CardContent>
+    </Card>
+  )
+}
+
 function MerchantOverviewPanel({
-  merchant,
   filters,
   setFilters,
   dashboardQuery,
   financeQuery,
 }: {
-  merchant: Merchant
   filters: MerchantScopedFilters
   setFilters: Dispatch<SetStateAction<MerchantScopedFilters>>
   dashboardQuery: MerchantQueryState<MerchantDashboardSummary>
@@ -178,24 +279,6 @@ function MerchantOverviewPanel({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('Merchant Profile', { defaultValue: 'Merchant Profile' })}</CardTitle>
-          <CardDescription>{t('Contact details and operational summary.', { defaultValue: 'Contact details and operational summary.' })}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <dl className="detail-list">
-            <div><dt>{t('Company', { defaultValue: 'Company' })}</dt><dd>{merchant.company_name}</dd></div>
-            <div><dt>{t('Phone')}</dt><dd>{merchant.phone}</dd></div>
-            <div><dt>{t('Email', { defaultValue: 'Email' })}</dt><dd>{merchant.email}</dd></div>
-            <div><dt>{t('Address', { defaultValue: 'Address' })}</dt><dd>{merchant.address}</dd></div>
-            <div><dt>{t('Pricing Plan', { defaultValue: 'Pricing Plan' })}</dt><dd>{merchant.pricing_plan_name ?? '-'}</dd></div>
-            <div><dt>{t('Status')}</dt><dd><StatusBadge value={merchant.status} /></dd></div>
-            <div><dt>{t('Created', { defaultValue: 'Created' })}</dt><dd>{formatDate(merchant.created_at)}</dd></div>
-          </dl>
-        </CardContent>
-      </Card>
-
       {dashboardQuery.isLoading || financeQuery.isLoading ? <LoadingState title={t('Loading merchant summaries', { defaultValue: 'Loading merchant summaries' })} /> : null}
       {dashboardQuery.isError ? (
         <ErrorState
@@ -214,19 +297,19 @@ function MerchantOverviewPanel({
 
       {dashboard ? (
         <div className="stats-grid">
-          <StatCard title={t('Shipments')} value={dashboard.shipments.total} tone="info" icon={<Package size={19} />} />
-          <StatCard title={t('Delivered', { defaultValue: 'Delivered' })} value={dashboard.shipments.delivered} tone="success" icon={<Package size={19} />} />
-          <StatCard title={t('Company Profit', { defaultValue: 'Company Profit' })} value={<MoneyDisplay value={dashboard.company_profit} />} tone="success" icon={<Landmark size={19} />} />
-          <StatCard title={t('Merchant Payables', { defaultValue: 'Merchant Payables' })} value={<MoneyDisplay value={dashboard.merchants_payables} />} tone="warning" icon={<Wallet size={19} />} />
+          <StatCard accent="shipments" title={t('Shipments')} value={dashboard.shipments.total} tone="info" icon={<Package size={19} />} />
+          <StatCard accent="success" title={t('Delivered', { defaultValue: 'Delivered' })} value={dashboard.shipments.delivered} tone="success" icon={<Package size={19} />} />
+          <StatCard accent="success" title={t('Company Profit', { defaultValue: 'Company Profit' })} value={<MoneyDisplay value={dashboard.company_profit} />} tone="success" icon={<Landmark size={19} />} />
+          <StatCard accent="warning" title={t('Merchant Payables', { defaultValue: 'Merchant Payables' })} value={<MoneyDisplay value={dashboard.merchants_payables} />} tone="warning" icon={<Wallet size={19} />} />
         </div>
       ) : null}
 
       {finance ? (
         <div className="stats-grid">
-          <StatCard title={t('COD Collected', { defaultValue: 'COD Collected' })} value={<MoneyDisplay value={finance.cod_collected} />} tone="info" />
-          <StatCard title={t('Shipping Fees', { defaultValue: 'Shipping Fees' })} value={<MoneyDisplay value={finance.shipping_fees} />} tone="success" />
-          <StatCard title={t('Warehouse Charges', { defaultValue: 'Warehouse Charges' })} value={<MoneyDisplay value={finance.warehouse_charges} />} tone="warning" />
-          <StatCard title={t('Remaining Balance', { defaultValue: 'Remaining Balance' })} value={<MoneyDisplay value={finance.remaining_balance} />} tone="neutral" />
+          <StatCard accent="finance" title={t('COD Collected', { defaultValue: 'COD Collected' })} value={<MoneyDisplay value={finance.cod_collected} />} tone="info" />
+          <StatCard accent="success" title={t('Shipping Fees', { defaultValue: 'Shipping Fees' })} value={<MoneyDisplay value={finance.shipping_fees} />} tone="success" />
+          <StatCard accent="finance" title={t('Warehouse Charges', { defaultValue: 'Warehouse Charges' })} value={<MoneyDisplay value={finance.warehouse_charges} />} tone="warning" />
+          <StatCard accent="finance" title={t('Remaining Balance', { defaultValue: 'Remaining Balance' })} value={<MoneyDisplay value={finance.remaining_balance} />} tone="neutral" />
         </div>
       ) : null}
 
@@ -417,58 +500,79 @@ export function MerchantDetailsPage() {
   })
   const queryFilters = useMemo(() => compactFilters(overviewFilters), [overviewFilters])
   const dateFilters = useMemo(() => compactDateFilters(overviewFilters), [overviewFilters])
-  const requestedTab = searchParams.get('tab') as MerchantTabId | null
+  const requestedTabValue = searchParams.get('tab')
+  const requestedTab = normalizeRequestedTab(requestedTabValue)
   const legacyTab = getLegacyTabAlias(location.pathname)
   const canViewWallet = hasPermission(user, PERMISSIONS.MERCHANT_WALLET_VIEW)
-
+  const canViewOrders = hasPermission(user, PERMISSIONS.ORDERS_VIEW)
+  const canViewShipments = hasPermission(user, PERMISSIONS.SHIPMENTS_VIEW)
+  const canViewInvoices = hasPermission(user, PERMISSIONS.FINANCE_INVOICES_VIEW)
+  const canViewIntegrationTokens = hasPermission(user, PERMISSIONS.MERCHANT_INTEGRATIONS_VIEW)
+  const canManagePortalUsers = hasPermission(user, PERMISSIONS.MERCHANT_PORTAL_USERS_MANAGE)
+  const canViewAttachments = hasPermission(user, PERMISSIONS.ATTACHMENTS_VIEW)
+  const canViewWarehouse = hasAnyPermission(user, [
+    PERMISSIONS.INVENTORY_VIEW,
+    PERMISSIONS.WAREHOUSE_PRODUCTS_VIEW,
+    PERMISSIONS.WAREHOUSE_CHARGES_VIEW,
+    PERMISSIONS.WAREHOUSE_RETURNS_VIEW,
+  ])
   const merchantQuery = useQuery({
     queryKey: ['merchants', merchantId],
     queryFn: () => getMerchant(merchantId!),
     enabled: Boolean(merchantId),
   })
 
+  const ordersCountParams = useMemo(() => ({ merchant_id: merchantId! }), [merchantId])
+  const shipmentsCountParams = useMemo(() => ({ merchant_id: merchantId! }), [merchantId])
+  const ordersCountQuery = useQuery({
+    queryKey: ['merchant-profile', merchantId, 'orders', ordersCountParams],
+    queryFn: () => listOrders(ordersCountParams),
+    enabled: Boolean(merchantId) && canViewOrders,
+  })
+  const shipmentsCountQuery = useQuery({
+    queryKey: ['merchant-profile', merchantId, 'shipments', shipmentsCountParams],
+    queryFn: () => listShipments(shipmentsCountParams),
+    enabled: Boolean(merchantId) && canViewShipments,
+  })
+  const portalUsersCountQuery = useQuery({
+    queryKey: ['merchant-profile', merchantId, 'portal-users'],
+    queryFn: () => listMerchantPortalUsers(merchantId!),
+    enabled: Boolean(merchantId) && canManagePortalUsers,
+  })
+  const walletHeaderSummaryQuery = useQuery({
+    queryKey: ['merchant-profile', merchantId, 'wallet-summary'],
+    queryFn: () => getMerchantWalletSummary(merchantId!),
+    enabled: Boolean(merchantId) && canViewWallet,
+  })
+
+  const operationsCount = (ordersCountQuery.data?.data.length ?? 0) + (shipmentsCountQuery.data?.data.length ?? 0)
+  const operationsCountLoading = (canViewOrders && ordersCountQuery.isLoading) || (canViewShipments && shipmentsCountQuery.isLoading)
+
   const allTabs: Array<MerchantTab & { allowed: boolean }> = [
     { id: 'overview', label: t('Overview', { defaultValue: 'Overview' }), allowed: hasPermission(user, PERMISSIONS.MERCHANTS_VIEW) },
-    { id: 'orders', label: t('Orders'), allowed: hasPermission(user, PERMISSIONS.ORDERS_VIEW) },
-    { id: 'shipments', label: t('Shipments'), allowed: hasPermission(user, PERMISSIONS.SHIPMENTS_VIEW) },
     {
-      id: 'wallet',
-      label: t('Wallet'),
-      allowed: hasPermission(user, PERMISSIONS.MERCHANT_WALLET_VIEW),
-    },
-    { id: 'invoices', label: t('Invoices'), allowed: hasPermission(user, PERMISSIONS.FINANCE_INVOICES_VIEW) },
-    {
-      id: 'warehouse',
-      label: t('Warehouse'),
-      allowed: hasAnyPermission(user, [
-        PERMISSIONS.INVENTORY_VIEW,
-        PERMISSIONS.WAREHOUSE_PRODUCTS_VIEW,
-        PERMISSIONS.WAREHOUSE_CHARGES_VIEW,
-        PERMISSIONS.WAREHOUSE_RETURNS_VIEW,
-      ]),
+      id: 'operations',
+      label: t('Operations', { defaultValue: 'Operations' }),
+      allowed: canViewOrders || canViewShipments || canViewWarehouse,
+      badge: operationsCount,
+      badgeLoading: operationsCountLoading,
     },
     {
-      id: 'integration-tokens',
-      label: t('Integration Tokens', { defaultValue: 'Integration Tokens' }),
-      allowed: hasPermission(user, PERMISSIONS.MERCHANT_INTEGRATIONS_VIEW),
+      id: 'finance',
+      label: t('Finance'),
+      allowed: canViewWallet || canViewInvoices || canViewAttachments,
+      badge: walletHeaderSummaryQuery.data?.data
+        ? formatMoney(walletHeaderSummaryQuery.data.data.available_balance)
+        : undefined,
+      badgeLoading: canViewWallet && walletHeaderSummaryQuery.isLoading,
     },
     {
-      id: 'shop-preview',
-      label: t('Shop Preview', { defaultValue: 'Shop Preview' }),
-      allowed: hasPermission(user, PERMISSIONS.MERCHANT_SHOP_VIEW),
+      id: 'settings',
+      label: t('Settings'),
+      allowed: canViewIntegrationTokens || canManagePortalUsers || canViewAttachments,
+      badge: canManagePortalUsers ? (portalUsersCountQuery.data?.data.length ?? 0) : undefined,
+      badgeLoading: canManagePortalUsers && portalUsersCountQuery.isLoading,
     },
-    {
-      id: 'portal-users',
-      label: t('Portal Users', { defaultValue: 'Portal Users' }),
-      allowed: hasPermission(user, PERMISSIONS.MERCHANT_PORTAL_USERS_MANAGE),
-    },
-    {
-      id: 'attachments',
-      label: t('Attachments'),
-      allowed: hasPermission(user, PERMISSIONS.ATTACHMENTS_VIEW),
-    },
-
-    
   ]
 
   const visibleTabs = allTabs.filter((tab) => tab.allowed)
@@ -498,25 +602,19 @@ export function MerchantDetailsPage() {
       {
         queryKey: ['merchants', merchantId, 'warehouse-inventory'],
         queryFn: () => getMerchantWarehouseInventory(merchantId!),
-        enabled: Boolean(merchantId) && currentTab === 'warehouse',
+        enabled: Boolean(merchantId) && currentTab === 'operations' && canViewWarehouse,
       },
       {
         queryKey: ['merchants', merchantId, 'warehouse-movements'],
         queryFn: () => getMerchantWarehouseMovements(merchantId!),
-        enabled: Boolean(merchantId) && currentTab === 'warehouse',
+        enabled: Boolean(merchantId) && currentTab === 'operations' && canViewWarehouse,
       },
       {
         queryKey: ['merchants', merchantId, 'warehouse-charges', dateFilters],
         queryFn: () => getMerchantWarehouseCharges(merchantId!, dateFilters),
-        enabled: Boolean(merchantId) && currentTab === 'warehouse',
+        enabled: Boolean(merchantId) && currentTab === 'operations' && canViewWarehouse,
       },
     ],
-  })
-
-  const walletHeaderSummaryQuery = useQuery({
-    queryKey: ['merchant-profile', merchantId, 'wallet-summary', 'header'],
-    queryFn: () => getMerchantWalletSummary(merchantId!),
-    enabled: Boolean(merchantId) && canViewWallet,
   })
 
   if (merchantQuery.isLoading) {
@@ -537,17 +635,30 @@ export function MerchantDetailsPage() {
   }
 
   const merchant = merchantQuery.data.data
+  const merchantStatusAccent = merchant.status === 'active'
+    ? 'success'
+    : merchant.status === 'inactive'
+      ? 'danger'
+      : 'warning'
+  const walletAvailableBalance = walletHeaderSummaryQuery.data?.data.available_balance
+  const walletAccent = Number(walletAvailableBalance ?? 0) < 0 ? 'danger' : 'success'
 
   return (
     <section className="page-section">
       <PageHeader
-        title={merchant.name}
-        description={merchant.company_name}
+        eyebrow="Admin Console"
+        title={merchant.company_name}
+        description={(
+          <span className="merchant-header-meta">
+            <StatusBadge value={merchant.status} />
+            <span aria-hidden="true">•</span>
+            <span>{merchant.name}</span>
+            <span aria-hidden="true">•</span>
+            <span>{merchant.phone}</span>
+          </span>
+        )}
         actions={
           <div className="page-header__button-row">
-            <div className="table-meta">{merchant.phone}</div>
-            <div className="table-meta">{merchant.email}</div>
-            <StatusBadge value={merchant.status} />
             {hasPermission(user, PERMISSIONS.MERCHANTS_UPDATE) ? (
               <Link className="ui-link-reset" to={adminPath(`/merchants/${merchant.id}/edit`)}>
                 <Button variant="secondary">{t('Edit')}</Button>
@@ -561,22 +672,24 @@ export function MerchantDetailsPage() {
       />
 
       <div className="stats-grid">
-        <StatCard title={t('Pricing Plan', { defaultValue: 'Pricing Plan' })} value={merchant.pricing_plan_name ?? '-'} tone="neutral" />
-        <StatCard title={t('Status')} value={<StatusBadge value={merchant.status} />} tone="info" />
-        {walletHeaderSummaryQuery.data?.data ? (
+        <StatCard accent="finance" title={t('Pricing Plan', { defaultValue: 'Pricing Plan' })} value={merchant.pricing_plan_name ?? '-'} tone="neutral" />
+        <StatCard accent={merchantStatusAccent} title={t('Status')} value={<StatusBadge value={merchant.status} />} tone="info" />
+        {canViewWallet ? (
           <StatCard
+            accent={walletAccent}
             title={t('Wallet Available Balance', { defaultValue: 'Wallet Available Balance' })}
-            value={<MoneyDisplay value={walletHeaderSummaryQuery.data.data.available_balance} />}
-            tone="success"
+            value={<MoneyDisplay value={walletAvailableBalance} />}
+            tone={walletAccent === 'danger' ? 'danger' : 'success'}
           />
         ) : null}
       </div>
+
+      <MerchantProfileCard merchant={merchant} />
 
       <MerchantProfileTabs merchantId={merchantId} tabs={visibleTabs} activeTab={currentTab} />
 
       {currentTab === 'overview' ? (
         <MerchantOverviewPanel
-          merchant={merchant}
           filters={overviewFilters}
           setFilters={setOverviewFilters}
           dashboardQuery={dashboardQuery}
@@ -584,24 +697,105 @@ export function MerchantDetailsPage() {
         />
       ) : null}
 
-      {currentTab === 'orders' ? <MerchantOrdersPanel merchantId={merchantId} /> : null}
-      {currentTab === 'shipments' ? <MerchantShipmentsPanel merchantId={merchantId} /> : null}
-      {currentTab === 'wallet' ? <MerchantWalletPanel merchant={merchant} merchantId={merchantId} /> : null}
-      {currentTab === 'invoices' ? <MerchantInvoicesPanel merchantId={merchantId} /> : null}
-      {currentTab === 'warehouse' ? (
-        <MerchantWarehousePanel
-          inventoryQuery={inventoryQuery}
-          movementsQuery={movementsQuery}
-          chargesQuery={chargesQuery}
-        />
+      {currentTab === 'operations' ? (
+        <div className="merchant-sections">
+          {canViewOrders ? (
+            <MerchantSection
+              accent="orders"
+              title={t('Orders')}
+              description={t('All orders for this merchant', { defaultValue: 'All orders for this merchant' })}
+            >
+              <MerchantOrdersPanel merchantId={merchantId} />
+            </MerchantSection>
+          ) : null}
+          {canViewShipments ? (
+            <MerchantSection
+              accent="shipments"
+              title={t('Shipments')}
+              description={t('All shipments for this merchant', { defaultValue: 'All shipments for this merchant' })}
+            >
+              <MerchantShipmentsPanel merchantId={merchantId} />
+            </MerchantSection>
+          ) : null}
+          {canViewWarehouse ? (
+            <MerchantSection
+              accent="inventory"
+              title={t('Warehouse')}
+              description={t('Inventory, movements, and charges', { defaultValue: 'Inventory, movements, and charges' })}
+            >
+              <MerchantWarehousePanel
+                inventoryQuery={inventoryQuery}
+                movementsQuery={movementsQuery}
+                chargesQuery={chargesQuery}
+              />
+            </MerchantSection>
+          ) : null}
+        </div>
       ) : null}
-      {currentTab === 'integration-tokens' ? <MerchantIntegrationTokensPanel merchantId={merchantId} /> : null}
-      {currentTab === 'portal-users' ? <MerchantPortalUsersPanel merchantId={merchantId} /> : null}
-      {currentTab === 'attachments' ? (
-        <Attachments attachableType="merchants" attachableId={merchantId} />
+
+      {currentTab === 'finance' ? (
+        <div className="merchant-sections">
+          {canViewWallet ? (
+            <MerchantSection
+              accent="success"
+              title={t('Wallet')}
+              description={t('Wallet balance and transaction history', { defaultValue: 'Wallet balance and transaction history' })}
+            >
+              <MerchantWalletPanel merchant={merchant} merchantId={merchantId} />
+            </MerchantSection>
+          ) : null}
+          {canViewInvoices ? (
+            <MerchantSection
+              accent="finance"
+              title={t('Invoices')}
+              description={t('Merchant invoices and payment status', { defaultValue: 'Merchant invoices and payment status' })}
+            >
+              <MerchantInvoicesPanel merchantId={merchantId} />
+            </MerchantSection>
+          ) : null}
+          {canViewAttachments ? (
+            <MerchantSection
+              accent="warning"
+              title={t('Related Attachments', { defaultValue: 'Related Attachments' })}
+              description={t('Finance-related merchant documents', { defaultValue: 'Finance-related merchant documents' })}
+            >
+              <Attachments attachableType="merchants" attachableId={merchantId} />
+            </MerchantSection>
+          ) : null}
+        </div>
       ) : null}
-      {currentTab === 'shop-preview' ? <MerchantShopPreviewPanel merchantId={merchantId} /> : null}
-      
+
+      {currentTab === 'settings' ? (
+        <div className="merchant-sections">
+          {canManagePortalUsers ? (
+            <MerchantSection
+              accent="drivers"
+              title={t('Portal Users', { defaultValue: 'Portal Users' })}
+              description={t('Manage access to the merchant portal', { defaultValue: 'Manage access to the merchant portal' })}
+            >
+              <MerchantPortalUsersPanel merchantId={merchantId} />
+            </MerchantSection>
+          ) : null}
+          {canViewIntegrationTokens ? (
+            <MerchantSection
+              accent="finance"
+              title={t('Integration Tokens', { defaultValue: 'Integration Tokens' })}
+              description={t('API credentials and integration access', { defaultValue: 'API credentials and integration access' })}
+            >
+              <MerchantIntegrationTokensPanel merchantId={merchantId} />
+            </MerchantSection>
+          ) : null}
+          {canViewAttachments ? (
+            <MerchantSection
+              accent="warning"
+              title={t('Attachments')}
+              description={t('General merchant files and documents', { defaultValue: 'General merchant files and documents' })}
+            >
+              <Attachments attachableType="merchants" attachableId={merchantId} />
+            </MerchantSection>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   )
 }

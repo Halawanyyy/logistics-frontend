@@ -3636,8 +3636,10 @@ Success response example:
 - Operations staff generate a manifest for one driver and one manifest date.
 - Manifest items are shipment snapshots captured at loadout time.
 - Shipments cannot belong to multiple open manifests.
-- Manifest expected COD is recalculated at close time from delivered or partially delivered shipments.
-- Manifest closing automatically creates or updates a linked `driver_cash_closure`.
+- A manifest can only be closed after every shipment is fully delivered.
+- Manifest expected COD is recalculated at close time from delivered shipments.
+- Manifest closing creates or updates a linked `driver_cash_closure` with `pending` status.
+- A Finance or Admin user with `drivers.cash_closure.verify` verifies the pending closure before treasury synchronization.
 - A manifest cannot be closed while one of its shipments is still unresolved operationally.
 
 ### POST `/api/driver-manifests/generate`
@@ -3756,10 +3758,11 @@ Request body example:
 
 Manifest closing rules:
 
-- All shipments must have final daily operational status before closing
+- All shipments must have status `delivered` before closing
 - Expected COD is recalculated from delivered item results when available
 - `difference_amount = actual_received_amount - expected_cod_amount`
 - A linked `driver_cash_closure` is created or updated automatically
+- The linked closure remains `pending` until it is verified separately
 
 Success response example:
 

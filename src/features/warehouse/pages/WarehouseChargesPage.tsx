@@ -20,12 +20,20 @@ const initialFilters = {
   date_to: '',
 }
 
-export function WarehouseChargesPage() {
+export function WarehouseChargesPanel({
+  embedded = false,
+  onCountChange,
+}: {
+  embedded?: boolean
+  onCountChange?: (count: number) => void
+}) {
   const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
   const params = compactFilters(filters)
   return (
     <ResourceListPage<WarehouseCharge>
+      hideHeader={embedded}
+      onCountChange={onCountChange}
       title={t('Warehouse Charges')}
       description={t('Warehouse-related merchant charges.')}
       actions={<Can permission={PERMISSIONS.WAREHOUSE_CHARGES_CREATE}><Link className="ui-link-reset" to="/warehouse-charges/create"><Button>{t('Create Charge')}</Button></Link></Can>}
@@ -35,8 +43,8 @@ export function WarehouseChargesPage() {
         <ApiFilterBar
           filters={filters}
           fields={[
-            { label: t('Warehouse ID'), name: 'warehouse_id', type: 'number' },
-            { label: t('Merchant ID'), name: 'merchant_id', type: 'number' },
+            { label: t('Warehouse', { defaultValue: 'Warehouse' }), name: 'warehouse_id', type: 'warehouse' },
+            { label: t('Merchant', { defaultValue: 'Merchant' }), name: 'merchant_id', type: 'merchant' },
             { label: t('Type'), name: 'type' },
             { label: t('Status'), name: 'status', type: 'select', options: [{ label: t('pending'), value: 'pending' }, { label: t('completed'), value: 'completed' }, { label: t('cancelled'), value: 'cancelled' }] },
             { label: t('Date From'), name: 'date_from', type: 'date' },
@@ -56,4 +64,8 @@ export function WarehouseChargesPage() {
       ]}
     />
   )
+}
+
+export function WarehouseChargesPage() {
+  return <WarehouseChargesPanel />
 }

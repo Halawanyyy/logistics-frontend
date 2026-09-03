@@ -17,6 +17,7 @@ import { ErrorState } from '../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../shared/components/states/LoadingState'
 import { ConfirmActionModal } from '../../../shared/components/modals/ConfirmActionModal'
 import { Button } from '../../../shared/components/ui/Button'
+import { BulkActionBar } from '../../../shared/components/ui/BulkActionBar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/components/ui/Card'
 import { Dropdown, DropdownContent, DropdownItem, DropdownMenu, DropdownTrigger } from '../../../shared/components/ui/Dropdown'
 import { Input } from '../../../shared/components/ui/Input'
@@ -29,7 +30,7 @@ import { useLocale } from '../../../shared/i18n/useLocale'
 import { adminPath } from '../../../shared/routing/paths'
 import { formatDate } from '../../../shared/utils/formatters'
 import type { Order } from '../types/order.types'
-import { getOrderPrintableLabelDocument } from '../utils/orderLabel'
+import { buildBulkOrderLabelDocument, getOrderPrintableLabelDocument } from '../utils/orderLabel'
 
 type OrdersListFilters = {
   status: string
@@ -82,6 +83,9 @@ export function OrdersListPage() {
   const [orderPendingDelete, setOrderPendingDelete] = useState<{ id: number; orderNumber: string } | null>(null)
   const [selectedOrderForLabel, setSelectedOrderForLabel] = useState<Order | null>(null)
   const [isOrderLabelDialogOpen, setIsOrderLabelDialogOpen] = useState(false)
+  const [isBulkLabelDialogOpen, setIsBulkLabelDialogOpen] = useState(false)
+  const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([])
+  const [bulkConfirmation, setBulkConfirmation] = useState<'confirm' | 'delete' | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
   const queryClient = useQueryClient()
   const params = useMemo(() => ({
@@ -130,8 +134,47 @@ export function OrdersListPage() {
       await queryClient.invalidateQueries({ queryKey: ['shipments'] })
     },
   })
+  const bulkOrderMutation = useMutation({
+    mutationFn: async ({ action, ids }: { action: 'confirm' | 'delete'; ids: number[] }) => {
+      const results = await Promise.allSettled(
+        ids.map((orderId) => action === 'confirm' ? confirmOrder(orderId) : deleteOrder(orderId)),
+      )
+      return {
+        action,
+        attempted: ids.length,
+        failedIds: ids.filter((_, index) => results[index]?.status === 'rejected'),
+        succeededIds: ids.filter((_, index) => results[index]?.status === 'fulfilled'),
+      }
+    },
+    onSuccess: async ({ action, attempted, failedIds, succeededIds }) => {
+      setBulkConfirmation(null)
+      setSelectedOrderIds((current) => current.filter((id) => !succeededIds.includes(id)))
+      const actionLabel = action === 'confirm' ? 'confirmed' : 'deleted'
+      setSuccessMessage(failedIds.length
+        ? `${succeededIds.length} of ${attempted} orders ${actionLabel}; ${failedIds.length} could not be updated.`
+        : `${succeededIds.length} orders ${actionLabel} successfully.`)
+      await queryClient.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
 
-  const orders = query.data?.data ?? []
+  const orders = useMemo(() => query.data?.data ?? [], [query.data?.data])
+  const selectedOrders = useMemo(
+    () => orders.filter((order) => selectedOrderIds.includes(order.id)),
+    [orders, selectedOrderIds],
+  )
+  const confirmableSelectedOrders = selectedOrders.filter((order) =>
+    (order.status === 'draft' || order.status === 'pending_review')
+      && !order.requires_review
+      && order.items.length > 0,
+  )
+  const deletableSelectedOrders = selectedOrders.filter((order) =>
+    order.status === 'draft'
+      && !order.shipment
+      && !order.shipment_id
+      && !order.shipment_number,
+  )
+  const allOrdersSelected = orders.length > 0
+    && orders.every((order) => selectedOrderIds.includes(order.id))
 
   useEffect(() => {
     setFilters((current) => (
@@ -333,6 +376,17 @@ export function OrdersListPage() {
               <Table variant="striped">
                 <thead>
                   <tr>
+                    <TableHead>
+                      <input
+                        aria-label={t('Select all orders', { defaultValue: 'Select all orders' })}
+                        checked={allOrdersSelected}
+                        className="bulk-select-checkbox"
+                        type="checkbox"
+                        onChange={(event) => {
+                          setSelectedOrderIds(event.target.checked ? orders.map((order) => order.id) : [])
+                        }}
+                      />
+                    </TableHead>
                     <TableHead>{t('Order')}</TableHead>
                     <TableHead>{t('Merchant')}</TableHead>
                     <TableHead>{t('Order Type', { defaultValue: 'Order Type' })}</TableHead>
@@ -360,6 +414,22 @@ export function OrdersListPage() {
 
                     return (
                       <tr key={order.id}>
+                        <TableCell>
+                          <input
+                            aria-label={t('Select order {{orderNumber}}', {
+                              orderNumber: order.order_number,
+                              defaultValue: `Select order ${order.order_number}`,
+                            })}
+                            checked={selectedOrderIds.includes(order.id)}
+                            className="bulk-select-checkbox"
+                            type="checkbox"
+                            onChange={(event) => {
+                              setSelectedOrderIds((current) => event.target.checked
+                                ? [...current, order.id]
+                                : current.filter((id) => id !== order.id))
+                            }}
+                          />
+                        </TableCell>
                         <TableCell>
                           <Link className="table-link" to={adminPath(`/orders/${order.id}`)}>
                             {order.order_number}
@@ -464,6 +534,54 @@ export function OrdersListPage() {
         </CardContent>
       </Card>
 
+      <BulkActionBar selectedCount={selectedOrderIds.length} onClear={() => setSelectedOrderIds([])}>
+        <Can permission={PERMISSIONS.ORDERS_CONFIRM}>
+          <Button
+            disabled={!confirmableSelectedOrders.length}
+            size="sm"
+            type="button"
+            onClick={() => setBulkConfirmation('confirm')}
+          >
+            {t('Confirm Orders', { defaultValue: 'Confirm Orders' })}
+          </Button>
+        </Can>
+        <Can permission={PERMISSIONS.ORDERS_VIEW}>
+          <Button size="sm" type="button" variant="secondary" onClick={() => setIsBulkLabelDialogOpen(true)}>
+            {t('Print Labels', { defaultValue: 'Print Labels' })}
+          </Button>
+        </Can>
+        <Can permission={PERMISSIONS.ORDERS_DELETE}>
+          <Button
+            disabled={!deletableSelectedOrders.length}
+            size="sm"
+            type="button"
+            variant="danger"
+            onClick={() => setBulkConfirmation('delete')}
+          >
+            {t('Delete Draft Orders', { defaultValue: 'Delete Draft Orders' })}
+          </Button>
+        </Can>
+      </BulkActionBar>
+
+      <LabelDocumentDialog
+        defaultFormat="html"
+        fetchDocument={(options) => buildBulkOrderLabelDocument({
+          dimensions: { heightMm: options.height_mm, widthMm: options.width_mm },
+          locale,
+          orders: selectedOrders,
+          t,
+        })}
+        formats={['html', 'pdf']}
+        hideTrigger
+        onOpenChange={setIsBulkLabelDialogOpen}
+        open={isBulkLabelDialogOpen}
+        title={t('Bulk Order Waybills ({{count}})', {
+          count: selectedOrderIds.length,
+          defaultValue: `Bulk Order Waybills (${selectedOrderIds.length})`,
+        })}
+        triggerLabel={t('Print Labels', { defaultValue: 'Print Labels' })}
+      />
+
       <ConfirmActionModal
         open={Boolean(orderPendingDelete)}
         title={t('Delete order', { defaultValue: 'Delete order' })}
@@ -480,6 +598,39 @@ export function OrdersListPage() {
             deleteMutation.mutate(orderPendingDelete.id)
           }
         }}
+      />
+
+      <ConfirmActionModal
+        open={bulkConfirmation === 'confirm'}
+        title={t('Confirm selected orders', { defaultValue: 'Confirm selected orders' })}
+        description={t('Confirm {{count}} eligible selected orders? Ineligible orders will remain selected.', {
+          count: confirmableSelectedOrders.length,
+          defaultValue: `Confirm ${confirmableSelectedOrders.length} eligible selected orders? Ineligible orders will remain selected.`,
+        })}
+        confirmLabel={t('Confirm Orders', { defaultValue: 'Confirm Orders' })}
+        loading={bulkOrderMutation.isPending}
+        onCancel={() => setBulkConfirmation(null)}
+        onConfirm={() => bulkOrderMutation.mutate({
+          action: 'confirm',
+          ids: confirmableSelectedOrders.map((order) => order.id),
+        })}
+      />
+
+      <ConfirmActionModal
+        open={bulkConfirmation === 'delete'}
+        title={t('Delete selected drafts', { defaultValue: 'Delete selected drafts' })}
+        description={t('Permanently delete {{count}} eligible draft orders? Other selected orders will not be changed.', {
+          count: deletableSelectedOrders.length,
+          defaultValue: `Permanently delete ${deletableSelectedOrders.length} eligible draft orders? Other selected orders will not be changed.`,
+        })}
+        confirmLabel={t('Delete Draft Orders', { defaultValue: 'Delete Draft Orders' })}
+        loading={bulkOrderMutation.isPending}
+        variant="danger"
+        onCancel={() => setBulkConfirmation(null)}
+        onConfirm={() => bulkOrderMutation.mutate({
+          action: 'delete',
+          ids: deletableSelectedOrders.map((order) => order.id),
+        })}
       />
 
       <LabelDocumentDialog
@@ -506,13 +657,13 @@ export function OrdersListPage() {
           }
         }}
         open={isOrderLabelDialogOpen}
-        title={t('Order Label - {{orderNumber}}', {
+        title={t('Order Waybill - {{orderNumber}}', {
           orderNumber: selectedOrderForLabel?.order_number ?? '',
           defaultValue: selectedOrderForLabel
             ? `Order Label - ${selectedOrderForLabel.order_number}`
-            : 'Order Label',
+            : 'Order Waybill',
         })}
-        triggerLabel={t('Label', { defaultValue: 'Label' })}
+        triggerLabel={t('Waybill', { defaultValue: 'Waybill' })}
       />
       </main>
     </section>

@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>دليل خصائص نظام اللوجستيات وإدارة المخازن</title>
+  <style>
+    :root {
+      --navy: #172554;
+      --blue: #2563eb;
+      --blue-dark: #1e40af;
+      --blue-soft: #eff6ff;
+      --cyan-soft: #ecfeff;
+      --green: #047857;
+      --green-soft: #ecfdf5;
+      --amber: #b45309;
+      --amber-soft: #fffbeb;
+      --red: #b91c1c;
+      --ink: #1f2937;
+      --muted: #5f6b7a;
+      --line: #dbe3ef;
+      --surface: #f8fafc;
+    }
+
+    * { box-sizing: border-box; }
+
+    @page {
+      size: A4;
+      margin: 15mm 13mm 16mm;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: white;
+      font-family: Tahoma, Arial, "Segoe UI", sans-serif;
+      font-size: 12.2px;
+      line-height: 1.75;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .cover {
+      min-height: 260mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 20mm 11mm;
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+      background: linear-gradient(145deg, #eff6ff 0%, #ffffff 48%, #ecfeff 100%);
+      border: 1px solid #dbeafe;
+      border-radius: 18px;
+    }
+
+    .cover::before,
+    .cover::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      opacity: .75;
+    }
+
+    .cover::before {
+      width: 165mm;
+      height: 165mm;
+      top: -100mm;
+      left: -70mm;
+      background: #dbeafe;
+    }
+
+    .cover::after {
+      width: 95mm;
+      height: 95mm;
+      bottom: -58mm;
+      right: -35mm;
+      background: #cffafe;
+    }
+
+    .cover-content { position: relative; z-index: 1; }
+    .eyebrow {
+      display: inline-block;
+      padding: 5px 12px;
+      color: var(--blue-dark);
+      background: #dbeafe;
+      border-radius: 999px;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+
+    h1 {
+      margin: 14px 0 8px;
+      color: var(--navy);
+      font-size: 32px;
+      line-height: 1.45;
+    }
+
+    .cover-subtitle {
+      margin: 0;
+      max-width: 155mm;
+      color: #475569;
+      font-size: 17px;
+      line-height: 1.8;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 9px;
+      margin-top: 28px;
+    }
+
+    .stat {
+      padding: 12px 8px;
+      text-align: center;
+      background: rgba(255,255,255,.88);
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+    }
+
+    .stat strong { display: block; color: var(--blue-dark); font-size: 22px; line-height: 1.2; }
+    .stat span { color: #64748b; font-size: 10.5px; }
+
+    .cover-meta {
+      margin-top: 26px;
+      padding-top: 13px;
+      border-top: 1px solid #bfdbfe;
+      color: #64748b;
+    }
+
+    .toc { page-break-after: always; }
+
+    h2.section-title {
+      margin: 0 0 14px;
+      padding: 9px 14px;
+      color: var(--blue-dark);
+      background: #f1f5f9;
+      border-right: 5px solid var(--blue);
+      border-radius: 8px;
+      font-size: 20px;
+      line-height: 1.5;
+    }
+
+    h3 {
+      margin: 18px 0 8px;
+      color: var(--navy);
+      font-size: 15px;
+    }
+
+    p { margin: 5px 0; }
+    .lead { color: var(--muted); font-size: 13px; }
+    .muted { color: var(--muted); }
+    .small { font-size: 10.5px; }
+    .ltr { direction: ltr; unicode-bidi: embed; text-align: left; }
+
+    .section { margin-bottom: 24px; }
+    .page-break { page-break-before: always; }
+
+    .note {
+      padding: 11px 14px;
+      margin: 11px 0 16px;
+      background: var(--amber-soft);
+      border: 1px solid #fde68a;
+      border-right: 5px solid #f59e0b;
+      border-radius: 8px;
+      color: #713f12;
+    }
+
+    .success-note {
+      background: var(--green-soft);
+      border-color: #a7f3d0;
+      border-right-color: #10b981;
+      color: #065f46;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .feature-card {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      padding: 12px 14px;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      box-shadow: 0 2px 5px rgba(15, 23, 42, .035);
+    }
+
+    .feature-card.full { grid-column: 1 / -1; }
+
+    .feature-name {
+      margin: 0 0 5px;
+      color: var(--blue);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .feature-name::before {
+      content: "•";
+      color: #60a5fa;
+      font-size: 19px;
+      margin-left: 7px;
+      vertical-align: -1px;
+    }
+
+    .layer {
+      display: inline-block;
+      min-width: 43px;
+      margin-left: 5px;
+      padding: 1px 7px 2px;
+      border-radius: 999px;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .front { color: #075985; background: #e0f2fe; }
+    .back { color: #065f46; background: #d1fae5; }
+    .both { color: #5b21b6; background: #ede9fe; }
+
+    .toc-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px 18px;
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: toc;
+    }
+
+    .toc-list li {
+      counter-increment: toc;
+      padding: 7px 10px;
+      border-bottom: 1px dashed #cbd5e1;
+      color: #334155;
+    }
+
+    .toc-list li::before {
+      content: counter(toc, decimal-leading-zero);
+      display: inline-block;
+      width: 25px;
+      margin-left: 7px;
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 15px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    th, td {
+      padding: 7px 8px;
+      border: 1px solid #dbe3ef;
+      text-align: right;
+      vertical-align: top;
+    }
+
+    th { color: #1e3a8a; background: #eff6ff; font-weight: 700; }
+    tr:nth-child(even) td { background: #fafcff; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin: 11px 0 17px;
+      direction: rtl;
+    }
+
+    .flow-step {
+      position: relative;
+      padding: 10px 7px;
+      color: #1e3a8a;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 700;
+      line-height: 1.55;
+      break-inside: avoid;
+    }
+
+    .flow-step:not(:last-child)::after {
+      content: "←";
+      position: absolute;
+      left: -9px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #60a5fa;
+      font-size: 15px;
+      z-index: 2;
+    }
+
+    .pill-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 7px 0 12px; }
+    .pill { padding: 3px 8px; border: 1px solid #cbd5e1; border-radius: 999px; background: #f8fafc; color: #475569; }
+
+    .status-box {
+      padding: 9px 11px;
+      border: 1px solid #fecaca;
+      border-right: 4px solid #ef4444;
+      border-radius: 7px;
+      color: #7f1d1d;
+      background: #fef2f2;
+    }
+
+    .footer-block {
+      margin-top: 25px;
+      padding-top: 10px;
+      border-top: 1px solid #dbe3ef;
+      color: #94a3b8;
+      text-align: center;
+      font-size: 10px;
+    }
+
+    code {
+      direction: ltr;
+      unicode-bidi: embed;
+      display: inline-block;
+      padding: 0 4px;
+      color: #1e40af;
+      background: #eff6ff;
+      border-radius: 4px;
+      font-family: Consolas, monospace;
+      font-size: 10.5px;
+    }
+
+    @media print {
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="cover-content">
+      <span class="eyebrow">Logistics &amp; Warehouse ERP</span>
+      <h1>دليل خصائص نظام اللوجستيات<br>وإدارة المخازن</h1>
+      <p class="cover-subtitle">شرح شامل للخصائص المتاحة في الواجهة الأمامية والخدمات الخلفية، مع توضيح بوابة الإدارة، بوابة التاجر، الصلاحيات، وأهم دورات العمل التشغيلية.</p>
+      <div class="stats">
+        <div class="stat"><strong>2</strong><span>بوابات تشغيل</span></div>
+        <div class="stat"><strong>120</strong><span>صفحة Frontend</span></div>
+        <div class="stat"><strong>364</strong><span>وظيفة تكامل API</span></div>
+        <div class="stat"><strong>164</strong><span>مفتاح صلاحية إداري</span></div>
+      </div>
+      <div class="cover-meta">
+        <p><strong>نسخة التقرير:</strong> 28 أغسطس 2026</p>
+        <p><strong>مصدر التحليل:</strong> كود React/TypeScript الحالي، عقود الـAPI، ومسـتندات تدفقات الـBackend المرفقة داخل المشروع.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="toc">
+    <h2 class="section-title">محتويات الدليل</h2>
+    <p class="lead">تم تقسيم الدليل حسب المستخدم والعملية، مع تمييز كل ميزة إلى Frontend أو Backend أو الاثنين معًا.</p>
+    <ol class="toc-list">
+      <li>نظرة عامة ومعمارية النظام</li>
+      <li>الخصائص العامة للواجهة</li>
+      <li>الدخول والأمان والصلاحيات</li>
+      <li>لوحة تحكم الإدارة</li>
+      <li>المستخدمون والأدوار</li>
+      <li>التجار وبيانات المتجر</li>
+      <li>المناطق والتسعير</li>
+      <li>الطلبات والشحنات</li>
+      <li>السائقون وخطط التوزيع</li>
+      <li>المخازن والمخزون</li>
+      <li>السحب والتغليف والمرتجعات</li>
+      <li>المالية والخزينة</li>
+      <li>التشغيل والطباعة والتقارير</li>
+      <li>بوابة التاجر</li>
+      <li>دورات العمل الأساسية</li>
+      <li>خصائص الـBackend والأمان</li>
+      <li>مصفوفة الأدوار</li>
+      <li>ملاحظات الجاهزية والنطاق</li>
+    </ol>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">1) نظرة عامة ومعمارية النظام</h2>
+    <p class="lead">النظام منصة ERP تشغيلية لشركة شحن وFulfillment: يستقبل الطلب، يسعّر الشحن، يدير المخزون وتجهيز الطلب، ينشئ الشحنة ويوزعها على السائق، ثم يسجل التحصيلات والمصروفات ومستحقات التاجر.</p>
+    <div class="feature-grid">
+      <article class="feature-card">
+        <div class="feature-name">بوابة الإدارة الداخلية</div>
+        <p><span class="layer front">Front</span> واجهة لموظفي الإدارة، التشغيل، المخزن والمالية، والقوائم الظاهرة تتغير حسب صلاحيات المستخدم.</p>
+        <p><span class="layer back">Back</span> APIs محمية بـSanctum وصلاحيات دقيقة لكل عملية عرض أو إنشاء أو تعديل أو اعتماد.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-name">بوابة التاجر</div>
+        <p><span class="layer front">Front</span> مساحة مستقلة للتاجر لمتابعة طلباته وشحناته ومخزونه وأمواله وفريقه.</p>
+        <p><span class="layer back">Back</span> يعزل بيانات كل تاجر تلقائيًا ويحدد ما يراه حسب دوره داخل حساب التاجر.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-name">التتبع العام للعميل</div>
+        <p><span class="layer both">Front + Back</span> صفحة عامة للبحث برقم الشحنة وعرض الحالة والخط الزمني الآمن، من غير كشف بيانات العميل أو السائق أو المعلومات المالية الداخلية.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-name">تكاملات المتاجر الإلكترونية</div>
+        <p><span class="layer both">Front + Back</span> إنشاء Tokens للتكامل، عرض دليل الاستخدام، اختبار الاتصال، ثم استقبال طلبات من WooCommerce أو Shopify أو أي نظام خارجي.</p>
+      </article>
+    </div>
+    <div class="note">الـBackend غير موجود ككود تنفيذي داخل مجلد الـFrontend الحالي؛ لذلك تم توثيقه من عقود الاستدعاء وتقارير الـBackend الموجودة في <code>docs/</code>. أي تفصيل خلفي في هذا التقرير يعكس العقود والتقارير المتاحة بتاريخ الإصدار.</div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">2) الخصائص العامة للواجهة الأمامية</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">واجهة عربية وإنجليزية</div><p><span class="layer front">Front</span> تبديل فوري بين العربية والإنجليزية مع تحويل اتجاه الصفحة RTL/LTR وحفظ اللغة المختارة محليًا.</p><p><span class="layer back">Back</span> إرسال <code>X-Locale</code> و<code>Accept-Language</code> للحصول على رسائل وStatus Labels مترجمة.</p></article>
+      <article class="feature-card"><div class="feature-name">الوضع الفاتح والداكن</div><p><span class="layer front">Front</span> دعم Light/Dark Theme، واحترام إعداد الجهاز عند أول استخدام، ثم حفظ تفضيل المستخدم.</p></article>
+      <article class="feature-card"><div class="feature-name">قوائم ديناميكية بالصلاحيات</div><p><span class="layer front">Front</span> إخفاء الصفحات والأزرار غير المسموح بها، وحماية المسارات بشاشات 401/403/404.</p></article>
+      <article class="feature-card"><div class="feature-name">بحث عام في لوحة الإدارة</div><p><span class="layer front">Front</span> البحث في الطلبات والشحنات والتجار والسائقين ومنتجات المخزن، ولا يبحث المستخدم إلا في الموارد التي يملك صلاحيتها.</p></article>
+      <article class="feature-card"><div class="feature-name">قوائم وفلاتر موحّدة</div><p><span class="layer front">Front</span> جداول، Pagination، بحث، فلاتر حالة وتاريخ وتاجر وسائق ومخزن، مع حالات تحميل وفراغ وخطأ موحّدة.</p></article>
+      <article class="feature-card"><div class="feature-name">نماذج آمنة وسهلة</div><p><span class="layer front">Front</span> React Hook Form وZod للتحقق قبل الإرسال، وإظهار أخطاء الـAPI بجانب الحقول، ونوافذ تأكيد للعمليات الحساسة.</p></article>
+      <article class="feature-card"><div class="feature-name">إدارة البيانات والكاش</div><p><span class="layer front">Front</span> React Query لجلب البيانات وإعادة التحميل والكاش، وZustand للاحتفاظ بالجلسة.</p></article>
+      <article class="feature-card"><div class="feature-name">الطباعة والتنزيل</div><p><span class="layer both">Front + Back</span> معاينة وطباعة Labels وWaybills وManifests وتنزيل PDF/CSV والملفات المرفقة.</p></article>
+    </div>
+  </section>
+
+  <section class="section page-break">
+    <h2 class="section-title">3) الدخول والأمان والصلاحيات</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">تسجيل الدخول والخروج</div><p><span class="layer front">Front</span> شاشة دخول، حفظ الجلسة، تحميل المستخدم الحالي، والخروج مع تنظيف الجلسة حتى لو انتهى الـToken.</p><p><span class="layer back">Back</span> Bearer Token عبر Laravel Sanctum، مع Throttling لمحاولات الدخول.</p></article>
+      <article class="feature-card"><div class="feature-name">معالجة 401 و403 تلقائيًا</div><p><span class="layer front">Front</span> أي رد 401 ينهي الجلسة ويعيد المستخدم لصفحة الدخول الصحيحة؛ و403 ينقله لصفحة منع الوصول.</p></article>
+      <article class="feature-card"><div class="feature-name">RBAC للإدارة</div><p><span class="layer both">Front + Back</span> 164 مفتاح صلاحية تغطي العرض والإنشاء والتعديل والحذف والاعتماد والطباعة والعمليات المالية والمخزنية.</p></article>
+      <article class="feature-card"><div class="feature-name">Capabilities للتاجر</div><p><span class="layer both">Front + Back</span> الصلاحيات تأتي من <code>/merchant-portal/me</code> وتتحكم في الـSidebar والصفحات والأزرار والـWidgets.</p></article>
+      <article class="feature-card"><div class="feature-name">عزل بيانات التجار</div><p><span class="layer back">Back</span> هوية التاجر تؤخذ من العضوية أو Integration Token؛ إرسال <code>merchant_id</code> من بوابة التاجر مرفوض، ومحاولة فتح مورد لتاجر آخر تُرجع 404.</p></article>
+      <article class="feature-card"><div class="feature-name">حماية الملفات والبيانات الحساسة</div><p><span class="layer back">Back</span> تنزيل الملفات من Controllers محمية، إخفاء مسارات التخزين، رفض Path Traversal، وإرجاع Token التكامل الخام مرة واحدة فقط عند الإنشاء.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">4) لوحة تحكم الإدارة</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">ملخص التشغيل</div><p><span class="layer front">Front</span> Cards ورسوم بيانية لإجمالي الشحنات، انتظار الاستلام، قيد النقل، خرجت للتسليم، تم التسليم، والفشل والمرتجعات.</p></article>
+      <article class="feature-card"><div class="feature-name">الملخص المالي</div><p><span class="layer both">Front + Back</span> أرباح الشركة، COD المحصّل، مستحقات التجار، التسويات، المصروفات والمدفوعات ضمن الفلاتر المتاحة.</p></article>
+      <article class="feature-card"><div class="feature-name">فلاتر الإدارة</div><p><span class="layer both">Front + Back</span> تحليل حسب فترة زمنية، تاجر، أو سائق، مع إعادة حساب الـKPIs من الـBackend.</p></article>
+      <article class="feature-card"><div class="feature-name">رسوم تحليلية</div><p><span class="layer front">Front</span> Recharts لعرض حالات الشحنات والاتجاه المالي بدل الاعتماد على أرقام منفصلة فقط.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">5) المستخدمون والأدوار والإعدادات</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">المستخدمون الداخليون</div><p><span class="layer both">Front + Back</span> عرض وإنشاء وتعديل وحذف Soft Delete للمستخدمين، وربط كل مستخدم بدور وظيفي.</p></article>
+      <article class="feature-card"><div class="feature-name">الأدوار المخصصة</div><p><span class="layer both">Front + Back</span> إنشاء دور، تعديله، عرض تفاصيله، حذف الأدوار غير المحمية، ومزامنة صلاحياته.</p></article>
+      <article class="feature-card"><div class="feature-name">الصلاحيات مجمعة حسب الوحدة</div><p><span class="layer front">Front</span> Multi-select/checkbox groups تجعل تعيين صلاحيات المخزن والمالية والطلبات وغيرها واضحًا وقابلًا للمراجعة.</p></article>
+      <article class="feature-card"><div class="feature-name">إعدادات النظام</div><p><span class="layer both">Front + Back</span> عرض الإعدادات حسب مجموعات، تعديل عنصر واحد أو Bulk Update، ودعم إعدادات عامة للهوية والشحن والمخزن والطباعة والمالية.</p></article>
+      <article class="feature-card full"><div class="feature-name">الهوية البصرية وبيانات الشركة</div><p><span class="layer both">Front + Back</span> تحميل اسم الشركة والشعار وبيانات التواصل من الإعدادات العامة واستخدامها في واجهة النظام والمستندات القابلة للطباعة.</p></article>
+    </div>
+  </section>
+
+  <section class="section page-break">
+    <h2 class="section-title">6) إدارة التجار وبيانات المتجر</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">ملفات التجار</div><p><span class="layer both">Front + Back</span> قائمة التجار، إنشاء وتعديل وحذف، وحفظ بيانات الشركة والتواصل والعنوان والحالة.</p></article>
+      <article class="feature-card"><div class="feature-name">صفحة تاجر شاملة</div><p><span class="layer front">Front</span> Tabs/لوحات لملخص التاجر، Dashboard، المالية، المخزون، الحركات والرسوم.</p></article>
+      <article class="feature-card"><div class="feature-name">محفظة التاجر من الإدارة</div><p><span class="layer both">Front + Back</span> عرض الرصيد والحركات، تسجيل إيداع أو سحب، واعتماد أو رفض الحركة حسب الصلاحية.</p></article>
+      <article class="feature-card"><div class="feature-name">مستخدمو بوابة التاجر</div><p><span class="layer both">Front + Back</span> إنشاء وتعديل وحذف مستخدمي التاجر، وتفعيلهم أو إيقافهم وتحديد دور كل شخص.</p></article>
+      <article class="feature-card"><div class="feature-name">Integration Tokens</div><p><span class="layer both">Front + Back</span> عرض وإنشاء ومراجعة وإلغاء وحذف مفاتيح التكامل الخاصة بكل تاجر.</p></article>
+      <article class="feature-card"><div class="feature-name">كتالوج الشركة ومعاينة المتجر</div><p><span class="layer both">Front + Back</span> إدارة عناصر كتالوج الشركة، ومعاينة شكل متجر التاجر والمنتجات والبيانات المتاحة للعرض.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">7) المحافظات والمناطق والتسعير</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">المحافظات والمناطق</div><p><span class="layer both">Front + Back</span> CRUD كامل للمحافظات والمناطق، مع ربط المنطقة بمحافظتها واستخدامها في عناوين الطلبات.</p></article>
+      <article class="feature-card"><div class="feature-name">أسعار الشحن</div><p><span class="layer both">Front + Back</span> إنشاء وتعديل وتعطيل الأسعار، مع Restore وForce Delete للسجلات المحذوفة عند الحاجة.</p></article>
+      <article class="feature-card"><div class="feature-name">حاسبة سعر الشحن</div><p><span class="layer both">Front + Back</span> اختيار الموقع والخطة والمدخلات المطلوبة والحصول على السعر المحسوب قبل إنشاء الطلب.</p></article>
+      <article class="feature-card"><div class="feature-name">خطط التسعير</div><p><span class="layer both">Front + Back</span> خطط منفصلة لكل شريحة/تاجر، مع أسعار تفصيلية لكل منطقة وإدارة دورة حياة الخطة.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">8) الطلبات</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">قائمة الطلبات وتفاصيلها</div><p><span class="layer front">Front</span> بحث وفلاتر وحالات، مع صفحة تفاصيل تجمع العميل والعنوان والأصناف والدفع والشحن والمخزن.</p></article>
+      <article class="feature-card"><div class="feature-name">إنشاء وتعديل الطلب</div><p><span class="layer both">Front + Back</span> بيانات المستلم والعنوان والأصناف والكميات ونوع الدفع وFulfillment والتغليف والتكلفة.</p></article>
+      <article class="feature-card"><div class="feature-name">تأكيد وإلغاء الطلب</div><p><span class="layer both">Front + Back</span> انتقالات حالة مقيدة بقواعد العمل؛ لا يُسمح بإجراءات تناقض مرحلة الطلب الحالية.</p></article>
+      <article class="feature-card"><div class="feature-name">الحجز من المخزون</div><p><span class="layer back">Back</span> حجز الكميات للطلب، تحرير الحجز، أو Fulfillment كامل من المخزن مع حماية من السحب الزائد.</p></article>
+      <article class="feature-card"><div class="feature-name">دورة تجهيز الطلب</div><p><span class="layer both">Front + Back</span> بدء Picking، تأكيد السحب، بدء Packing، تأكيد التغليف، ثم Ready for Dispatch.</p></article>
+      <article class="feature-card"><div class="feature-name">طباعة Label الطلب</div><p><span class="layer both">Front + Back</span> معاينة أو تنزيل/طباعة مستند الطلب بصيغ HTML أو PDF أو أوامر طابعة حرارية حسب الإعداد.</p></article>
+    </div>
+  </section>
+
+  <section class="section page-break">
+    <h2 class="section-title">9) الشحنات والتسليم</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">إنشاء شحنة من الطلب</div><p><span class="layer both">Front + Back</span> تحويل الطلب المؤهل إلى شحنة تحمل رقم تتبع وحالة تشغيلية ومبلغ COD وبيانات العنوان.</p></article>
+      <article class="feature-card"><div class="feature-name">تغيير حالة الشحنة</div><p><span class="layer both">Front + Back</span> حالات مثل انتظار الاستلام، قيد النقل، خرجت للتسليم، تم التسليم، فشل، أو مرتجع، مع سجل زمني.</p></article>
+      <article class="feature-card"><div class="feature-name">تعيين السائق</div><p><span class="layer both">Front + Back</span> ربط الشحنة بسائق مؤهل، وإظهار المشحون وغير المعيّن لدعم التخطيط اليومي.</p></article>
+      <article class="feature-card"><div class="feature-name">محاولات التسليم</div><p><span class="layer both">Front + Back</span> تسجيل كل محاولة ونتيجتها وملاحظاتها، وإتمام التسليم مع قيمة التحصيل الفعلية عند الحاجة.</p></article>
+      <article class="feature-card"><div class="feature-name">التتبع الزمني</div><p><span class="layer front">Front</span> Timeline واضح داخل الإدارة وبوابة التاجر وصفحة العميل العامة، مع مستوى بيانات مناسب لكل جمهور.</p></article>
+      <article class="feature-card"><div class="feature-name">Labels وWaybills والطباعة المجمعة</div><p><span class="layer both">Front + Back</span> طباعة ملصق شحنة، بوليصة، قائمة طباعة، أو مجموعة ملصقات لتسريع التشغيل.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">10) السائقون وDriver Manifests</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">إدارة السائقين</div><p><span class="layer both">Front + Back</span> بيانات السائق والهاتف والمركبة واللوحة والحالة، مع إنشاء وتعديل وحذف وعرض التفاصيل.</p></article>
+      <article class="feature-card"><div class="feature-name">شحنات السائق</div><p><span class="layer both">Front + Back</span> عرض الشحنات المسندة لكل سائق وحالتها لتسهيل المتابعة اليومية.</p></article>
+      <article class="feature-card"><div class="feature-name">خطة/كشف التوزيع اليومي</div><p><span class="layer both">Front + Back</span> توليد Manifest يجمع شحنات السائق، مراجعة التفاصيل، الطباعة، ثم الإغلاق بعد انتهاء الوردية.</p></article>
+      <article class="feature-card"><div class="feature-name">نقدية السائق والتسوية</div><p><span class="layer both">Front + Back</span> حساب النقدية المتوقعة من COD، تسجيل Cash Closure، وإظهار أي فروق للمراجعة المالية.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">11) المخازن والكتالوج والمخزون</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">المستودعات</div><p><span class="layer both">Front + Back</span> إنشاء وتعديل وعرض وحذف المستودعات وبياناتها الأساسية.</p></article>
+      <article class="feature-card"><div class="feature-name">منتجات المخزن</div><p><span class="layer both">Front + Back</span> تعريف المنتج والتاجر وSKU وBarcode وحد التنبيه والحالة، مع صفحات قائمة وتفاصيل ونماذج.</p></article>
+      <article class="feature-card"><div class="feature-name">أرصدة المخزون</div><p><span class="layer both">Front + Back</span> المتاح والمحجوز والتالف والإجمالي لكل منتج ومكان، مع تعديل يدوي Audit-friendly.</p></article>
+      <article class="feature-card"><div class="feature-name">تنبيهات Low Stock</div><p><span class="layer both">Front + Back</span> قوائم وكروت سريعة للمنتجات التي وصلت لنقطة إعادة الطلب.</p></article>
+      <article class="feature-card"><div class="feature-name">حركات المخزون</div><p><span class="layer both">Front + Back</span> سجل لكل دخول وخروج وحجز وإفراج وتحويل ومرتجع وتلف وتسوية، مع مرجع العملية ووقتها.</p></article>
+      <article class="feature-card"><div class="feature-name">حجوزات المخزون</div><p><span class="layer both">Front + Back</span> ربط الكمية المحجوزة بالطلب لمنع بيع نفس الرصيد أكثر من مرة.</p></article>
+      <article class="feature-card"><div class="feature-name">المناطق والرفوف والخانات</div><p><span class="layer both">Front + Back</span> تقسيم المستودع إلى Zones ثم Shelves ثم Bins لتحديد موقع الصنف بدقة، مع Label لكل خانة.</p></article>
+      <article class="feature-card"><div class="feature-name">Warehouse Receipts</div><p><span class="layer both">Front + Back</span> إنشاء إذن استلام، إدخال الأصناف والكميات، التعديل قبل التأكيد، ثم Confirm لزيادة الرصيد أو Cancel.</p></article>
+      <article class="feature-card"><div class="feature-name">التحويل بين المخازن</div><p><span class="layer both">Front + Back</span> إنشاء Transfer ثم Confirm وDispatch وReceive أو Cancel، مع تتبع حالة وكميات التحويل.</p></article>
+      <article class="feature-card"><div class="feature-name">طلبات توريد التاجر</div><p><span class="layer both">Front + Back</span> التاجر يرسل إشعار وصول متوقع؛ الإدارة توافق أو ترفض وتربطه بإذن استلام فعلي.</p></article>
+    </div>
+  </section>
+
+  <section class="section page-break">
+    <h2 class="section-title">12) السحب والتغليف والمرتجعات ورسوم المخزن</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">Picking Lists</div><p><span class="layer both">Front + Back</span> توليد قائمة سحب للطلب، إرشاد العامل للأصناف ومواقعها، دعم Scan بالباركود، ثم الإلغاء عند الحاجة.</p></article>
+      <article class="feature-card"><div class="feature-name">Packing Tasks</div><p><span class="layer both">Front + Back</span> توليد مهمة تغليف بعد السحب، عرض الأصناف المطلوبة، ثم إكمال المهمة لتجهيز الطلب للشحن.</p></article>
+      <article class="feature-card"><div class="feature-name">المرتجعات</div><p><span class="layer both">Front + Back</span> إنشاء المرتجع، استلامه، فحصه، إعادة الصالح للمخزون أو تسجيل التالف، رفضه أو إغلاقه.</p></article>
+      <article class="feature-card"><div class="feature-name">قواعد رسوم التخزين</div><p><span class="layer both">Front + Back</span> تعريف قواعد التخزين وتوليد الرسوم على التجار وفق الفترة والاستهلاك.</p></article>
+      <article class="feature-card"><div class="feature-name">قواعد Pick & Pack</div><p><span class="layer both">Front + Back</span> تحديد تكلفة السحب والتغليف وتوليد الرسوم المرتبطة بعمليات التجهيز.</p></article>
+      <article class="feature-card"><div class="feature-name">Warehouse KPIs</div><p><span class="layer both">Front + Back</span> مؤشرات الأداء للمخزون والاستلام والتحويل والسحب والتغليف والرسوم خلال فترة محددة.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">13) المالية والخزينة</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">التقارير المالية</div><p><span class="layer both">Front + Back</span> Overview، Daily Cash، Merchant Ledger، فروق السائقين، إيراد المخزن، والأرباح والخسائر.</p></article>
+      <article class="feature-card"><div class="feature-name">مدفوعات التجار</div><p><span class="layer both">Front + Back</span> إنشاء طلب Payout وتعديله، ثم اعتماد أو رفض أو إكمال الصرف مع سجل الحالة.</p></article>
+      <article class="feature-card"><div class="feature-name">المصروفات</div><p><span class="layer both">Front + Back</span> CRUD للمصروفات، واعتماد/رفض المصروف ثم تعليمه كمدفوع وربطه بحساب خزينة عند الحاجة.</p></article>
+      <article class="feature-card"><div class="feature-name">إغلاقات نقدية السائقين</div><p><span class="layer both">Front + Back</span> مطابقة COD المتوقع مع المستلم فعليًا وحفظ الفروق كجزء من التسوية.</p></article>
+      <article class="feature-card"><div class="feature-name">فواتير التجار</div><p><span class="layer both">Front + Back</span> إنشاء وتعديل وعرض الفاتورة، Preview، وتنزيل PDF، مع عزل ملفات كل تاجر.</p></article>
+      <article class="feature-card"><div class="feature-name">حسابات الخزينة</div><p><span class="layer both">Front + Back</span> إدارة الحسابات النقدية/البنكية وعرض الحركات التي تؤثر على كل حساب.</p></article>
+      <article class="feature-card"><div class="feature-name">محفظة التاجر</div><p><span class="layer both">Front + Back</span> Available/Pending Balance، دفتر حركات، إيداع وسحب واعتماد/رفض، مع Idempotency للحركات الناتجة عن مصدر واحد.</p></article>
+      <article class="feature-card"><div class="feature-name">المصالحة المالية</div><p><span class="layer back">Back</span> ملخص تسوية يربط التحصيل والمدفوعات والمصروفات ومستحقات التجار لكشف الفروق.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">14) التشغيل والطباعة والتقارير المساندة</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">عمليات الباركود</div><p><span class="layer both">Front + Back</span> Lookup لأي باركود، التعرف على منتج المخزن، أو Scan لتحديث حالة شحنة في سياق التشغيل.</p></article>
+      <article class="feature-card"><div class="feature-name">نظام Labels موحّد</div><p><span class="layer both">Front + Back</span> منتجات وشحنات وطلبات وخانات مخزن وDriver Manifests، مع Preview وTest وإعدادات أبعاد وسرعة وكثافة الطابعة.</p></article>
+      <article class="feature-card"><div class="feature-name">صيغ الطباعة</div><p><span class="layer both">Front + Back</span> <code>HTML</code> و<code>PDF</code> و<code>ZPL</code> و<code>TSPL</code> و<code>JSON</code>، مع دعم طابعات Zebra وTSC والطباعة من المتصفح.</p></article>
+      <article class="feature-card"><div class="feature-name">Exports</div><p><span class="layer both">Front + Back</span> طلب تصدير، متابعة حالته، فتح التفاصيل، ثم تنزيل الملف المكتمل، للإدارة والتاجر كلٌ في نطاقه.</p></article>
+      <article class="feature-card"><div class="feature-name">المرفقات</div><p><span class="layer both">Front + Back</span> إرفاق مستند بطلب أو Payout أو مورد مدعوم، عرض التفاصيل والتنزيل والحذف حسب الصلاحية.</p></article>
+      <article class="feature-card"><div class="feature-name">Audit Logs وTimeline</div><p><span class="layer both">Front + Back</span> سجل من قام بالفعل ومتى وعلى أي مورد، مع Timeline ومراجعة عمليات حساسة مثل إعدادات النظام والمدفوعات والتكاملات.</p></article>
+    </div>
+  </section>
+
+  <section class="section page-break">
+    <h2 class="section-title">15) بوابة التاجر — الخصائص المتاحة</h2>
+    <p class="lead">بوابة التاجر لا تعرض بيانات كل الشركة؛ الـBackend يحدد التاجر الحالي وصلاحيات المستخدم، ثم الواجهة تُظهر فقط الوحدات المسموحة.</p>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">Dashboard التاجر</div><p>ملخص الطلبات والشحنات، عدد المنتجات وLow Stock وطلبات التوريد، ورصيد المحفظة والفواتير والمدفوعات إذا كان للمستخدم صلاحية مالية.</p></article>
+      <article class="feature-card"><div class="feature-name">الطلبات</div><p>عرض وبحث، Quick View، إنشاء وتعديل الطلبات المؤهلة، تأكيد أو إلغاء، وطباعة Label.</p></article>
+      <article class="feature-card"><div class="feature-name">الشحنات</div><p>عرض الشحنات وتفاصيلها، Tracking Timeline، وتنزيل Label أو Waybill من غير إمكانية تغيير التشغيل الداخلي.</p></article>
+      <article class="feature-card"><div class="feature-name">المنتجات والمخزون</div><p>عرض المنتجات وتفاصيلها، أرصدة المخزون، Low Stock، حركات المخزون، ورسوم التخزين والتجهيز.</p></article>
+      <article class="feature-card"><div class="feature-name">طباعة باركود المنتجات</div><p>Label لمنتج واحد أو Bulk Labels بعدد نسخ محدد، مع اختيار الصيغة المناسبة للطابعة.</p></article>
+      <article class="feature-card"><div class="feature-name">Inbound Requests</div><p>إنشاء طلب توريد، تحديد موعد الوصول والأصناف والكميات، متابعة الحالة، وإلغاء الطلب وهو ما زال Pending.</p></article>
+      <article class="feature-card"><div class="feature-name">المالية</div><p>ملخص مالي، Wallet، سجل الحركات، تفاصيل الفواتير وPreview/Download، وطلب Payout ومتابعة حالته.</p></article>
+      <article class="feature-card"><div class="feature-name">فريق التاجر</div><p>عرض وإنشاء وتعديل وحذف المستخدمين، وإيقاف أو إعادة تفعيل العضو، حسب دور Owner/Admin.</p></article>
+      <article class="feature-card"><div class="feature-name">الملف والإعدادات</div><p>الـOwner يدير بيانات الشركة؛ والإعدادات تشمل Defaults للطلب والعنوان والطباعة وتفضيلات الإشعارات.</p></article>
+      <article class="feature-card"><div class="feature-name">التكاملات</div><p>Tokens، ظهور السر مرة واحدة، Revoke/Delete، دليل API داخل الواجهة، وأداة Test للاتصال.</p></article>
+      <article class="feature-card"><div class="feature-name">التصدير</div><p>اختيار نوع التقرير والفلاتر، إنشاء Export، متابعة Pending/Completed/Failed، ثم تنزيل الملف.</p></article>
+      <article class="feature-card"><div class="feature-name">المرفقات والإشعارات</div><p>الـAPI وصفحات الواجهة موجودة لرفع/تنزيل المرفقات وقراءة الإشعارات وتعليمها كمقروءة.</p></article>
+      <article class="feature-card"><div class="feature-name">المتجر</div><p>صفحة Store محمية بصلاحية <code>store.view</code> لعرض واجهة/بيانات المتجر المخصصة للتاجر.</p></article>
+    </div>
+    <div class="status-box"><strong>ملاحظة تنفيذية:</strong> صفحات وإجراءات المرفقات والإشعارات موجودة في الكود، كما أنها تظهر ضمن عناصر التنقل حسب الـCapability، لكن مسارات <code>/merchant/attachments</code> و<code>/merchant/notifications</code> غير مسجلة حاليًا في Router؛ لذلك تحتاج ربط Route قبل اعتبارها متاحة للمستخدم من البداية للنهاية.</div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">16) أهم دورات العمل</h2>
+    <h3>أ) طلب توصيل عادي</h3>
+    <div class="flow">
+      <div class="flow-step">إنشاء الطلب</div><div class="flow-step">تأكيد الطلب</div><div class="flow-step">إنشاء الشحنة</div><div class="flow-step">تعيين السائق</div><div class="flow-step">تسليم وCOD</div>
+    </div>
+    <h3>ب) طلب Fulfillment من المخزن</h3>
+    <div class="flow">
+      <div class="flow-step">طلب بأصناف مخزنية</div><div class="flow-step">حجز الكمية</div><div class="flow-step">Picking</div><div class="flow-step">Packing</div><div class="flow-step">جاهز للشحن</div>
+    </div>
+    <h3>ج) توريد مخزون من التاجر</h3>
+    <div class="flow">
+      <div class="flow-step">Inbound Request</div><div class="flow-step">مراجعة الإدارة</div><div class="flow-step">وصول فعلي</div><div class="flow-step">Receipt Confirm</div><div class="flow-step">زيادة الرصيد</div>
+    </div>
+    <h3>د) مرتجع مخزن</h3>
+    <div class="flow">
+      <div class="flow-step">تسجيل المرتجع</div><div class="flow-step">الاستلام</div><div class="flow-step">الفحص</div><div class="flow-step">Restock أو Damaged</div><div class="flow-step">الإغلاق</div>
+    </div>
+    <h3>هـ) Payout للتاجر</h3>
+    <div class="flow">
+      <div class="flow-step">مراجعة الرصيد</div><div class="flow-step">طلب سحب</div><div class="flow-step">اعتماد/رفض</div><div class="flow-step">تنفيذ الدفع</div><div class="flow-step">تحديث المحفظة</div>
+    </div>
+    <div class="note success-note"><strong>قاعدة محورية:</strong> Inbound Request لا يغيّر الرصيد. الزيادة الحقيقية تحدث فقط عند تأكيد Warehouse Receipt بعد الاستلام والفحص الفعلي.</div>
+  </section>
+
+  <section class="section page-break">
+    <h2 class="section-title">17) خصائص الـBackend الداعمة للنظام</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">Laravel Modular Monolith</div><p>الوحدات الخلفية مفصولة منطقيًا: Auth، Users، Merchants، Orders، Shipments، Drivers، Warehouse، Finance، Labels، Exports، Attachments، Audit وغيرها.</p></article>
+      <article class="feature-card"><div class="feature-name">عقود API واسعة</div><p>الواجهة الحالية تحتوي على 364 دالة تكامل TypeScript تغطي القراءة والإنشاء والتعديل والحذف والاعتماد والتنزيل والطباعة.</p></article>
+      <article class="feature-card"><div class="feature-name">التحقق من المدخلات</div><p>Form Requests وقواعد 422، منع <code>merchant_id</code> في مسارات التاجر والتكامل، والتحقق من انتقالات الحالات والملكية.</p></article>
+      <article class="feature-card"><div class="feature-name">الأمان على مستوى المسار</div><p>المسارات الإدارية خلف <code>auth:sanctum</code> وPermission Middleware، وبوابة التاجر خلف Merchant Portal Middleware، والتكامل خلف Token Middleware.</p></article>
+      <article class="feature-card"><div class="feature-name">التدقيق Audit</div><p>تسجيل تغييرات الإعدادات، المدفوعات، المصروفات، المرفقات، التصدير، إنشاء وإلغاء Tokens، وعمليات حساسة أخرى.</p></article>
+      <article class="feature-card"><div class="feature-name">التعريب</div><p>رسائل وحقول <code>*_label</code> بالعربية والإنجليزية مع الحفاظ على القيم الخام ثابتة للتكاملات.</p></article>
+      <article class="feature-card"><div class="feature-name">حماية Public Tracking</div><p>إرجاع حالة وخط زمني منقّح فقط، بدون الاسم الكامل أو العنوان الكامل أو ملاحظات داخلية أو بيانات مالية.</p></article>
+      <article class="feature-card"><div class="feature-name">Rate Limiting</div><p>مطبق على Login والتتبع العام وIntegration API، مع توصية بإضافته مستقبلًا لتوليد الصادرات والرفع الجماعي وطلبات Payout.</p></article>
+      <article class="feature-card"><div class="feature-name">الملفات الخاصة</div><p>Attachments وExports وInvoices تُحفظ خارج المسار العام وتُنزل عبر Controller يتحقق من الصلاحية والملكية والمسار.</p></article>
+      <article class="feature-card"><div class="feature-name">اختبارات تدفقات العمل</div><p>التقارير تشير إلى اختبارات Auth وOrder/Shipment وWarehouse وFinance وDriver Manifest وLabels وMerchant Portal وSecurity وغيرها.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">18) أدوار بوابة التاجر</h2>
+    <table>
+      <thead><tr><th>الدور</th><th>نطاق الاستخدام</th><th>أهم ما يستطيع تنفيذه</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Owner</strong></td><td>إدارة الحساب بالكامل</td><td>كل العمليات، الملف، الفريق، المالية، التكاملات والإعدادات.</td></tr>
+        <tr><td><strong>Admin</strong></td><td>الإشراف اليومي</td><td>الطلبات والشحن والمخزن والفريق والمالية، مع قيود على صلاحيات المالك العليا.</td></tr>
+        <tr><td><strong>Staff</strong></td><td>تنفيذ الطلبات</td><td>إنشاء وتعديل الطلبات، متابعة الشحنات، الطباعة وطلبات التوريد، بدون بيانات مالية.</td></tr>
+        <tr><td><strong>Accountant</strong></td><td>الحسابات</td><td>المحفظة، الفواتير، Payouts والتقارير المالية والتصدير.</td></tr>
+        <tr><td><strong>Warehouse Viewer</strong></td><td>متابعة المخزون</td><td>المنتجات والأرصدة وLow Stock والحركات وLabels وطلبات التوريد.</td></tr>
+      </tbody>
+    </table>
+    <h3>أمثلة لمجموعات صلاحيات الإدارة</h3>
+    <div class="pill-list">
+      <span class="pill">Users &amp; Roles</span><span class="pill">Merchants</span><span class="pill">Orders</span><span class="pill">Shipments</span><span class="pill">Drivers</span><span class="pill">Warehouse</span><span class="pill">Finance</span><span class="pill">Treasury</span><span class="pill">Reports</span><span class="pill">Settings</span><span class="pill">Audit</span><span class="pill">Exports</span><span class="pill">Attachments</span><span class="pill">Labels &amp; Barcodes</span>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">19) حالة الجاهزية والملاحظات المهمة</h2>
+    <div class="feature-grid">
+      <article class="feature-card"><div class="feature-name">بناء الـFrontend</div><p>المشروع React 19 + TypeScript + Vite، ويحتوي على بنية صفحات كبيرة وتكاملات API فعلية وتصميم موحد للبوابتين.</p></article>
+      <article class="feature-card"><div class="feature-name">جاهزية الـBackend</div><p>تقارير المشروع تصفه قويًا في حماية المسارات وعزل التجار وسلامة التدفقات، لكن آخر Audit ذكر أن تشغيل مجموعة اختبارات Laravel الكاملة ظل خطوة تحقق يدوية مطلوبة.</p></article>
+      <article class="feature-card"><div class="feature-name">العمليات الثقيلة</div><p>الصادرات والفواتير والإشعارات تبدو متزامنة في التقرير الحالي؛ تحت ضغط مرتفع يُفضّل نقل المهام الثقيلة إلى Queue مع مراقبة الـWorkers.</p></article>
+      <article class="feature-card"><div class="feature-name">التخزين والنسخ الاحتياطي</div><p>يلزم Backup لقاعدة البيانات والملفات الخاصة، وسياسة Retention للصادرات والفواتير والمرفقات لتجنب امتلاء التخزين.</p></article>
+      <article class="feature-card"><div class="feature-name">الطباعة العربية</div><p>HTML هو الخيار الأكثر أمانًا للعربية. مخرجات ZPL/TSPL تعتمد على إمكانيات الطابعة والخط، وPDF الخلفي الحالي موصوف كحل نصي خفيف.</p></article>
+      <article class="feature-card"><div class="feature-name">نطاق هذا المستند</div><p>الدليل يشرح المزايا التشغيلية. للتفاصيل الحرفية لكل Endpoint وPayload وResponse تُراجع ملفات <code>docs/api-documentation.md</code> و<code>docs/api-endpoints-list.md</code>.</p></article>
+    </div>
+    <div class="footer-block">تم إنشاء هذا المستند آليًا كدليل وظيفي مبسّط لنظام Logistics &amp; Warehouse ERP — Frontend &amp; Backend.</div>
+  </section>
+</body>
+</html>

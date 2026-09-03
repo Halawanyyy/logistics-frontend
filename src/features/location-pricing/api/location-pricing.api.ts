@@ -83,16 +83,27 @@ export async function deleteArea(areaId: string | number) {
 
 export async function listShippingRates() {
   const response = await apiClient.get<ShippingRatesListResponse>('/shipping-rates')
+  response.data.data = response.data.data.map(rate => ({
+    ...rate,
+    delivery_fee: (rate as any).shipping_fee ?? rate.delivery_fee,
+  }))
   return response.data
 }
 
 export async function getShippingRate(shippingRateId: string | number) {
   const response = await apiClient.get<ShippingRateResponse>(`/shipping-rates/${shippingRateId}`)
+  if (response.data?.data) {
+    response.data.data.delivery_fee = (response.data.data as any).shipping_fee ?? response.data.data.delivery_fee
+  }
   return response.data
 }
 
 export async function createShippingRate(payload: CreateShippingRateRequest) {
-  const response = await apiClient.post<ShippingRateResponse>('/shipping-rates', payload)
+  const apiPayload = { ...payload, shipping_fee: payload.delivery_fee } as any
+  const response = await apiClient.post<ShippingRateResponse>('/shipping-rates', apiPayload)
+  if (response.data?.data) {
+    response.data.data.delivery_fee = (response.data.data as any).shipping_fee ?? response.data.data.delivery_fee
+  }
   return response.data
 }
 
@@ -100,16 +111,37 @@ export async function updateShippingRate(
   shippingRateId: string | number,
   payload: UpdateShippingRateRequest,
 ) {
+  const apiPayload = { ...payload } as any
+  if (apiPayload.delivery_fee !== undefined) {
+    apiPayload.shipping_fee = apiPayload.delivery_fee
+  }
   const response = await apiClient.put<ShippingRateResponse>(
     `/shipping-rates/${shippingRateId}`,
-    payload,
+    apiPayload,
   )
+  if (response.data?.data) {
+    response.data.data.delivery_fee = (response.data.data as any).shipping_fee ?? response.data.data.delivery_fee
+  }
   return response.data
 }
 
 export async function deleteShippingRate(shippingRateId: string | number) {
   const response = await apiClient.delete<DeleteLocationResponse>(
     `/shipping-rates/${shippingRateId}`,
+  )
+  return response.data
+}
+
+export async function restoreShippingRate(shippingRateId: string | number) {
+  const response = await apiClient.post<DeleteLocationResponse>(
+    `/shipping-rates/${shippingRateId}/restore`,
+  )
+  return response.data
+}
+
+export async function forceDeleteShippingRate(shippingRateId: string | number) {
+  const response = await apiClient.delete<DeleteLocationResponse>(
+    `/shipping-rates/${shippingRateId}/force`,
   )
   return response.data
 }

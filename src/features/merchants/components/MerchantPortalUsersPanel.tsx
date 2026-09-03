@@ -145,9 +145,12 @@ function MerchantPortalUserDialog({
         <label className="field">
           <span>Role</span>
           <Select {...register('role')}>
-            <option value="owner">owner</option>
-            <option value="manager">manager</option>
-            <option value="staff">staff</option>
+            <option value="owner">Owner</option>
+            <option value="admin">Admin</option>
+            <option value="staff">Staff</option>
+            <option value="accountant">Accountant</option>
+            <option value="warehouse_viewer">Warehouse Viewer</option>
+            <option value="viewer">Viewer</option>
           </Select>
           <FieldError error={errors.role?.message ?? getFieldError('role')} />
         </label>
