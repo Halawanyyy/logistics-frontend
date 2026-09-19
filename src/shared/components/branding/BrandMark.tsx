@@ -1,14 +1,10 @@
-import { useState } from 'react'
-import { Truck } from 'lucide-react'
+import { BrandLogo, type BrandLogoSize } from './BrandLogo'
 import { cn } from '../../utils/cn'
-import { getBrandInitials, isImageLikeValue } from '../../branding/useBranding'
-
-type BrandMarkSize = 'sm' | 'md' | 'lg'
 
 type BrandMarkProps = {
-  name: string
+  name?: string
   logoUrl?: string | null
-  size?: BrandMarkSize
+  size?: BrandLogoSize
   className?: string
 }
 
@@ -18,23 +14,13 @@ export function BrandMark({
   size = 'md',
   className,
 }: BrandMarkProps) {
-  const [imageFailed, setImageFailed] = useState(false)
-  const showImage = Boolean(logoUrl && isImageLikeValue(logoUrl) && !imageFailed)
-
   return (
-    <div className={cn('brand-mark', `brand-mark--${size}`, className)}>
-      {showImage ? (
-        <img
-          alt={name}
-          className="brand-mark__image"
-          src={logoUrl ?? undefined}
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <span className="brand-mark__fallback" aria-hidden="true">
-          {name.trim() ? getBrandInitials(name) : <Truck size={18} />}
-        </span>
-      )}
-    </div>
+    <BrandLogo
+      className={cn('brand-mark', className)}
+      logoUrl={logoUrl}
+      name={name}
+      size={size}
+      variant="icon"
+    />
   )
 }

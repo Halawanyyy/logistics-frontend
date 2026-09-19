@@ -16,6 +16,10 @@ import type {
   WarehouseReceipt,
 } from '../types/warehouse.types'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
+import { FilterButton } from '../../../shared/components/filters/FilterButton'
+import { FilterPopover } from '../../../shared/components/filters/FilterPopover'
+import { FilterField } from '../../../shared/components/filters/FilterField'
+import { AppliedFilterChips, type AppliedFilterChip } from '../../../shared/components/filters/AppliedFilterChips'
 import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
 import { FieldError } from '../../../shared/components/forms/FieldError'
 import { ConfirmActionModal } from '../../../shared/components/modals/ConfirmActionModal'
@@ -288,10 +292,88 @@ export function WarehouseReceiptsPanel({
 }) {
   const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
+  const [draftFilters, setDraftFilters] = useState(initialFilters)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [receiptInForm, setReceiptInForm] = useState<WarehouseReceipt | null>(null)
   const [pendingAction, setPendingAction] = useState<{ kind: 'confirm' | 'cancel'; receipt: WarehouseReceipt } | null>(null)
   const queryClient = useQueryClient()
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.merchant_id) count++
+    if (filters.warehouse_id) count++
+    if (filters.status) count++
+    if (filters.receipt_number) count++
+    if (filters.date_from || filters.date_to) count++
+    return count
+  }, [filters])
+
+  const appliedChips: AppliedFilterChip[] = useMemo(() => {
+    const chips: AppliedFilterChip[] = []
+    if (filters.merchant_id) {
+      chips.push({ key: 'merchant_id', label: t('Merchant'), value: filters.merchant_id })
+    }
+    if (filters.warehouse_id) {
+      chips.push({ key: 'warehouse_id', label: t('Warehouse'), value: filters.warehouse_id })
+    }
+    if (filters.status) {
+      chips.push({ key: 'status', label: t('Status'), value: t(filters.status) })
+    }
+    if (filters.receipt_number) {
+      chips.push({ key: 'receipt_number', label: t('Receipt Number'), value: filters.receipt_number })
+    }
+    if (filters.date_from || filters.date_to) {
+      chips.push({
+        key: 'date_range',
+        label: t('Date Range', { defaultValue: 'Date Range' }),
+        value: `${filters.date_from || '...'} → ${filters.date_to || '...'}`,
+      })
+    }
+    return chips
+  }, [filters, t])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setDraftFilters(filters)
+    }
+    setFiltersOpen(nextOpen)
+  }
+
+  const handleApply = () => {
+    setFilters(draftFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleReset = () => {
+    setDraftFilters(initialFilters)
+    setFilters(initialFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleRemoveChip = (key: string) => {
+    if (key === 'merchant_id') {
+      setFilters((c) => ({ ...c, merchant_id: '' }))
+      setDraftFilters((c) => ({ ...c, merchant_id: '' }))
+    }
+    if (key === 'warehouse_id') {
+      setFilters((c) => ({ ...c, warehouse_id: '' }))
+      setDraftFilters((c) => ({ ...c, warehouse_id: '' }))
+    }
+    if (key === 'status') {
+      setFilters((c) => ({ ...c, status: '' }))
+      setDraftFilters((c) => ({ ...c, status: '' }))
+    }
+    if (key === 'receipt_number') {
+      setFilters((c) => ({ ...c, receipt_number: '' }))
+      setDraftFilters((c) => ({ ...c, receipt_number: '' }))
+    }
+    if (key === 'date_range') {
+      setFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+      setDraftFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+    }
+  }
+
   const params = useMemo(() => ({
     ...(filters.merchant_id ? { merchant_id: filters.merchant_id } : {}),
     ...(filters.warehouse_id ? { warehouse_id: filters.warehouse_id } : {}),
@@ -348,68 +430,85 @@ export function WarehouseReceiptsPanel({
   }, [onCountChange, query.data])
 
   return (
-    <section className="page-section page-section--with-sidebar">
-      {!embedded ? <PageHeader
-        title={t('Warehouse Receipts')}
-        description={t('Inbound merchant receipts, draft review, and stock-in confirmation.')}
-        actions={
-          <Button type="button" onClick={() => setReceiptInForm({} as WarehouseReceipt)}>
-            {t('Create Receipt')}
-          </Button>
-        }
-      /> : null}
-
-      <aside className="page-sidebar-filters">
-        <Card variant="flat" className="dashboard-filter-card">
-          <CardHeader>
-            <CardTitle>{t('Filters')}</CardTitle>
-            <CardDescription>{t('Backend receipt filters for merchant, warehouse, status, number, and date range.')}</CardDescription>
-          </CardHeader>
-          <CardContent className="dashboard-filters dashboard-filters--sidebar">
-          <label className="field">
-            <span>{t('Merchant')}</span>
-            <MerchantSelector
-              value={filters.merchant_id}
-              includeAllOption
-              onChange={(merchant_id) => setFilters((current) => ({ ...current, merchant_id }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Warehouse')}</span>
-            <WarehouseSelector
-              value={filters.warehouse_id}
-              includeAllOption
-              onChange={(warehouse_id) => setFilters((current) => ({ ...current, warehouse_id }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Status')}</span>
-            <Select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
-              <option value="">{t('All statuses')}</option>
-              <option value="draft">{t('draft')}</option>
-              <option value="confirmed">{t('confirmed')}</option>
-              <option value="cancelled">{t('cancelled')}</option>
-            </Select>
-          </label>
-          <label className="field">
-            <span>{t('Receipt Number')}</span>
-            <Input value={filters.receipt_number} onChange={(event) => setFilters((current) => ({ ...current, receipt_number: event.target.value }))} />
-          </label>
-          <DateRangeFilter
-            dateFrom={filters.date_from}
-            dateTo={filters.date_to}
-            onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))}
-          />
-        </CardContent>
-        <CardContent>
-          <div className="form-actions">
-            <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
-              {t('Reset')}
+    <section className="page-section page-layout--fullwidth">
+      {!embedded ? (
+        <PageHeader
+          title={t('Warehouse Receipts')}
+          description={t('Inbound merchant receipts, draft review, and stock-in confirmation.')}
+          actions={
+            <Button type="button" onClick={() => setReceiptInForm({} as WarehouseReceipt)}>
+              {t('Create Receipt')}
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-      </aside>
+          }
+        />
+      ) : null}
+
+      <div className="page-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
+        <AppliedFilterChips
+          chips={appliedChips}
+          onRemove={handleRemoveChip}
+          onClearAll={handleReset}
+        />
+        <div style={{ marginInlineStart: 'auto' }}>
+          <FilterPopover
+            title={t('Filter Warehouse Receipts', { defaultValue: 'Filter Warehouse Receipts' })}
+            open={filtersOpen}
+            onOpenChange={handleOpenChange}
+            onApply={handleApply}
+            onReset={handleReset}
+            activeCount={activeFilterCount}
+            trigger={
+              <FilterButton
+                activeCount={activeFilterCount}
+                open={filtersOpen}
+                onClick={() => handleOpenChange(!filtersOpen)}
+              />
+            }
+          >
+            <div className="space-y-4">
+              <FilterField label={t('Merchant')}>
+                <MerchantSelector
+                  value={draftFilters.merchant_id}
+                  includeAllOption
+                  onChange={(merchant_id) => setDraftFilters((current) => ({ ...current, merchant_id }))}
+                />
+              </FilterField>
+              <FilterField label={t('Warehouse')}>
+                <WarehouseSelector
+                  value={draftFilters.warehouse_id}
+                  includeAllOption
+                  onChange={(warehouse_id) => setDraftFilters((current) => ({ ...current, warehouse_id }))}
+                />
+              </FilterField>
+              <FilterField label={t('Status')}>
+                <Select
+                  value={draftFilters.status}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}
+                >
+                  <option value="">{t('All statuses')}</option>
+                  <option value="draft">{t('draft')}</option>
+                  <option value="confirmed">{t('confirmed')}</option>
+                  <option value="cancelled">{t('cancelled')}</option>
+                </Select>
+              </FilterField>
+              <FilterField label={t('Receipt Number')}>
+                <Input
+                  placeholder={t('Enter receipt number...', { defaultValue: 'Enter receipt number...' })}
+                  value={draftFilters.receipt_number}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, receipt_number: event.target.value }))}
+                />
+              </FilterField>
+              <FilterField label={t('Date Range', { defaultValue: 'Date Range' })}>
+                <DateRangeFilter
+                  dateFrom={draftFilters.date_from}
+                  dateTo={draftFilters.date_to}
+                  onChange={({ date_from, date_to }) => setDraftFilters((current) => ({ ...current, date_from, date_to }))}
+                />
+              </FilterField>
+            </div>
+          </FilterPopover>
+        </div>
+      </div>
 
       <main className="page-main-content">
       <Card className="table-card">

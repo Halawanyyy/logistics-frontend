@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router-dom'
 import { cn } from '../../utils/cn'
 
 type PageHeaderProps = {
@@ -18,7 +19,9 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   const { t } = useTranslation()
-  const resolvedEyebrow = eyebrow ?? 'Admin Console'
+  const location = useLocation()
+  const defaultEyebrow = location.pathname.startsWith('/merchant') ? 'Merchant Portal' : 'Admin Console'
+  const resolvedEyebrow = eyebrow ?? defaultEyebrow
 
   return (
     <div className={cn('page-header', className)}>

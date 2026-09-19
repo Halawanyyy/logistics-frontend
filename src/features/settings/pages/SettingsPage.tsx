@@ -10,6 +10,8 @@ import {
 } from '../../../shared/api/labels.api'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { BrandMark } from '../../../shared/components/branding/BrandMark'
+import { BrandLogo } from '../../../shared/components/branding/BrandLogo'
+import { BrandLogoUploadControl } from '../components/BrandLogoUploadControl'
 import { EmptyState } from '../../../shared/components/feedback/EmptyState'
 import { ErrorState } from '../../../shared/components/feedback/ErrorState'
 import { LoadingState } from '../../../shared/components/feedback/LoadingState'
@@ -213,13 +215,9 @@ export function SettingsPage() {
   )
 
   const companyNameSetting = editableSettings.find((setting) => setting.key === 'company_name')
-  const logoSetting = editableSettings.find((setting) => isLogoSetting(setting.key, setting.label))
   const previewCompanyName = companyNameSetting
     ? ((draftValues[companyNameSetting.key] ?? getFieldValue(companyNameSetting.value)) || branding.companyName)
     : branding.companyName
-  const previewLogoValue = logoSetting
-    ? draftValues[logoSetting.key] ?? getFieldValue(logoSetting.value)
-    : branding.companyLogo
   const selectedGroupLabel = isApiGroup ? formatGroupLabel(activeTab) : ''
 
   function currentValue(key: string, fallback: unknown) {
@@ -228,10 +226,12 @@ export function SettingsPage() {
 
   function submitGroup() {
     mutation.mutate({
-      settings: editableSettings.map((setting) => ({
-        key: setting.key,
-        value: normalizeSettingValue(setting, currentValue(setting.key, setting.value)),
-      })),
+      settings: editableSettings
+        .filter((setting) => !isLogoSetting(setting.key, setting.label))
+        .map((setting) => ({
+          key: setting.key,
+          value: normalizeSettingValue(setting, currentValue(setting.key, setting.value)),
+        })),
     })
   }
 
@@ -309,7 +309,7 @@ export function SettingsPage() {
               </CardHeader>
               <CardContent className="settings-brand-card__content">
                 <div className="settings-brand-card__preview">
-                  <BrandMark logoUrl={previewLogoValue} name={previewCompanyName} size="lg" />
+                  <BrandLogo size="lg" />
                   <div>
                     <strong>{previewCompanyName}</strong>
                     <p>{branding.companyWebsite || branding.companyEmail || t('Public company branding preview', { defaultValue: 'Public company branding preview' })}</p>
@@ -362,10 +362,20 @@ export function SettingsPage() {
                             .map((setting, index) => {
                               const value = currentValue(setting.key, setting.value)
                               const logoField = isLogoSetting(setting.key, setting.label)
-                              const imagePreviewVisible = logoField && value && isImageLikeValue(value)
+
+                              if (logoField) {
+                                return (
+                                  <div className="field field--logo-setting" key={setting.id}>
+                                    <span>{getSettingLabel(setting, t)}</span>
+                                    <BrandLogoUploadControl />
+                                    {setting.description ? <small className="field-help">{setting.description}</small> : null}
+                                    <FieldError error={getSettingFieldError(setting, index, fieldErrors) ?? undefined} />
+                                  </div>
+                                )
+                              }
 
                               return (
-                                <label className={logoField ? 'field field--logo-setting' : 'field'} key={setting.id}>
+                                <label className="field" key={setting.id}>
                                   <span>{getSettingLabel(setting, t)}</span>
                                   {setting.options?.length ? (
                                     <Select
@@ -406,26 +416,7 @@ export function SettingsPage() {
                                     />
                                   )}
 
-                                  {imagePreviewVisible ? (
-                                    <div className="settings-logo-preview">
-                                      <BrandMark logoUrl={value} name={previewCompanyName} size="md" />
-                                      <div>
-                                        <strong>{t('Logo preview', { defaultValue: 'Logo preview' })}</strong>
-                                        <p>{t('This preview uses the current URL/path value and falls back safely if the image cannot load.', {
-                                          defaultValue: 'This preview uses the current URL/path value and falls back safely if the image cannot load.',
-                                        })}</p>
-                                      </div>
-                                    </div>
-                                  ) : null}
-
                                   {setting.description ? <small className="field-help">{setting.description}</small> : null}
-                                  {logoField ? (
-                                    <small className="field-help">
-                                      {t('Use a public image URL or shared asset path so the logo preview can appear everywhere the brand is shown.', {
-                                        defaultValue: 'Use a public image URL or shared asset path so the logo preview can appear everywhere the brand is shown.',
-                                      })}
-                                    </small>
-                                  ) : null}
                                   <FieldError error={getSettingFieldError(setting, index, fieldErrors) ?? undefined} />
                                 </label>
                               )

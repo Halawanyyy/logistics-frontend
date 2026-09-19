@@ -14,6 +14,10 @@ import {
 import type { WarehouseFilters } from '../types/warehouse.types'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
+import { FilterPopover } from '../../../shared/components/filters/FilterPopover'
+import { FilterButton } from '../../../shared/components/filters/FilterButton'
+import { FilterField } from '../../../shared/components/filters/FilterField'
+import { AppliedFilterChips, type AppliedFilterChip } from '../../../shared/components/filters/AppliedFilterChips'
 import { MerchantSelector } from '../../../shared/components/selectors/MerchantSelector'
 import { WarehouseSelector } from '../../../shared/components/selectors/WarehouseSelector'
 import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
@@ -50,6 +54,58 @@ export function WarehouseKpisPage() {
   const { t } = useTranslation()
   const user = useAuthStore((state) => state.user)
   const [filters, setFilters] = useState<KpiFiltersState>(initialFilters)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [draftFilters, setDraftFilters] = useState<KpiFiltersState>(initialFilters)
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.warehouse_id) count++
+    if (filters.merchant_id) count++
+    if (filters.date_from || filters.date_to) count++
+    return count
+  }, [filters])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setDraftFilters(filters)
+    }
+    setFiltersOpen(nextOpen)
+  }
+
+  const handleApply = () => {
+    setFilters(draftFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleReset = () => {
+    setDraftFilters(initialFilters)
+    setFilters(initialFilters)
+    setFiltersOpen(false)
+  }
+
+  const appliedChips: AppliedFilterChip[] = useMemo(() => {
+    const chips: AppliedFilterChip[] = []
+    if (filters.warehouse_id) {
+      chips.push({ key: 'warehouse_id', label: t('Warehouse'), value: filters.warehouse_id })
+    }
+    if (filters.merchant_id) {
+      chips.push({ key: 'merchant_id', label: t('Merchant'), value: filters.merchant_id })
+    }
+    if (filters.date_from || filters.date_to) {
+      chips.push({
+        key: 'date_range',
+        label: t('Date Range', { defaultValue: 'Date Range' }),
+        value: `${filters.date_from || '...'} -> ${filters.date_to || '...'}`,
+      })
+    }
+    return chips
+  }, [filters, t])
+
+  const handleRemoveChip = (key: string) => {
+    if (key === 'warehouse_id') setFilters((c) => ({ ...c, warehouse_id: '' }))
+    if (key === 'merchant_id') setFilters((c) => ({ ...c, merchant_id: '' }))
+    if (key === 'date_range') setFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+  }
   const [barcode, setBarcode] = useState('')
   const params: WarehouseFilters = useMemo(
     () => ({
@@ -172,6 +228,7 @@ export function WarehouseKpisPage() {
                 disabled={!barcode.trim()}
                 loading={barcodeLookup.isPending}
                 type="button"
+                variant="primary"
                 onClick={() => barcodeLookup.mutate(barcode.trim())}
               >
                 {t('Lookup', { defaultValue: 'Lookup' })}
@@ -208,31 +265,54 @@ export function WarehouseKpisPage() {
         </Can>
       </div>
 
-      <Card variant="flat" className="dashboard-filter-card">
-        <CardContent className="dashboard-filters">
-          <label className="field">
-            <span>{t('Warehouse')}</span>
-            <WarehouseSelector
-              value={filters.warehouse_id}
-              includeAllOption
-              onChange={(warehouse_id) => setFilters((current) => ({ ...current, warehouse_id }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Merchant')}</span>
-            <MerchantSelector
-              value={filters.merchant_id}
-              includeAllOption
-              onChange={(merchant_id) => setFilters((current) => ({ ...current, merchant_id }))}
-            />
-          </label>
-          <DateRangeFilter
-            dateFrom={filters.date_from}
-            dateTo={filters.date_to}
-            onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))}
-          />
-        </CardContent>
-      </Card>
+      <div className="page-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
+        <AppliedFilterChips
+          chips={appliedChips}
+          onRemove={handleRemoveChip}
+          onClearAll={handleReset}
+        />
+        <div style={{ marginInlineStart: 'auto' }}>
+          <FilterPopover
+            title={t('Filter Warehouse Hub', { defaultValue: 'Filter Warehouse Hub' })}
+            open={filtersOpen}
+            onOpenChange={handleOpenChange}
+            onApply={handleApply}
+            onReset={handleReset}
+            activeCount={activeFilterCount}
+            trigger={
+              <FilterButton
+                activeCount={activeFilterCount}
+                open={filtersOpen}
+                onClick={() => handleOpenChange(!filtersOpen)}
+              />
+            }
+          >
+            <div className="space-y-4">
+              <FilterField label={t('Warehouse')}>
+                <WarehouseSelector
+                  value={draftFilters.warehouse_id}
+                  includeAllOption
+                  onChange={(warehouse_id) => setDraftFilters((current) => ({ ...current, warehouse_id }))}
+                />
+              </FilterField>
+              <FilterField label={t('Merchant')}>
+                <MerchantSelector
+                  value={draftFilters.merchant_id}
+                  includeAllOption
+                  onChange={(merchant_id) => setDraftFilters((current) => ({ ...current, merchant_id }))}
+                />
+              </FilterField>
+              <FilterField label={t('Date Range', { defaultValue: 'Date Range' })}>
+                <DateRangeFilter
+                  dateFrom={draftFilters.date_from}
+                  dateTo={draftFilters.date_to}
+                  onChange={({ date_from, date_to }) => setDraftFilters((current) => ({ ...current, date_from, date_to }))}
+                />
+              </FilterField>
+            </div>
+          </FilterPopover>
+        </div>
+      </div>
 
       <div className="stat-card-grid warehouse-hub__stats">
         <HubStatCard

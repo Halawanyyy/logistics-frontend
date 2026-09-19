@@ -15,7 +15,14 @@ import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { FieldError } from '../../../shared/components/forms/FieldError'
-import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
+import {
+  FilterButton,
+  FilterPopover,
+  FilterField,
+  AppliedFilterChips,
+  DateRangeFilter,
+  type AppliedChip,
+} from '../../../shared/components/filters'
 import { TreasuryAccountSelector } from '../../../shared/components/selectors/TreasuryAccountSelector'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
@@ -179,19 +186,102 @@ export function ExpensesPanel({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const [filters, setFilters] = useState<ExpenseFiltersState>(initialFilters)
+  const [appliedFilters, setAppliedFilters] = useState<ExpenseFiltersState>(initialFilters)
+  const [draftFilters, setDraftFilters] = useState<ExpenseFiltersState>(initialFilters)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filterError, setFilterError] = useState('')
   const [expensePendingReject, setExpensePendingReject] = useState<Expense | null>(null)
   const [expensePendingPaid, setExpensePendingPaid] = useState<Expense | null>(null)
+
   const params: FinanceFilters = useMemo(
     () => ({
-      ...(filters.date_from ? { date_from: filters.date_from } : {}),
-      ...(filters.date_to ? { date_to: filters.date_to } : {}),
-      ...(filters.category ? { category: filters.category } : {}),
-      ...(filters.payment_method ? { payment_method: filters.payment_method } : {}),
-      ...(filters.status ? { status: filters.status } : {}),
+      ...(appliedFilters.date_from ? { date_from: appliedFilters.date_from } : {}),
+      ...(appliedFilters.date_to ? { date_to: appliedFilters.date_to } : {}),
+      ...(appliedFilters.category ? { category: appliedFilters.category } : {}),
+      ...(appliedFilters.payment_method ? { payment_method: appliedFilters.payment_method } : {}),
+      ...(appliedFilters.status ? { status: appliedFilters.status } : {}),
     }),
-    [filters],
+    [appliedFilters],
   )
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (appliedFilters.date_from || appliedFilters.date_to) count += 1
+    if (appliedFilters.category) count += 1
+    if (appliedFilters.payment_method) count += 1
+    if (appliedFilters.status) count += 1
+    return count
+  }, [appliedFilters])
+
+  const handleOpenChange = (open: boolean) => {
+    setFiltersOpen(open)
+    if (open) {
+      setDraftFilters(appliedFilters)
+      setFilterError('')
+    }
+  }
+
+  const handleApply = () => {
+    if (draftFilters.date_from && draftFilters.date_to && draftFilters.date_from > draftFilters.date_to) {
+      setFilterError(t('Date From must not be later than Date To.', { defaultValue: 'Date From must not be later than Date To.' }))
+      return
+    }
+    setFilterError('')
+    setAppliedFilters(draftFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleReset = () => {
+    setDraftFilters(initialFilters)
+    setAppliedFilters(initialFilters)
+    setFilterError('')
+    setFiltersOpen(false)
+  }
+
+  const appliedChips = useMemo<AppliedChip[]>(() => {
+    const chips: AppliedChip[] = []
+    if (appliedFilters.category) {
+      chips.push({
+        id: 'category',
+        label: t('Category'),
+        value: appliedFilters.category,
+      })
+    }
+    if (appliedFilters.payment_method) {
+      chips.push({
+        id: 'payment_method',
+        label: t('Payment Method', { defaultValue: 'Payment Method' }),
+        value: appliedFilters.payment_method,
+      })
+    }
+    if (appliedFilters.status) {
+      chips.push({
+        id: 'status',
+        label: t('Status'),
+        value: appliedFilters.status,
+      })
+    }
+    if (appliedFilters.date_from || appliedFilters.date_to) {
+      chips.push({
+        id: 'date_range',
+        label: t('Date'),
+        value: `${appliedFilters.date_from || ''} → ${appliedFilters.date_to || ''}`,
+      })
+    }
+    return chips
+  }, [appliedFilters, t])
+
+  const handleRemoveChip = (chipId: string) => {
+    if (chipId === 'date_range') {
+      setAppliedFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+    } else {
+      setAppliedFilters((c) => ({ ...c, [chipId]: '' }))
+    }
+  }
+
+  const handleClearAllChips = () => {
+    setAppliedFilters(initialFilters)
+  }
   const expensesQuery = useQuery({
     queryKey: ['expenses', params],
     queryFn: () => listExpenses(params),
@@ -280,51 +370,71 @@ export function ExpensesPanel({
         <Card variant="stat" className="finance-summary-card finance-summary-card--warning" data-accent="warning"><CardContent><div className="compact-stat"><span className="compact-stat__label">{t('Top Category', { defaultValue: 'Top Category' })}</span><span className="compact-stat__value text-warning">{topCategory ? pickDisplayLabel(topCategory[0]) : '-'}</span><span className="compact-stat__count">{topCategory ? <MoneyDisplay value={topCategory[1]} /> : t('No expenses this month', { defaultValue: 'No expenses this month' })}</span></div></CardContent></Card>
       </div>
 
-      <Card variant="flat" className="dashboard-filter-card">
-        <CardContent className="dashboard-filters finance-filter-bar">
-          <DateRangeFilter
-            dateFrom={filters.date_from}
-            dateTo={filters.date_to}
-            onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))}
-          />
-          <label className="field">
-            <span>{t('Category')}</span>
-            <Input
-              value={filters.category}
-              onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Payment Method', { defaultValue: 'Payment Method' })}</span>
-            <Select
-              value={filters.payment_method}
-              onChange={(event) => setFilters((current) => ({ ...current, payment_method: event.target.value }))}
-            >
-              <option value="">{t('All methods', { defaultValue: 'All methods' })}</option>
-              <option value="cash">cash</option>
-              <option value="bank_transfer">bank_transfer</option>
-              <option value="wallet">wallet</option>
-            </Select>
-          </label>
-          <label className="field">
-            <span>{t('Status')}</span>
-            <Select
-              value={filters.status}
-              onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
-            >
-              <option value="">{t('All statuses')}</option>
-              <option value="pending">pending</option>
-              <option value="approved">approved</option>
-              <option value="paid">paid</option>
-              <option value="rejected">rejected</option>
-              <option value="cancelled">cancelled</option>
-            </Select>
-          </label>
-          <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
-            {t('Reset filters')}
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="page-toolbar" style={{ justifyContent: 'flex-end', marginBottom: '16px' }}>
+        <div className="page-toolbar__actions">
+          <FilterPopover
+            title={t('Filter Expenses', { defaultValue: 'Filter Expenses' })}
+            open={filtersOpen}
+            onOpenChange={handleOpenChange}
+            onApply={handleApply}
+            onReset={handleReset}
+            trigger={
+              <FilterButton
+                activeCount={activeFilterCount}
+                onClick={() => handleOpenChange(!filtersOpen)}
+              />
+            }
+          >
+            <div className="space-y-4">
+              <DateRangeFilter
+                dateFrom={draftFilters.date_from}
+                dateTo={draftFilters.date_to}
+                error={filterError}
+                onChange={({ date_from, date_to }) => {
+                  setFilterError('')
+                  setDraftFilters((c) => ({ ...c, date_from, date_to }))
+                }}
+              />
+              <FilterField label={t('Category')}>
+                <Input
+                  value={draftFilters.category}
+                  onChange={(event) => setDraftFilters((c) => ({ ...c, category: event.target.value }))}
+                />
+              </FilterField>
+              <FilterField label={t('Payment Method', { defaultValue: 'Payment Method' })}>
+                <Select
+                  value={draftFilters.payment_method}
+                  onChange={(event) => setDraftFilters((c) => ({ ...c, payment_method: event.target.value }))}
+                >
+                  <option value="">{t('All methods', { defaultValue: 'All methods' })}</option>
+                  <option value="cash">cash</option>
+                  <option value="bank_transfer">bank_transfer</option>
+                  <option value="wallet">wallet</option>
+                </Select>
+              </FilterField>
+              <FilterField label={t('Status')}>
+                <Select
+                  value={draftFilters.status}
+                  onChange={(event) => setDraftFilters((c) => ({ ...c, status: event.target.value }))}
+                >
+                  <option value="">{t('All statuses')}</option>
+                  <option value="pending">pending</option>
+                  <option value="approved">approved</option>
+                  <option value="paid">paid</option>
+                  <option value="rejected">rejected</option>
+                  <option value="cancelled">cancelled</option>
+                </Select>
+              </FilterField>
+            </div>
+          </FilterPopover>
+        </div>
+      </div>
+
+      <AppliedFilterChips
+        chips={appliedChips}
+        onRemove={handleRemoveChip}
+        onClearAll={handleClearAllChips}
+      />
 
       <Card className="table-card">
         <CardHeader>

@@ -18,6 +18,10 @@ import type {
   WarehouseTransfer,
 } from '../types/warehouse.types'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
+import { FilterButton } from '../../../shared/components/filters/FilterButton'
+import { FilterPopover } from '../../../shared/components/filters/FilterPopover'
+import { FilterField } from '../../../shared/components/filters/FilterField'
+import { AppliedFilterChips, type AppliedFilterChip } from '../../../shared/components/filters/AppliedFilterChips'
 import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
 import { FieldError } from '../../../shared/components/forms/FieldError'
 import { ConfirmActionModal } from '../../../shared/components/modals/ConfirmActionModal'
@@ -262,10 +266,88 @@ export function WarehouseTransfersPanel({
 }) {
   const { t } = useTranslation()
   const [filters, setFilters] = useState(initialFilters)
+  const [draftFilters, setDraftFilters] = useState(initialFilters)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [transferInForm, setTransferInForm] = useState<WarehouseTransfer | null>(null)
   const [pendingAction, setPendingAction] = useState<{ kind: 'confirm' | 'dispatch' | 'receive' | 'cancel'; transfer: WarehouseTransfer } | null>(null)
   const queryClient = useQueryClient()
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.source_warehouse_id) count++
+    if (filters.destination_warehouse_id) count++
+    if (filters.status) count++
+    if (filters.transfer_number) count++
+    if (filters.date_from || filters.date_to) count++
+    return count
+  }, [filters])
+
+  const appliedChips: AppliedFilterChip[] = useMemo(() => {
+    const chips: AppliedFilterChip[] = []
+    if (filters.source_warehouse_id) {
+      chips.push({ key: 'source_warehouse_id', label: t('Source Warehouse'), value: filters.source_warehouse_id })
+    }
+    if (filters.destination_warehouse_id) {
+      chips.push({ key: 'destination_warehouse_id', label: t('Destination Warehouse'), value: filters.destination_warehouse_id })
+    }
+    if (filters.status) {
+      chips.push({ key: 'status', label: t('Status'), value: t(filters.status) })
+    }
+    if (filters.transfer_number) {
+      chips.push({ key: 'transfer_number', label: t('Transfer Number'), value: filters.transfer_number })
+    }
+    if (filters.date_from || filters.date_to) {
+      chips.push({
+        key: 'date_range',
+        label: t('Date Range', { defaultValue: 'Date Range' }),
+        value: `${filters.date_from || '...'} → ${filters.date_to || '...'}`,
+      })
+    }
+    return chips
+  }, [filters, t])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setDraftFilters(filters)
+    }
+    setFiltersOpen(nextOpen)
+  }
+
+  const handleApply = () => {
+    setFilters(draftFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleReset = () => {
+    setDraftFilters(initialFilters)
+    setFilters(initialFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleRemoveChip = (key: string) => {
+    if (key === 'source_warehouse_id') {
+      setFilters((c) => ({ ...c, source_warehouse_id: '' }))
+      setDraftFilters((c) => ({ ...c, source_warehouse_id: '' }))
+    }
+    if (key === 'destination_warehouse_id') {
+      setFilters((c) => ({ ...c, destination_warehouse_id: '' }))
+      setDraftFilters((c) => ({ ...c, destination_warehouse_id: '' }))
+    }
+    if (key === 'status') {
+      setFilters((c) => ({ ...c, status: '' }))
+      setDraftFilters((c) => ({ ...c, status: '' }))
+    }
+    if (key === 'transfer_number') {
+      setFilters((c) => ({ ...c, transfer_number: '' }))
+      setDraftFilters((c) => ({ ...c, transfer_number: '' }))
+    }
+    if (key === 'date_range') {
+      setFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+      setDraftFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+    }
+  }
+
   const params = useMemo(() => ({
     ...(filters.source_warehouse_id ? { source_warehouse_id: filters.source_warehouse_id } : {}),
     ...(filters.destination_warehouse_id ? { destination_warehouse_id: filters.destination_warehouse_id } : {}),
@@ -332,66 +414,87 @@ export function WarehouseTransfersPanel({
   }, [onCountChange, query.data])
 
   return (
-    <section className="page-section page-section--with-sidebar">
-      {!embedded ? <PageHeader
-        title={t('Warehouse Transfers')}
-        description={t('Inter-warehouse transfer drafts, dispatch, receiving, and cancellation.')}
-        actions={<Button type="button" onClick={() => setTransferInForm({} as WarehouseTransfer)}>{t('Create Transfer')}</Button>}
-      /> : null}
-
-      <aside className="page-sidebar-filters">
-        <Card variant="flat" className="dashboard-filter-card">
-          <CardHeader>
-            <CardTitle>{t('Filters')}</CardTitle>
-            <CardDescription>{t('Backend transfer filters for source/destination warehouses, status, number, and date range.')}</CardDescription>
-          </CardHeader>
-          <CardContent className="dashboard-filters dashboard-filters--sidebar">
-          <label className="field">
-            <span>{t('Source Warehouse')}</span>
-            <WarehouseSelector
-              value={filters.source_warehouse_id}
-              includeAllOption
-              onChange={(source_warehouse_id) => setFilters((current) => ({ ...current, source_warehouse_id }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Destination Warehouse')}</span>
-            <WarehouseSelector
-              value={filters.destination_warehouse_id}
-              includeAllOption
-              onChange={(destination_warehouse_id) => setFilters((current) => ({ ...current, destination_warehouse_id }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Status')}</span>
-            <Select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
-              <option value="">{t('All statuses')}</option>
-              <option value="draft">{t('draft')}</option>
-              <option value="confirmed">{t('confirmed')}</option>
-              <option value="in_transit">{t('in_transit')}</option>
-              <option value="received">{t('received')}</option>
-              <option value="cancelled">{t('cancelled')}</option>
-            </Select>
-          </label>
-          <label className="field">
-            <span>{t('Transfer Number')}</span>
-            <Input value={filters.transfer_number} onChange={(event) => setFilters((current) => ({ ...current, transfer_number: event.target.value }))} />
-          </label>
-          <DateRangeFilter
-            dateFrom={filters.date_from}
-            dateTo={filters.date_to}
-            onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))}
-          />
-        </CardContent>
-        <CardContent>
-          <div className="form-actions">
-            <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
-              {t('Reset')}
+    <section className="page-section page-layout--fullwidth">
+      {!embedded ? (
+        <PageHeader
+          title={t('Warehouse Transfers')}
+          description={t('Inter-warehouse transfer drafts, dispatch, receiving, and cancellation.')}
+          actions={
+            <Button type="button" onClick={() => setTransferInForm({} as WarehouseTransfer)}>
+              {t('Create Transfer')}
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-      </aside>
+          }
+        />
+      ) : null}
+
+      <div className="page-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
+        <AppliedFilterChips
+          chips={appliedChips}
+          onRemove={handleRemoveChip}
+          onClearAll={handleReset}
+        />
+        <div style={{ marginInlineStart: 'auto' }}>
+          <FilterPopover
+            title={t('Filter Warehouse Transfers', { defaultValue: 'Filter Warehouse Transfers' })}
+            open={filtersOpen}
+            onOpenChange={handleOpenChange}
+            onApply={handleApply}
+            onReset={handleReset}
+            activeCount={activeFilterCount}
+            trigger={
+              <FilterButton
+                activeCount={activeFilterCount}
+                open={filtersOpen}
+                onClick={() => handleOpenChange(!filtersOpen)}
+              />
+            }
+          >
+            <div className="space-y-4">
+              <FilterField label={t('Source Warehouse')}>
+                <WarehouseSelector
+                  value={draftFilters.source_warehouse_id}
+                  includeAllOption
+                  onChange={(source_warehouse_id) => setDraftFilters((current) => ({ ...current, source_warehouse_id }))}
+                />
+              </FilterField>
+              <FilterField label={t('Destination Warehouse')}>
+                <WarehouseSelector
+                  value={draftFilters.destination_warehouse_id}
+                  includeAllOption
+                  onChange={(destination_warehouse_id) => setDraftFilters((current) => ({ ...current, destination_warehouse_id }))}
+                />
+              </FilterField>
+              <FilterField label={t('Status')}>
+                <Select
+                  value={draftFilters.status}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}
+                >
+                  <option value="">{t('All statuses')}</option>
+                  <option value="draft">{t('draft')}</option>
+                  <option value="confirmed">{t('confirmed')}</option>
+                  <option value="in_transit">{t('in_transit')}</option>
+                  <option value="received">{t('received')}</option>
+                  <option value="cancelled">{t('cancelled')}</option>
+                </Select>
+              </FilterField>
+              <FilterField label={t('Transfer Number')}>
+                <Input
+                  placeholder={t('Enter transfer number...', { defaultValue: 'Enter transfer number...' })}
+                  value={draftFilters.transfer_number}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, transfer_number: event.target.value }))}
+                />
+              </FilterField>
+              <FilterField label={t('Date Range', { defaultValue: 'Date Range' })}>
+                <DateRangeFilter
+                  dateFrom={draftFilters.date_from}
+                  dateTo={draftFilters.date_to}
+                  onChange={({ date_from, date_to }) => setDraftFilters((current) => ({ ...current, date_from, date_to }))}
+                />
+              </FilterField>
+            </div>
+          </FilterPopover>
+        </div>
+      </div>
 
       <main className="page-main-content">
       <Card className="table-card">

@@ -886,6 +886,10 @@ export const router = createBrowserRouter([
         ]),
       },
       {
+        path: "finance/overview",
+        element: <Navigate to={adminPath("/finance")} replace />,
+      },
+      {
         path: "finance/operations",
         element: requireAnyPermission(lazyElement(<FinanceOperationsPage />), [
           PERMISSIONS.PAYOUTS_VIEW,
@@ -1332,6 +1336,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "warehouse/hub",
+        element: <Navigate to={adminPath("/warehouse/kpis")} replace />,
+      },
+      {
         path: "warehouse/inbound-requests",
         element: requireAnyPermission(<MerchantInboundStockRequestsPage />, [
           PERMISSIONS.MERCHANT_INBOUND_REQUESTS_VIEW,
@@ -1545,6 +1553,16 @@ export const router = createBrowserRouter([
           <MerchantPayoutDetailsPage />,
           "payouts.view",
         ),
+      },
+      {
+        path: "subscription",
+        lazy: async () => {
+          const { default: Component } = await import(
+            "../features/merchant-portal/subscription/pages/MerchantSubscriptionPage"
+          );
+
+          return { Component };
+        },
       },
       {
         path: "profile/*",

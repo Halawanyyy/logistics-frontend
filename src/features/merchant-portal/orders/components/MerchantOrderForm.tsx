@@ -47,6 +47,29 @@ const merchantOrderSchema = z.object({
   allow_inspection: z.boolean(),
   notes: z.string().optional(),
   items: z.array(orderItemSchema).min(1, 'Items are required.'),
+}).superRefine((values, context) => {
+  // Validate COD amount equals items total
+  if (values.payment_type === 'cod' && values.order_type !== 'return') {
+    const itemsTotal = values.items.reduce((sum, item) => {
+      const price = Number(item.unit_price) || 0
+      const quantity = Number(item.quantity) || 0
+
+      return sum + (price * quantity)
+    }, 0)
+
+    if (values.items.length > 0 && itemsTotal > 0) {
+      const roundedCod = Math.round(values.cod_amount * 100) / 100
+      const roundedTotal = Math.round(itemsTotal * 100) / 100
+
+      if (roundedCod !== roundedTotal) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `COD amount (${roundedCod.toFixed(2)}) must equal the total items value (${roundedTotal.toFixed(2)}).`,
+          path: ['cod_amount'],
+        })
+      }
+    }
+  }
 })
 
 type MerchantOrderFormValues = z.infer<typeof merchantOrderSchema>
@@ -297,6 +320,8 @@ export function MerchantOrderForm({
     name: 'items',
   })
   const [currentStep, setCurrentStep] = useState(0)
+  const [cachedGovernorateLabel, setCachedGovernorateLabel] = useState('')
+  const [cachedAreaLabel, setCachedAreaLabel] = useState('')
   const selectedOrderType = watch('order_type')
   const selectedPaymentType = watch('payment_type')
   const selectedGovernorateId = watch('delivery_governorate_id')
@@ -562,7 +587,12 @@ export function MerchantOrderForm({
                   searchPlaceholder={t('Search governorates...', { defaultValue: 'Search governorates...' })}
                   emptyMessage={t('No options found.', { defaultValue: 'No options found.' })}
                   disabled={governoratesQuery.isLoading || governoratesQuery.isError}
-                  onChange={(value) => field.onChange(value ? Number(value) : 0)}
+                  onChange={(value) => {
+                    const selectedOption = governorateOptions.find((option) => option.value === value)
+                    setCachedGovernorateLabel(selectedOption?.label ?? '')
+                    setCachedAreaLabel('')
+                    field.onChange(value ? Number(value) : 0)
+                  }}
                 />
               )}
             />
@@ -595,13 +625,14 @@ export function MerchantOrderForm({
                   searchPlaceholder={t('Search areas...', { defaultValue: 'Search areas...' })}
                   emptyMessage={t('No options found.', { defaultValue: 'No options found.' })}
                   disabled={!selectedGovernorateId || areasQuery.isLoading || areasQuery.isError}
-                  onChange={(value) => field.onChange(value ? Number(value) : undefined)}
+                  onChange={(value) => {
+                    const selectedOption = areaOptions.find((option) => option.value === value)
+                    setCachedAreaLabel(selectedOption?.label ?? '')
+                    field.onChange(value ? Number(value) : undefined)
+                  }}
                 />
               )}
             />
-            {!selectedGovernorateId ? (
-              <small>{t('Select governorate first', { defaultValue: 'Select governorate first' })}</small>
-            ) : null}
             {selectedGovernorateId && areasQuery.isLoading ? (
               <small>{t('Loading locations...', { defaultValue: 'Loading locations...' })}</small>
             ) : null}
@@ -761,8 +792,14 @@ export function MerchantOrderForm({
                     <div><dt>{t('Customer Name', { defaultValue: 'Customer Name' })}</dt><dd>{currentValues.customer_name || '-'}</dd></div>
                     <div><dt>{t('Customer Phone', { defaultValue: 'Customer Phone' })}</dt><dd>{currentValues.customer_phone || '-'}</dd></div>
                     <div><dt>{t('Alternative Phone', { defaultValue: 'Alternative Phone' })}</dt><dd>{currentValues.customer_phone_alt || '-'}</dd></div>
-                    <div><dt>{t('Delivery Governorate', { defaultValue: 'Delivery Governorate' })}</dt><dd>{currentValues.delivery_governorate_id || '-'}</dd></div>
-                    <div><dt>{t('Delivery Area', { defaultValue: 'Delivery Area' })}</dt><dd>{currentValues.delivery_area_id || '-'}</dd></div>
+                    <div>
+                      <dt>{t('Delivery Governorate', { defaultValue: 'Delivery Governorate' })}</dt>
+                      <dd>{governorateOptions.find((governorate) => governorate.value === String(currentValues.delivery_governorate_id))?.label || cachedGovernorateLabel || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('Delivery Area', { defaultValue: 'Delivery Area' })}</dt>
+                      <dd>{areaOptions.find((area) => area.value === String(currentValues.delivery_area_id))?.label || cachedAreaLabel || '-'}</dd>
+                    </div>
                     <div><dt>{t('Delivery Address', { defaultValue: 'Delivery Address' })}</dt><dd>{currentValues.delivery_address || '-'}</dd></div>
                     <div><dt>{t('Delivery Notes', { defaultValue: 'Delivery Notes' })}</dt><dd>{currentValues.delivery_notes || '-'}</dd></div>
                   </dl>

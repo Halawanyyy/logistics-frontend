@@ -5,6 +5,10 @@ import { listTreasuryTransactions } from '../api/finance.api'
 import type { FinanceFilters } from '../types/finance.types'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
 import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
+import { FilterButton } from '../../../shared/components/filters/FilterButton'
+import { FilterPopover } from '../../../shared/components/filters/FilterPopover'
+import { FilterField } from '../../../shared/components/filters/FilterField'
+import { AppliedFilterChips, type AppliedFilterChip } from '../../../shared/components/filters/AppliedFilterChips'
 import { TreasuryAccountSelector } from '../../../shared/components/selectors/TreasuryAccountSelector'
 import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
@@ -43,7 +47,77 @@ export function TreasuryTransactionsPanel({
 }) {
   const { t } = useTranslation()
   const [filters, setFilters] = useState<TreasuryFiltersState>(initialFilters)
+  const [draftFilters, setDraftFilters] = useState<TreasuryFiltersState>(initialFilters)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [selectedTransactionId, setSelectedTransactionId] = useState<number | null>(null)
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.treasury_account_id) count++
+    if (filters.direction) count++
+    if (filters.source_type) count++
+    if (filters.date_from || filters.date_to) count++
+    return count
+  }, [filters])
+
+  const appliedChips: AppliedFilterChip[] = useMemo(() => {
+    const chips: AppliedFilterChip[] = []
+    if (filters.treasury_account_id) {
+      chips.push({ key: 'treasury_account_id', label: t('Treasury Account'), value: filters.treasury_account_id })
+    }
+    if (filters.direction) {
+      chips.push({ key: 'direction', label: t('Direction'), value: t(filters.direction) })
+    }
+    if (filters.source_type) {
+      chips.push({ key: 'source_type', label: t('Source Type'), value: t(filters.source_type) })
+    }
+    if (filters.date_from || filters.date_to) {
+      chips.push({
+        key: 'date_range',
+        label: t('Date Range', { defaultValue: 'Date Range' }),
+        value: `${filters.date_from || '...'} → ${filters.date_to || '...'}`,
+      })
+    }
+    return chips
+  }, [filters, t])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setDraftFilters(filters)
+    }
+    setFiltersOpen(nextOpen)
+  }
+
+  const handleApply = () => {
+    setFilters(draftFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleReset = () => {
+    setDraftFilters(initialFilters)
+    setFilters(initialFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleRemoveChip = (key: string) => {
+    if (key === 'treasury_account_id') {
+      setFilters((c) => ({ ...c, treasury_account_id: '' }))
+      setDraftFilters((c) => ({ ...c, treasury_account_id: '' }))
+    }
+    if (key === 'direction') {
+      setFilters((c) => ({ ...c, direction: '' }))
+      setDraftFilters((c) => ({ ...c, direction: '' }))
+    }
+    if (key === 'source_type') {
+      setFilters((c) => ({ ...c, source_type: '' }))
+      setDraftFilters((c) => ({ ...c, source_type: '' }))
+    }
+    if (key === 'date_range') {
+      setFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+      setDraftFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+    }
+  }
+
   const params: FinanceFilters = useMemo(
     () => ({
       ...(filters.treasury_account_id ? { treasury_account_id: filters.treasury_account_id } : {}),
@@ -76,47 +150,69 @@ export function TreasuryTransactionsPanel({
       />
       </div> : null}
 
-      <Card variant="flat" className="dashboard-filter-card">
-        <CardContent className="dashboard-filters">
-          <label className="field">
-            <span>{t('Treasury Account')}</span>
-            <TreasuryAccountSelector
-              value={filters.treasury_account_id}
-              includeAllOption
-              onChange={(treasury_account_id) => setFilters((current) => ({ ...current, treasury_account_id }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Direction')}</span>
-            <Select
-              value={filters.direction}
-              onChange={(event) => setFilters((current) => ({ ...current, direction: event.target.value }))}
-            >
-              <option value="">{t('All directions')}</option>
-              <option value="credit">{t('Credit')}</option>
-              <option value="debit">{t('Debit')}</option>
-            </Select>
-          </label>
-          <label className="field">
-            <span>{t('Source Type')}</span>
-            <Select
-              value={filters.source_type}
-              onChange={(event) => setFilters((current) => ({ ...current, source_type: event.target.value }))}
-            >
-              <option value="">{t('All source types')}</option>
-              <option value="merchant_payout">merchant_payout</option>
-              <option value="expense">expense</option>
-              <option value="wallet_transaction">wallet_transaction</option>
-              <option value="warehouse_charge">warehouse_charge</option>
-            </Select>
-          </label>
-          <DateRangeFilter
-            dateFrom={filters.date_from}
-            dateTo={filters.date_to}
-            onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))}
-          />
-        </CardContent>
-      </Card>
+      <div className="page-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
+        <AppliedFilterChips
+          chips={appliedChips}
+          onRemove={handleRemoveChip}
+          onClearAll={handleReset}
+        />
+        <div style={{ marginInlineStart: 'auto' }}>
+          <FilterPopover
+            title={t('Filter Treasury Transactions', { defaultValue: 'Filter Treasury Transactions' })}
+            open={filtersOpen}
+            onOpenChange={handleOpenChange}
+            onApply={handleApply}
+            onReset={handleReset}
+            activeCount={activeFilterCount}
+            trigger={
+              <FilterButton
+                activeCount={activeFilterCount}
+                open={filtersOpen}
+                onClick={() => handleOpenChange(!filtersOpen)}
+              />
+            }
+          >
+            <div className="space-y-4">
+              <FilterField label={t('Treasury Account')}>
+                <TreasuryAccountSelector
+                  value={draftFilters.treasury_account_id}
+                  includeAllOption
+                  onChange={(treasury_account_id) => setDraftFilters((current) => ({ ...current, treasury_account_id }))}
+                />
+              </FilterField>
+              <FilterField label={t('Direction')}>
+                <Select
+                  value={draftFilters.direction}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, direction: event.target.value }))}
+                >
+                  <option value="">{t('All directions')}</option>
+                  <option value="credit">{t('Credit')}</option>
+                  <option value="debit">{t('Debit')}</option>
+                </Select>
+              </FilterField>
+              <FilterField label={t('Source Type')}>
+                <Select
+                  value={draftFilters.source_type}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, source_type: event.target.value }))}
+                >
+                  <option value="">{t('All source types')}</option>
+                  <option value="merchant_payout">merchant_payout</option>
+                  <option value="expense">expense</option>
+                  <option value="wallet_transaction">wallet_transaction</option>
+                  <option value="warehouse_charge">warehouse_charge</option>
+                </Select>
+              </FilterField>
+              <FilterField label={t('Date Range', { defaultValue: 'Date Range' })}>
+                <DateRangeFilter
+                  dateFrom={draftFilters.date_from}
+                  dateTo={draftFilters.date_to}
+                  onChange={({ date_from, date_to }) => setDraftFilters((current) => ({ ...current, date_from, date_to }))}
+                />
+              </FilterField>
+            </div>
+          </FilterPopover>
+        </div>
+      </div>
 
       <Card className="table-card">
         <CardHeader>

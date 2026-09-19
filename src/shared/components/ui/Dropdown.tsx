@@ -1,172 +1,264 @@
 import {
-  Children,
   createContext,
+  useCallback,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type HTMLAttributes,
   type PropsWithChildren,
-  type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '../../utils/cn'
 
-type DropdownAlign = 'left' | 'right' | 'start' | 'end'
-type DropdownContextValue = {
+export type DropdownAlign = 'left' | 'right' | 'start' | 'end'
+
+interface DropdownContextValue {
+  open: boolean
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>
   close: () => void
+  align: DropdownAlign
+  setAlign: (align: DropdownAlign) => void
+  triggerRef: React.RefObject<HTMLButtonElement | null>
+  contentRef: React.RefObject<HTMLDivElement | null>
+  position: { top: number; left?: number; right?: number }
+  updatePosition: () => void
 }
 
 const DropdownContext = createContext<DropdownContextValue | null>(null)
 
-function resolveAlign(align: DropdownAlign) {
-  const isRtl = typeof document !== 'undefined' && document.documentElement.dir === 'rtl'
+export function useDropdown() {
+  return useContext(DropdownContext)
+}
+
+export function resolveAlign(align: DropdownAlign): 'left' | 'right' {
+  const isRtl =
+    typeof document !== 'undefined' &&
+    (document.documentElement.dir === 'rtl' ||
+      document.documentElement.getAttribute('lang') === 'ar' ||
+      document.body.dir === 'rtl')
 
   if (align === 'start') {
     return isRtl ? 'right' : 'left'
   }
-
   if (align === 'end') {
     return isRtl ? 'left' : 'right'
   }
-
   return align
 }
 
-function splitMenuChildren(children: ReactNode) {
-  const childArray = Children.toArray(children)
-  return {
-    contentNode: childArray[1] ?? null,
-    triggerNode: childArray[0] ?? null,
-  }
+function DropdownProvider({
+  children,
+  align: initialAlign = 'end',
+  className,
+}: PropsWithChildren<{ align?: DropdownAlign; className?: string }>) {
+  const [open, setOpen] = useState(false)
+  const [align, setAlign] = useState<DropdownAlign>(initialAlign)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const [position, setPosition] = useState<{ top: number; left?: number; right?: number }>({ top: 0 })
+
+  const close = useCallback(() => setOpen(false), [])
+
+  const updatePosition = useCallback(() => {
+    const triggerEl = triggerRef.current
+    if (!triggerEl) return
+
+    const rect = triggerEl.getBoundingClientRect()
+    const resolved = resolveAlign(align)
+    const gap = 4
+    const viewportHeight = window.innerHeight
+    const viewportWidth = window.innerWidth
+    const approxContentHeight = contentRef.current?.offsetHeight || 220
+    const spaceBelow = viewportHeight - rect.bottom
+    const spaceAbove = rect.top
+
+    let top: number
+    if (spaceBelow < approxContentHeight && spaceAbove > spaceBelow) {
+      top = Math.max(8, rect.top - approxContentHeight - gap)
+    } else {
+      top = Math.min(rect.bottom + gap, viewportHeight - 8)
+    }
+
+    let left: number | undefined
+    let right: number | undefined
+
+    if (resolved === 'left') {
+      left = Math.max(8, Math.min(rect.left, viewportWidth - 200))
+      right = undefined
+    } else {
+      right = Math.max(8, Math.min(viewportWidth - rect.right, viewportWidth - 200))
+      left = undefined
+    }
+
+    setPosition({ top, left, right })
+  }, [align])
+
+  useEffect(() => {
+    if (!open) return
+
+    updatePosition()
+    const frame = requestAnimationFrame(updatePosition)
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Node
+      if (
+        triggerRef.current?.contains(target) ||
+        contentRef.current?.contains(target)
+      ) {
+        return
+      }
+      setOpen(false)
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open, updatePosition])
+
+  return (
+    <DropdownContext.Provider
+      value={{
+        open,
+        setOpen,
+        close,
+        align,
+        setAlign,
+        triggerRef,
+        contentRef,
+        position,
+        updatePosition,
+      }}
+    >
+      <div className={className}>{children}</div>
+    </DropdownContext.Provider>
+  )
 }
 
 export function Dropdown({
   children,
   className,
 }: PropsWithChildren<{ className?: string }>) {
-  return <div className={cn('ui-dropdown', className)}>{children}</div>
+  const parentCtx = useContext(DropdownContext)
+  if (parentCtx) {
+    return <div className={cn('ui-dropdown', className)}>{children}</div>
+  }
+  return (
+    <DropdownProvider className={cn('ui-dropdown', className)}>
+      {children}
+    </DropdownProvider>
+  )
 }
 
 export function DropdownMenu({
   align = 'end',
   children,
-}: PropsWithChildren<{ align?: DropdownAlign }>) {
-  const [open, setOpen] = useState(false)
-  const triggerRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const { contentNode, triggerNode } = useMemo(() => splitMenuChildren(children), [children])
-  const resolvedAlign = resolveAlign(align)
-  const [position, setPosition] = useState<{ left?: number; right?: number; top: number }>({ top: 0 })
+  className,
+}: PropsWithChildren<{ align?: DropdownAlign; className?: string }>) {
+  const parentCtx = useContext(DropdownContext)
 
   useEffect(() => {
-    if (!open) {
-      return
+    if (parentCtx && align) {
+      parentCtx.setAlign(align)
     }
+  }, [parentCtx, align])
 
-    function handleClick(event: MouseEvent) {
-      const target = event.target as Node
-
-      if (triggerRef.current?.contains(target) || contentRef.current?.contains(target)) {
-        return
-      }
-
-      setOpen(false)
-    }
-
-    function updatePosition() {
-      const rect = triggerRef.current?.getBoundingClientRect()
-      if (!rect) {
-        return
-      }
-
-      const top = Math.min(rect.bottom + 8, window.innerHeight - 16)
-
-      if (resolvedAlign === 'left') {
-        setPosition({
-          left: Math.max(12, rect.left),
-          right: undefined,
-          top,
-        })
-        return
-      }
-
-      setPosition({
-        left: undefined,
-        right: Math.max(12, window.innerWidth - rect.right),
-        top,
-      })
-    }
-
-    updatePosition()
-    window.addEventListener('mousedown', handleClick)
-    window.addEventListener('resize', updatePosition)
-    window.addEventListener('scroll', updatePosition, true)
-
-    return () => {
-      window.removeEventListener('mousedown', handleClick)
-      window.removeEventListener('resize', updatePosition)
-      window.removeEventListener('scroll', updatePosition, true)
-    }
-  }, [open, resolvedAlign])
+  if (parentCtx) {
+    return <div className={cn('ui-dropdown__menu', className)}>{children}</div>
+  }
 
   return (
-    <DropdownContext.Provider value={{ close: () => setOpen(false) }}>
-      <div className="ui-dropdown__menu">
-        <div ref={triggerRef} className="ui-dropdown__trigger-wrap" onClick={() => setOpen((value) => !value)}>
-          {triggerNode}
-        </div>
-        {open && typeof document !== 'undefined' && contentNode
-          ? createPortal(
-              <div
-                ref={contentRef}
-                className={cn(
-                  'ui-dropdown__content',
-                  `ui-dropdown__content--${resolvedAlign}`,
-                  contentNode && typeof contentNode === 'object' && 'props' in contentNode
-                    ? (contentNode as { props?: { className?: string } }).props?.className
-                    : undefined,
-                )}
-                style={{
-                  left: position.left,
-                  right: position.right,
-                  top: position.top,
-                }}
-              >
-                {contentNode && typeof contentNode === 'object' && 'props' in contentNode
-                  ? (contentNode as { props?: { children?: ReactNode } }).props?.children
-                  : contentNode}
-              </div>,
-              document.body,
-            )
-          : null}
-      </div>
-    </DropdownContext.Provider>
+    <DropdownProvider align={align} className={cn('ui-dropdown', 'ui-dropdown__menu', className)}>
+      {children}
+    </DropdownProvider>
   )
 }
 
 export function DropdownTrigger({
   children,
   className,
+  onClick,
   ...props
 }: PropsWithChildren<HTMLAttributes<HTMLButtonElement>>) {
+  const ctx = useContext(DropdownContext)
+
   return (
-    <button type="button" className={cn('ui-dropdown__trigger', className)} {...props}>
-      {children}
-    </button>
+    <div className="ui-dropdown__trigger-wrap" style={{ display: 'inline-flex' }}>
+      <button
+        ref={ctx?.triggerRef}
+        type="button"
+        className={cn('ui-dropdown__trigger', className)}
+        aria-haspopup="true"
+        aria-expanded={ctx?.open}
+        onClick={(e) => {
+          onClick?.(e)
+          if (!e.defaultPrevented && ctx) {
+            if (!ctx.open) {
+              ctx.updatePosition()
+            }
+            ctx.setOpen((val) => !val)
+          }
+        }}
+        {...props}
+      >
+        {children}
+      </button>
+    </div>
   )
 }
 
 export function DropdownContent({
   children,
   className,
+  style,
   ...props
 }: PropsWithChildren<HTMLAttributes<HTMLDivElement>>) {
-  return (
-    <div className={cn(className)} {...props}>
+  const ctx = useContext(DropdownContext)
+
+  if (!ctx?.open || typeof document === 'undefined') {
+    return null
+  }
+
+  const resolvedAlign = resolveAlign(ctx.align)
+
+  return createPortal(
+    <div
+      ref={ctx.contentRef}
+      className={cn(
+        'ui-dropdown__content',
+        `ui-dropdown__content--${resolvedAlign}`,
+        className,
+      )}
+      style={{
+        position: 'fixed',
+        top: ctx.position.top,
+        left: ctx.position.left,
+        right: ctx.position.right,
+        zIndex: 9999,
+        ...style,
+      }}
+      role="menu"
+      {...props}
+    >
       {children}
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -184,9 +276,9 @@ export function DropdownItem({
     <div
       className={cn('ui-dropdown__item', destructive && 'ui-dropdown__item--danger', className)}
       data-dropdown-item="true"
+      role="menuitem"
       aria-disabled={disabled}
       onClick={(event) => {
-        event.stopPropagation()
         if (disabled) {
           event.preventDefault()
           return

@@ -1,11 +1,11 @@
-import { Bell, Menu, Moon, Sun } from 'lucide-react'
-import { MerchantNotificationBell } from '../../../features/merchant-portal/notifications/components/MerchantNotificationBell'
+import { Menu, Moon, Sun } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../ui/Button'
+import { Link } from 'react-router-dom'
 import { useLocale } from '../../i18n/useLocale'
 import { useTheme } from '../../theme/ThemeProvider'
-import { BrandMark } from '../branding/BrandMark'
+import { BrandLogo } from '../branding/BrandLogo'
 import type { AuthUser } from '../../../features/auth/types/auth.types'
+import { adminPath, merchantPath } from '../../routing/paths'
 import { TopbarGlobalSearch } from './TopbarGlobalSearch'
 
 type TopbarProps = {
@@ -26,81 +26,59 @@ export function Topbar({
   onToggleSidebar,
   portalType = 'admin',
   user,
-  userName,
-  userRole,
 }: TopbarProps) {
   const { t } = useTranslation()
   const { theme, toggleTheme } = useTheme()
   const { locale, toggleLocale } = useLocale()
-  const topbarEyebrow = portalType === 'merchant'
-    ? t('Merchant Portal', { defaultValue: 'Merchant Portal' })
-    : t('Dashboard', { defaultValue: 'Dashboard' })
-  const topbarTitle = portalType === 'merchant'
-    ? t('Merchant Operations Workspace', { defaultValue: 'Merchant Operations Workspace' })
-    : t('Logistics & Warehouse Admin', { defaultValue: 'Logistics & Warehouse Admin' })
+  const dashboardPath = portalType === 'merchant'
+    ? merchantPath('/dashboard')
+    : adminPath('/dashboard')
 
   return (
     <header className="app-topbar">
-      <div className="app-topbar__intro">
-        <Button
-          aria-label={t('Toggle navigation', { defaultValue: 'Toggle navigation' })}
-          aria-expanded={isSidebarVisible}
-          className="app-topbar__menu-button"
-          size="sm"
-          variant="secondary"
-          onClick={onToggleSidebar}
-        >
-          <Menu size={18} />
-        </Button>
-        {portalType !== 'merchant' && (
-          <div>
-            <p className="eyebrow">{topbarEyebrow}</p>
-            <h2 className="app-topbar__title">{topbarTitle}</h2>
-          </div>
-        )}
-      </div>
+      <button
+        type="button"
+        aria-label={t('Toggle navigation', { defaultValue: 'Toggle navigation' })}
+        aria-expanded={isSidebarVisible}
+        className="app-topbar__menu-button app-topbar__icon-button"
+        onClick={onToggleSidebar}
+      >
+        <Menu aria-hidden="true" size={20} />
+      </button>
+
+      <div className="app-topbar__spacer" />
 
       <div className="app-topbar__actions">
         {portalType !== 'merchant' && <TopbarGlobalSearch user={user} />}
-        <Button
-          className="app-topbar__button"
-          variant="secondary"
-          size="sm"
+        <button
+          type="button"
+          aria-label={locale === 'en'
+            ? t('Switch language to Arabic', { defaultValue: 'Switch language to Arabic' })
+            : t('Switch language to English', { defaultValue: 'Switch language to English' })}
+          className="app-topbar__language-button"
           onClick={toggleLocale}
         >
           {locale === 'en' ? 'AR' : 'EN'}
-        </Button>
-        {portalType === 'merchant' ? (
-          <MerchantNotificationBell />
-        ) : (
-          <Button aria-label={t('Notifications')} className="app-topbar__icon-button" variant="icon">
-            <Bell size={18} />
-          </Button>
-        )}
-        <Button
-          aria-label={t('Toggle dark mode')}
+        </button>
+        <button
+          type="button"
+          aria-label={theme === 'dark'
+            ? t('Switch to light mode', { defaultValue: 'Switch to light mode' })
+            : t('Switch to dark mode', { defaultValue: 'Switch to dark mode' })}
           className="app-topbar__icon-button"
-          variant="icon"
           onClick={toggleTheme}
         >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </Button>
-        <div className="app-topbar__brand-chip">
-          <BrandMark logoUrl={companyLogo} name={companyName} size="sm" />
-          <div>
-            <p className="app-topbar__brand-chip-label">{t('Company', { defaultValue: 'Company' })}</p>
-            <p className="app-topbar__brand-chip-name">{companyName}</p>
-          </div>
-        </div>
-        {portalType !== 'merchant' && (
-          <div className="app-topbar__profile">
-            <div className="app-topbar__avatar">{userName[0] ?? 'A'}</div>
-            <div>
-              <p className="app-topbar__profile-name">{userName}</p>
-              <p className="app-topbar__profile-role">{userRole || companyName}</p>
-            </div>
-          </div>
-        )}
+          {theme === 'dark'
+            ? <Sun aria-hidden="true" size={19} />
+            : <Moon aria-hidden="true" size={19} />}
+        </button>
+        <Link
+          aria-label={t('Go to dashboard', { defaultValue: 'Go to dashboard' })}
+          className="app-topbar__logo"
+          to={dashboardPath}
+        >
+          <BrandLogo logoUrl={companyLogo} name={companyName} size="sm" />
+        </Link>
       </div>
     </header>
   )

@@ -200,6 +200,13 @@ export type MerchantPortalInboundStockRequestDetailResponse = {
 export type MerchantPortalWarehouseProductFilters = {
   search?: string
   status?: string
+  low_stock?: boolean
+  has_stock?: boolean | string
+  sku?: string
+  barcode?: string
+  created_from?: string
+  created_to?: string
+  warehouse_id?: number | string
 }
 
 export type MerchantPortalInventoryStockFilters = {

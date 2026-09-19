@@ -64,18 +64,25 @@ const navigationItems: AdminSidebarItem[] = [
     ],
   },
   {
-    type: 'link',
-    path: adminPath('/merchants'),
-    label: 'Merchants',
-    icon: <Store size={18} />,
-    permission: PERMISSIONS.MERCHANTS_VIEW,
-  },
-  {
-    type: 'link',
-    path: adminPath('/drivers'),
-    label: 'Drivers',
-    icon: <UserRoundCheck size={18} />,
-    permission: PERMISSIONS.DRIVERS_VIEW,
+    type: 'group',
+    label: 'Entities',
+    icon: <Users size={18} />,
+    children: [
+      {
+        type: 'link',
+        path: adminPath('/merchants'),
+        label: 'Merchants',
+        icon: <Store size={18} />,
+        permission: PERMISSIONS.MERCHANTS_VIEW,
+      },
+      {
+        type: 'link',
+        path: adminPath('/drivers'),
+        label: 'Drivers',
+        icon: <UserRoundCheck size={18} />,
+        permission: PERMISSIONS.DRIVERS_VIEW,
+      },
+    ],
   },
   {
     type: 'group',

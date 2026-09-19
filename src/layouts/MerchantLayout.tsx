@@ -1,14 +1,18 @@
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Link, Outlet, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Archive,
   Bell,
   ClipboardList,
+  CreditCard,
   FileSpreadsheet,
   Landmark,
   LayoutDashboard,
   Package,
+  PackageCheck,
   Plug,
+  Plus,
+  Search,
   Settings,
   Truck,
   UserRoundCheck,
@@ -81,10 +85,9 @@ const navigationItems: MerchantSidebarItem[] = [
   },
   {
     type: 'link',
-    path: merchantPath('/integrations'),
-    label: 'Integrations',
-    icon: <Plug size={18} />,
-    capability: 'integrations.view',
+    path: merchantPath('/subscription'),
+    label: 'Subscription',
+    icon: <CreditCard size={18} />,
   },
   {
     type: 'group',
@@ -93,6 +96,7 @@ const navigationItems: MerchantSidebarItem[] = [
     children: [
       { type: 'link', path: merchantPath('/profile'), label: 'Profile', icon: <UserRoundCheck size={18} />, role: 'owner' },
       { type: 'link', path: merchantPath('/users'), label: 'Portal Users', icon: <Users size={18} />, capability: 'users.view' },
+      { type: 'link', path: merchantPath('/integrations'), label: 'Integrations', icon: <Plug size={18} />, capability: 'integrations.view' },
       { type: 'link', path: merchantPath('/notifications'), label: 'Notifications', icon: <Bell size={18} />, capability: 'notifications.view' },
       { type: 'link', path: merchantPath('/attachments'), label: 'Attachments', icon: <Archive size={18} />, capability: 'attachments.view' },
       {
@@ -113,6 +117,38 @@ export function MerchantLayout() {
   const user = useAuthStore((state) => state.user)
   const clearSession = useAuthStore((state) => state.logout)
   const { hasMerchantCapability, merchant, portalRole } = useMerchantPortalContext()
+  const merchantQuickActions = [
+    {
+      label: t('New Order', { defaultValue: 'New Order' }),
+      icon: <Plus size={15} aria-hidden="true" />,
+      path: merchantPath('/orders/create'),
+      capability: 'orders.create',
+    },
+    {
+      label: t('Track Shipment', { defaultValue: 'Track Shipment' }),
+      icon: <Search size={15} aria-hidden="true" />,
+      path: merchantPath('/shipments'),
+      capability: 'shipments.view',
+    },
+    {
+      label: t('Request Inbound', { defaultValue: 'Request Inbound' }),
+      icon: <PackageCheck size={15} aria-hidden="true" />,
+      path: merchantPath('/warehouse/inbound-requests/create'),
+      capability: 'warehouse.inbound_requests.create',
+    },
+    {
+      label: t('View Wallet', { defaultValue: 'View Wallet' }),
+      icon: <Wallet size={15} aria-hidden="true" />,
+      path: merchantPath('/finance/wallet'),
+      capability: 'wallet.view',
+    },
+    {
+      label: t('My Invoices', { defaultValue: 'My Invoices' }),
+      icon: <FileSpreadsheet size={15} aria-hidden="true" />,
+      path: merchantPath('/finance/invoices'),
+      capability: 'invoices.view',
+    },
+  ]
 
   function canViewNavigationItem(item: MerchantNavItem) {
     if (item.hidden) {
@@ -156,6 +192,19 @@ export function MerchantLayout() {
       userName={user?.name ?? t('Merchant', { defaultValue: 'Merchant' })}
       userRole={portalRole ?? 'Merchant'}
     >
+      <nav className="quick-actions-bar" aria-label={t('Quick actions')}>
+        <span className="quick-actions-bar__label">{t('Quick actions')}</span>
+        <div className="quick-actions-bar__items">
+          {merchantQuickActions
+            .filter((action) => hasMerchantCapability(action.capability))
+            .map((action) => (
+              <Link className="quick-actions-bar__action" key={action.capability} to={action.path}>
+                {action.icon}
+                <span>{action.label}</span>
+              </Link>
+            ))}
+        </div>
+      </nav>
       <Outlet />
     </AppShell>
   )

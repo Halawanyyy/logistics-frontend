@@ -4,7 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { listAuditLogs } from '../../../shared/api/audit.api'
 import type { AuditLogItem, AuditLogsFilters } from '../../../shared/types/audit.types'
 import { getApiErrorMessage } from '../../../shared/api/api-error'
-import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
+import {
+  FilterButton,
+  FilterPopover,
+  FilterField,
+  AppliedFilterChips,
+  DateRangeFilter,
+  type AppliedChip,
+} from '../../../shared/components/filters'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../shared/components/states/LoadingState'
@@ -104,21 +111,24 @@ function JsonBlock({ title, value }: { title: string; value: Record<string, unkn
 
 export function AuditLogsPage() {
   const { t } = useTranslation()
-  const [filters, setFilters] = useState<AuditFiltersState>(initialFilters)
+  const [appliedFilters, setAppliedFilters] = useState<AuditFiltersState>(initialFilters)
+  const [draftFilters, setDraftFilters] = useState<AuditFiltersState>(initialFilters)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filterError, setFilterError] = useState('')
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null)
   const params: AuditLogsFilters = useMemo(
     () => ({
-      ...(filters.user_id ? { user_id: filters.user_id } : {}),
-      ...(filters.event_type ? { event_type: filters.event_type } : {}),
-      ...(filters.action ? { action: filters.action } : {}),
-      ...(filters.auditable_type ? { auditable_type: filters.auditable_type } : {}),
-      ...(filters.auditable_id ? { auditable_id: filters.auditable_id } : {}),
-      ...(filters.date_from ? { date_from: filters.date_from } : {}),
-      ...(filters.date_to ? { date_to: filters.date_to } : {}),
-      ...(filters.search ? { search: filters.search } : {}),
-      ...(filters.per_page ? { per_page: filters.per_page } : {}),
+      ...(appliedFilters.user_id ? { user_id: appliedFilters.user_id } : {}),
+      ...(appliedFilters.event_type ? { event_type: appliedFilters.event_type } : {}),
+      ...(appliedFilters.action ? { action: appliedFilters.action } : {}),
+      ...(appliedFilters.auditable_type ? { auditable_type: appliedFilters.auditable_type } : {}),
+      ...(appliedFilters.auditable_id ? { auditable_id: appliedFilters.auditable_id } : {}),
+      ...(appliedFilters.date_from ? { date_from: appliedFilters.date_from } : {}),
+      ...(appliedFilters.date_to ? { date_to: appliedFilters.date_to } : {}),
+      ...(appliedFilters.search ? { search: appliedFilters.search } : {}),
+      ...(appliedFilters.per_page ? { per_page: appliedFilters.per_page } : {}),
     }),
-    [filters],
+    [appliedFilters],
   )
   const auditLogsQuery = useQuery({
     queryKey: ['audit-logs', params],
@@ -126,86 +136,157 @@ export function AuditLogsPage() {
   })
   const logs = auditLogsQuery.data?.data ?? []
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (appliedFilters.user_id) count += 1
+    if (appliedFilters.event_type) count += 1
+    if (appliedFilters.action) count += 1
+    if (appliedFilters.auditable_type) count += 1
+    if (appliedFilters.auditable_id) count += 1
+    if (appliedFilters.date_from || appliedFilters.date_to) count += 1
+    if (appliedFilters.per_page && appliedFilters.per_page !== '50') count += 1
+    return count
+  }, [appliedFilters])
+
+  const handleOpenChange = (open: boolean) => {
+    setFiltersOpen(open)
+    if (open) {
+      setDraftFilters(appliedFilters)
+      setFilterError('')
+    }
+  }
+
+  const handleApply = () => {
+    if (draftFilters.date_from && draftFilters.date_to && draftFilters.date_from > draftFilters.date_to) {
+      setFilterError(t('Date From must not be later than Date To.', { defaultValue: 'Date From must not be later than Date To.' }))
+      return
+    }
+    setFilterError('')
+    setAppliedFilters(draftFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleReset = () => {
+    setDraftFilters((c) => ({ ...initialFilters, search: c.search }))
+    setAppliedFilters((c) => ({ ...initialFilters, search: c.search }))
+    setFilterError('')
+    setFiltersOpen(false)
+  }
+
+  const appliedChips = useMemo<AppliedChip[]>(() => {
+    const chips: AppliedChip[] = []
+    if (appliedFilters.user_id) chips.push({ id: 'user_id', label: t('User ID'), value: appliedFilters.user_id })
+    if (appliedFilters.event_type) chips.push({ id: 'event_type', label: t('Event Type'), value: appliedFilters.event_type })
+    if (appliedFilters.action) chips.push({ id: 'action', label: t('Action'), value: appliedFilters.action })
+    if (appliedFilters.auditable_type) chips.push({ id: 'auditable_type', label: t('Auditable Type'), value: appliedFilters.auditable_type })
+    if (appliedFilters.auditable_id) chips.push({ id: 'auditable_id', label: t('Auditable ID'), value: appliedFilters.auditable_id })
+    if (appliedFilters.date_from || appliedFilters.date_to) {
+      chips.push({
+        id: 'date_range',
+        label: t('Date'),
+        value: `${appliedFilters.date_from || ''} → ${appliedFilters.date_to || ''}`,
+      })
+    }
+    if (appliedFilters.per_page && appliedFilters.per_page !== '50') {
+      chips.push({ id: 'per_page', label: t('Per Page'), value: appliedFilters.per_page })
+    }
+    return chips
+  }, [appliedFilters, t])
+
+  const handleRemoveChip = (chipId: string) => {
+    if (chipId === 'date_range') {
+      setAppliedFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+    } else if (chipId === 'per_page') {
+      setAppliedFilters((c) => ({ ...c, per_page: '50' }))
+    } else {
+      setAppliedFilters((c) => ({ ...c, [chipId]: '' }))
+    }
+  }
+
+  const handleClearAllChips = () => {
+    setAppliedFilters((c) => ({ ...initialFilters, search: c.search }))
+  }
+
   return (
-    <section className="page-section page-section--with-sidebar">
+    <section className="page-section page-layout--fullwidth">
       <PageHeader
         title={t('Audit Logs', { defaultValue: 'Audit Logs' })}
         description={t('Global operational, finance, and security audit records.', { defaultValue: 'Global operational, finance, and security audit records.' })}
       />
 
-      <aside className="page-sidebar-filters">
-        <Card variant="flat" className="dashboard-filter-card">
-          <CardContent className="dashboard-filters dashboard-filters--sidebar">
-          <label className="field">
-            <span>{t('User ID')}</span>
-            <Input
-              value={filters.user_id}
-              onChange={(event) => setFilters((current) => ({ ...current, user_id: event.target.value }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Event Type')}</span>
-            <Input
-              value={filters.event_type}
-              onChange={(event) => setFilters((current) => ({ ...current, event_type: event.target.value }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Action')}</span>
-            <Input
-              value={filters.action}
-              onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Auditable Type')}</span>
-            <Input
-              value={filters.auditable_type}
-              onChange={(event) => setFilters((current) => ({ ...current, auditable_type: event.target.value }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Auditable ID')}</span>
-            <Input
-              value={filters.auditable_id}
-              onChange={(event) => setFilters((current) => ({ ...current, auditable_id: event.target.value }))}
-            />
-          </label>
-          <DateRangeFilter
-            dateFrom={filters.date_from}
-            dateTo={filters.date_to}
-            onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))}
-          />
-          <label className="field">
-            <span>{t('Search')}</span>
-            <Input
-              value={filters.search}
-              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Per Page')}</span>
-            <Select
-              value={filters.per_page}
-              onChange={(event) => setFilters((current) => ({ ...current, per_page: event.target.value }))}
-            >
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </Select>
-          </label>
-        </CardContent>
-        <CardContent>
-          <div className="form-actions">
-            <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
-              {t('Reset filters')}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      </aside>
+      <div className="page-toolbar">
+        <Input
+          value={appliedFilters.search}
+          placeholder={t('Search audit logs...', { defaultValue: 'Search audit logs...' })}
+          onChange={(event) => setAppliedFilters((c) => ({ ...c, search: event.target.value }))}
+          className="page-toolbar__search"
+        />
 
-      <main className="page-main-content">
+        <div className="page-toolbar__actions">
+          <FilterPopover
+            title={t('Audit log filters', { defaultValue: 'Audit log filters' })}
+            activeCount={activeFilterCount}
+            open={filtersOpen}
+            onOpenChange={handleOpenChange}
+            onApply={handleApply}
+            onReset={handleReset}
+            trigger={<FilterButton activeCount={activeFilterCount} />}
+          >
+            <FilterField label={t('User ID')}>
+              <Input
+                value={draftFilters.user_id}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, user_id: event.target.value }))}
+              />
+            </FilterField>
+            <FilterField label={t('Event Type')}>
+              <Input
+                value={draftFilters.event_type}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, event_type: event.target.value }))}
+              />
+            </FilterField>
+            <FilterField label={t('Action')}>
+              <Input
+                value={draftFilters.action}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, action: event.target.value }))}
+              />
+            </FilterField>
+            <FilterField label={t('Auditable Type')}>
+              <Input
+                value={draftFilters.auditable_type}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, auditable_type: event.target.value }))}
+              />
+            </FilterField>
+            <FilterField label={t('Auditable ID')}>
+              <Input
+                value={draftFilters.auditable_id}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, auditable_id: event.target.value }))}
+              />
+            </FilterField>
+            <DateRangeFilter
+              dateFrom={draftFilters.date_from}
+              dateTo={draftFilters.date_to}
+              onChange={({ date_from, date_to }) => setDraftFilters((current) => ({ ...current, date_from, date_to }))}
+              error={filterError}
+            />
+            <FilterField label={t('Per Page')}>
+              <Select
+                value={draftFilters.per_page}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, per_page: event.target.value }))}
+              >
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </Select>
+            </FilterField>
+          </FilterPopover>
+        </div>
+      </div>
+
+      <AppliedFilterChips
+        chips={appliedChips}
+        onRemove={handleRemoveChip}
+        onClearAll={handleClearAllChips}
+      />
       <Card className="table-card">
         <CardHeader>
           <CardTitle>{t('Global Audit History')}</CardTitle>
@@ -293,7 +374,6 @@ export function AuditLogsPage() {
           </div>
         ) : null}
       </Dialog>
-      </main>
     </section>
   )
 }

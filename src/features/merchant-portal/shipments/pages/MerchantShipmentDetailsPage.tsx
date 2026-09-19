@@ -111,7 +111,18 @@ export function MerchantShipmentDetailsPage() {
       />
 
       <div className="details-grid">
-        <Card className="detail-card">
+        <Card
+          className="detail-card"
+          data-accent={shipment.status === 'pending_pickup'
+            ? 'warning'
+            : shipment.status === 'in_transit' || shipment.status === 'out_for_delivery'
+              ? 'shipments'
+              : shipment.status === 'delivered'
+                ? 'success'
+                : shipment.status === 'returned' || shipment.status === 'failed'
+                  ? 'danger'
+                  : 'shipments'}
+        >
           <CardHeader>
             <CardTitle>{t('Overview', { defaultValue: 'Overview' })}</CardTitle>
           </CardHeader>
@@ -162,7 +173,7 @@ export function MerchantShipmentDetailsPage() {
           </CardContent>
         </Card>
 
-        <Card className="detail-card">
+        <Card className="detail-card" data-accent="finance">
           <CardHeader>
             <CardTitle>{t('Payment Information', { defaultValue: 'Payment Information' })}</CardTitle>
           </CardHeader>

@@ -684,17 +684,18 @@ export function MerchantDetailsPage() {
         ) : null}
       </div>
 
-      <MerchantProfileCard merchant={merchant} />
-
       <MerchantProfileTabs merchantId={merchantId} tabs={visibleTabs} activeTab={currentTab} />
 
       {currentTab === 'overview' ? (
-        <MerchantOverviewPanel
-          filters={overviewFilters}
-          setFilters={setOverviewFilters}
-          dashboardQuery={dashboardQuery}
-          financeQuery={financeQuery}
-        />
+        <>
+          <MerchantProfileCard merchant={merchant} />
+          <MerchantOverviewPanel
+            filters={overviewFilters}
+            setFilters={setOverviewFilters}
+            dashboardQuery={dashboardQuery}
+            financeQuery={financeQuery}
+          />
+        </>
       ) : null}
 
       {currentTab === 'operations' ? (

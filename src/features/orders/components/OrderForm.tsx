@@ -95,6 +95,30 @@ const orderSchema = z.object({
     })
   }
 
+  if (values.payment_type === 'cod' && values.order_type !== 'return') {
+    const items = values.fulfillment_type === 'from_warehouse'
+      ? values.warehouse_items ?? []
+      : values.items
+    const itemsTotal = items.reduce((sum, item) => {
+      const price = Number(item.unit_price) || 0
+      const quantity = Number(item.quantity) || 0
+      return sum + (price * quantity)
+    }, 0)
+
+    if (items.length > 0 && itemsTotal > 0) {
+      const roundedCod = Math.round(values.cod_amount * 100) / 100
+      const roundedTotal = Math.round(itemsTotal * 100) / 100
+
+      if (roundedCod !== roundedTotal) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `COD amount (${roundedCod.toFixed(2)}) must equal the total items value (${roundedTotal.toFixed(2)}).`,
+          path: ['cod_amount'],
+        })
+      }
+    }
+  }
+
   if (values.fulfillment_type === 'pickup_from_merchant' && values.items.length < 1) {
     context.addIssue({
       code: z.ZodIssueCode.custom,

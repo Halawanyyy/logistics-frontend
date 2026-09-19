@@ -386,7 +386,20 @@ export function MerchantOrderDetailsPage() {
       {cancelMutation.error ? <div className="form-error">{getApiErrorMessage(cancelMutation.error)}</div> : null}
 
       <div className="details-grid">
-        <Card className="detail-card">
+        <Card
+          className="detail-card"
+          data-accent={order.status === 'draft'
+            ? 'warning'
+            : order.status === 'confirmed'
+              ? 'orders'
+              : order.status === 'shipped'
+                ? 'shipments'
+                : order.status === 'delivered'
+                  ? 'success'
+                  : order.status === 'cancelled'
+                    ? 'danger'
+                    : 'orders'}
+        >
           <CardHeader>
             <CardTitle>{t('Order Summary', { defaultValue: 'Order Summary' })}</CardTitle>
           </CardHeader>
@@ -434,7 +447,7 @@ export function MerchantOrderDetailsPage() {
           </CardContent>
         </Card>
 
-        <Card className="detail-card">
+        <Card className="detail-card" data-accent="finance">
           <CardHeader>
             <CardTitle>{t('Payment Information', { defaultValue: 'Payment Information' })}</CardTitle>
           </CardHeader>

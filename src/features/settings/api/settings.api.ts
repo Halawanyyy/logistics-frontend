@@ -1,10 +1,12 @@
 import { apiClient } from '../../../shared/api/axios'
 import type {
   BulkUpdateSettingsRequest,
+  PublicBrandingResponse,
   SettingResponse,
   SettingsGroupsResponse,
   SettingsListResponse,
   UpdateSettingRequest,
+  UploadLogoResponse,
 } from '../types/settings.types'
 
 export async function listSettings(params?: Record<string, string | number | boolean>) {
@@ -39,5 +41,22 @@ export async function bulkUpdateSettings(payload: BulkUpdateSettingsRequest) {
 
 export async function listPublicSettings() {
   const response = await apiClient.get<SettingsListResponse>('/public/settings')
+  return response.data
+}
+
+export async function getPublicBranding() {
+  const response = await apiClient.get<PublicBrandingResponse>('/public/branding')
+  return response.data
+}
+
+export async function uploadBrandingLogo(file: File) {
+  const formData = new FormData()
+  formData.append('logo', file)
+  const response = await apiClient.post<UploadLogoResponse>('/settings/branding/logo', formData)
+  return response.data
+}
+
+export async function resetBrandingLogo() {
+  const response = await apiClient.delete<UploadLogoResponse>('/settings/branding/logo')
   return response.data
 }

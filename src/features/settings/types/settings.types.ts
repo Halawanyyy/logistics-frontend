@@ -45,3 +45,22 @@ export type BulkUpdateSettingsRequest = {
     value: string | number | boolean | string[] | null
   }>
 }
+
+export type PublicBrandingData = {
+  app_name: string
+  company_name: string
+  logo_url: string | null
+  logo_path?: string | null
+  tenant_id?: string | null
+}
+
+export type PublicBrandingResponse = {
+  data: PublicBrandingData
+}
+
+export type UploadLogoResponse = {
+  message: string
+  data: PublicBrandingData & {
+    company_id?: number
+  }
+}

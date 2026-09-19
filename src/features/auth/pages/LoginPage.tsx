@@ -23,6 +23,7 @@ export function LoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
+  const isMerchantLogin = location.pathname.startsWith('/merchant')
   const state = location.state as LocationState | null
   const setSession = useAuthStore((store) => store.setSession)
   
@@ -52,7 +53,11 @@ export function LoginPage() {
     <div className="auth-form-container">
       <div className="auth-form-header">
         <h2>{t('Sign in to your account')}</h2>
-        <p>{t('Access your logistics operations dashboard.')}</p>
+        <p>
+          {isMerchantLogin
+            ? t('Access your merchant shipping & order dashboard.')
+            : t('Access your logistics operations dashboard.')}
+        </p>
       </div>
 
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
@@ -113,7 +118,9 @@ export function LoginPage() {
 
       <div className="auth-security-note">
         <ShieldCheck size={18} />
-        {t('Secure access for your operations team.')}
+        {isMerchantLogin
+          ? t('Dedicated access for merchant partners.')
+          : t('Secure access for your operations team.')}
       </div>
 
       <div className="auth-footer-note">

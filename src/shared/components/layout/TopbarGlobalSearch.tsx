@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { listDrivers } from '../../../features/drivers/api/drivers.api'
@@ -48,6 +48,7 @@ export function TopbarGlobalSearch({ user }: TopbarGlobalSearchProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
@@ -71,6 +72,12 @@ export function TopbarGlobalSearch({ user }: TopbarGlobalSearchProps) {
 
     return () => window.clearTimeout(timeout)
   }, [query])
+
+  useEffect(() => {
+    if (isOpen) {
+      inputRef.current?.focus()
+    }
+  }, [isOpen])
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -242,15 +249,17 @@ export function TopbarGlobalSearch({ user }: TopbarGlobalSearchProps) {
   })
   const shouldShowDropdown = isOpen && query.trim().length >= MIN_QUERY_LENGTH
 
-  function handleInputKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Enter') {
-      event.preventDefault()
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
 
-      if (searchResultsRoute) {
-        navigate(searchResultsRoute)
-        setIsOpen(false)
-      }
+    if (searchResultsRoute) {
+      navigate(searchResultsRoute)
+      setIsOpen(false)
     }
+  }
+
+  function closeSearch() {
+    setIsOpen(false)
   }
 
   function handleResultClick(to: string) {
@@ -260,21 +269,52 @@ export function TopbarGlobalSearch({ user }: TopbarGlobalSearchProps) {
   }
 
   return (
-    <div className="app-topbar__search-wrap" ref={containerRef}>
-      <Search className="app-topbar__search-icon" size={17} />
-      <Input
-        className="app-topbar__search"
-        placeholder={t('Search orders, shipments, merchants, drivers, and products', {
-          defaultValue: 'Search orders, shipments, merchants, drivers, and products',
-        })}
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value)
-          setIsOpen(true)
-        }}
-        onFocus={() => setIsOpen(true)}
-        onKeyDown={handleInputKeyDown}
-      />
+    <div
+      className={`app-topbar__search-wrap${isOpen ? ' app-topbar__search-wrap--open' : ''}`}
+      ref={containerRef}
+    >
+      <form className="app-topbar__search-control" role="search" onSubmit={handleSubmit}>
+        <button
+          type="button"
+          aria-controls="app-topbar-global-search"
+          aria-expanded={isOpen}
+          aria-label={t('Open global search', { defaultValue: 'Open global search' })}
+          className="app-topbar__icon-button app-topbar__search-trigger"
+          onClick={() => {
+            if (isOpen) {
+              inputRef.current?.focus()
+              return
+            }
+
+            setIsOpen(true)
+          }}
+        >
+          <Search aria-hidden="true" size={18} />
+        </button>
+        <Input
+          ref={inputRef}
+          id="app-topbar-global-search"
+          type="search"
+          aria-label={t('Global search', { defaultValue: 'Global search' })}
+          className="app-topbar__search"
+          placeholder={t('Search orders, shipments, merchants, drivers, and products', {
+            defaultValue: 'Search orders, shipments, merchants, drivers, and products',
+          })}
+          tabIndex={isOpen ? 0 : -1}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        {isOpen ? (
+          <button
+            type="button"
+            aria-label={t('Close search', { defaultValue: 'Close search' })}
+            className="app-topbar__search-close"
+            onClick={closeSearch}
+          >
+            <X aria-hidden="true" size={17} />
+          </button>
+        ) : null}
+      </form>
 
       {shouldShowDropdown ? (
         <div className="app-topbar__search-dropdown" role="listbox">

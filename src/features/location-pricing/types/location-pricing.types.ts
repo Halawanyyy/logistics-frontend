@@ -27,6 +27,24 @@ export type ShippingRate = {
   created_at: string
 }
 
+export type PricingPlanFeature = {
+  id?: number | string
+  pricing_plan_id?: number
+  label: string
+  is_included: boolean
+  sort_order: number
+  created_at?: string
+  updated_at?: string
+}
+
+export type PricingPlanFeatureFormValue = {
+  clientKey: string
+  id?: number | string
+  label: string
+  is_included: boolean
+  sort_order: number
+}
+
 export type PricingPlan = {
   id: number
   name: string
@@ -34,7 +52,19 @@ export type PricingPlan = {
   description: string | null
   monthly_orders_from: number | null
   monthly_orders_to: number | null
+  monthly_price: number | string | null
+  yearly_price: number | string | null
+  price?: number | string | null
+  currency?: string
+  billing_period?: string
+  requires_contact?: boolean
+  is_custom_pricing?: boolean
+  is_popular?: boolean
+  is_active?: boolean
+  display_order?: number
+  sort_order?: number
   status: string
+  features?: PricingPlanFeature[]
   merchants_count?: number
   created_at: string
 }
@@ -150,10 +180,23 @@ export type PricingPlanRateFilters = {
 export type CreatePricingPlanRequest = {
   name: string
   code: string
-  description?: string
+  description?: string | null
   monthly_orders_from?: number | null
   monthly_orders_to?: number | null
+  monthly_price?: number | null
+  yearly_price?: number | null
+  currency?: string
+  is_popular?: boolean
+  requires_contact?: boolean
+  is_custom_pricing?: boolean
+  display_order?: number
   status: string
+  features?: Array<{
+    id?: number | string
+    label: string
+    is_included: boolean
+    sort_order: number
+  }>
 }
 
 export type UpdatePricingPlanRequest = Partial<CreatePricingPlanRequest>

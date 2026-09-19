@@ -20,6 +20,7 @@ export interface MerchantIntegrationToken {
 export interface CreateMerchantIntegrationTokenPayload {
   name: string
   provider?: string
+  abilities?: string[]
   permissions?: string[]
   expires_at?: string | null
   notes?: string | null
@@ -30,15 +31,19 @@ export interface RevokeMerchantIntegrationTokenPayload {
 }
 
 export interface MerchantIntegrationDocs {
+  base_path?: string
   base_url?: string
   auth_header?: string
+  abilities?: string[]
   headers?: Record<string, string>
-  endpoints?: any[] // Keep generic
+  endpoints?: any[]
   examples?: Record<string, any>
+  create_order_example?: Record<string, any>
+  notes?: string[]
   markdown?: string
   html?: string
   sections?: any[]
-  [key: string]: any // Fallback
+  [key: string]: any
 }
 
 export interface TestMerchantIntegrationPayload {
@@ -46,6 +51,7 @@ export interface TestMerchantIntegrationPayload {
   endpoint?: string
   payload?: any
   action?: string
+  abilities?: string[]
 }
 
 export interface MerchantIntegrationTestResult {

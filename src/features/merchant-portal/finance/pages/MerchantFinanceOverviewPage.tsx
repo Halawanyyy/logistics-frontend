@@ -48,6 +48,7 @@ export function MerchantFinanceOverviewPage() {
   return (
     <>
       <PageHeader
+        eyebrow={t('Merchant Portal')}
         description={t('Review your financial summary, wallet, invoices, and payouts.')}
         title={t('Finance')}
         actions={
@@ -129,20 +130,20 @@ export function MerchantFinanceOverviewPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="merchant-finance-cards-grid">
         <Card>
           <CardHeader>
             <CardTitle>{t('Finance Snapshot')}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="merchant-finance-snapshot">
             {summary.total_cod !== undefined && (
-              <div className="flex items-center justify-between py-2 border-b">
+              <div className="merchant-finance-snapshot__row">
                 <span className="text-muted">{t('Total COD')}</span>
                 <span className="font-medium"><MoneyDisplay value={summary.total_cod} currency={summary.currency} /></span>
               </div>
             )}
             {summary.total_shipping_fees !== undefined && (
-              <div className="flex items-center justify-between py-2 border-b">
+              <div className="merchant-finance-snapshot__row">
                 <span className="text-muted">{t('Total Shipping Fees')}</span>
                 <span className="font-medium"><MoneyDisplay value={summary.total_shipping_fees} currency={summary.currency} /></span>
               </div>
@@ -154,28 +155,28 @@ export function MerchantFinanceOverviewPage() {
           <CardHeader>
             <CardTitle>{t('Quick Links')}</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <CardContent className="merchant-finance-quick-links">
             <CanMerchant capability="wallet.view">
-              <Link to={merchantPath('/finance/wallet')} className="flex items-center p-4 border rounded-md hover:bg-muted/50 transition-colors">
-                <Wallet className="h-6 w-6 mr-3 text-primary" />
+              <Link to={merchantPath('/finance/wallet')} className="merchant-finance-quick-link-card">
+                <Wallet className="merchant-finance-icon" />
                 <span className="font-medium">{t('Wallet Summary')}</span>
               </Link>
             </CanMerchant>
             <CanMerchant capability="invoices.view">
-              <Link to={merchantPath('/finance/invoices')} className="flex items-center p-4 border rounded-md hover:bg-muted/50 transition-colors">
-                <FileSpreadsheet className="h-6 w-6 mr-3 text-primary" />
+              <Link to={merchantPath('/finance/invoices')} className="merchant-finance-quick-link-card">
+                <FileSpreadsheet className="merchant-finance-icon" />
                 <span className="font-medium">{t('Invoices')}</span>
               </Link>
             </CanMerchant>
             <CanMerchant capability="payouts.view">
-              <Link to={merchantPath('/finance/payouts')} className="flex items-center p-4 border rounded-md hover:bg-muted/50 transition-colors">
-                <Landmark className="h-6 w-6 mr-3 text-primary" />
+              <Link to={merchantPath('/finance/payouts')} className="merchant-finance-quick-link-card">
+                <Landmark className="merchant-finance-icon" />
                 <span className="font-medium">{t('Payouts')}</span>
               </Link>
             </CanMerchant>
             <CanMerchant capability="wallet.view">
-              <Link to={merchantPath('/finance/wallet/transactions')} className="flex items-center p-4 border rounded-md hover:bg-muted/50 transition-colors">
-                <AlertCircle className="h-6 w-6 mr-3 text-primary" />
+              <Link to={merchantPath('/finance/wallet/transactions')} className="merchant-finance-quick-link-card">
+                <AlertCircle className="merchant-finance-icon" />
                 <span className="font-medium">{t('Wallet Transactions')}</span>
               </Link>
             </CanMerchant>

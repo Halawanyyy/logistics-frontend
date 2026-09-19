@@ -14,6 +14,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { PageHeader } from '../../../shared/components/ui/PageHeader'
 import { GovernorateAreaSelector } from '../../../shared/components/selectors/GovernorateAreaSelector'
 import { SearchableSelect } from '../../../shared/components/ui/SearchableSelect'
+import { FilterPopover } from '../../../shared/components/filters/FilterPopover'
+import { FilterButton } from '../../../shared/components/filters/FilterButton'
+import { FilterField } from '../../../shared/components/filters/FilterField'
+import { AppliedFilterChips, type AppliedFilterChip } from '../../../shared/components/filters/AppliedFilterChips'
 import { StatusBadge } from '../../../shared/components/ui/StatusBadge'
 import { Table, TableCell, TableContainer, TableHead } from '../../../shared/components/ui/Table'
 import { formatMoney } from '../../../shared/utils/formatters'
@@ -130,6 +134,17 @@ export function PricingPlanRatesPage() {
     governorate_id: '',
     area_id: '',
   })
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [draftFilters, setDraftFilters] = useState(filters)
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.pricing_plan_id) count++
+    if (filters.governorate_id) count++
+    if (filters.area_id) count++
+    return count
+  }, [filters])
+
   const params = useMemo(
     () => ({
       ...(filters.pricing_plan_id ? { pricing_plan_id: filters.pricing_plan_id } : {}),
@@ -147,6 +162,50 @@ export function PricingPlanRatesPage() {
     queryKey: ['pricing-plan-rates', params],
     queryFn: () => listPricingPlanRates(params),
   })
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setDraftFilters(filters)
+    }
+    setFiltersOpen(nextOpen)
+  }
+
+  const handleApply = () => {
+    setFilters(draftFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleReset = () => {
+    const empty = { pricing_plan_id: '', governorate_id: '', area_id: '' }
+    setDraftFilters(empty)
+    setFilters(empty)
+    setFiltersOpen(false)
+  }
+
+  const appliedChips: AppliedFilterChip[] = useMemo(() => {
+    const chips: AppliedFilterChip[] = []
+    if (filters.pricing_plan_id) {
+      const plan = plansQuery.data?.data?.find((p) => String(p.id) === filters.pricing_plan_id)
+      chips.push({
+        key: 'pricing_plan_id',
+        label: t('Pricing Plan'),
+        value: plan ? plan.name : filters.pricing_plan_id,
+      })
+    }
+    if (filters.governorate_id) {
+      chips.push({ key: 'governorate_id', label: t('Governorate'), value: filters.governorate_id })
+    }
+    if (filters.area_id) {
+      chips.push({ key: 'area_id', label: t('Area'), value: filters.area_id })
+    }
+    return chips
+  }, [filters, plansQuery.data, t])
+
+  const handleRemoveChip = (key: string) => {
+    if (key === 'pricing_plan_id') setFilters((c) => ({ ...c, pricing_plan_id: '' }))
+    if (key === 'governorate_id') setFilters((c) => ({ ...c, governorate_id: '', area_id: '' }))
+    if (key === 'area_id') setFilters((c) => ({ ...c, area_id: '' }))
+  }
 
   if (filteredRatesQuery.isLoading) {
     return <LoadingState title={t('Loading pricing plan rates', { defaultValue: 'Loading pricing plan rates' })} />
@@ -173,52 +232,64 @@ export function PricingPlanRatesPage() {
           </Can>
         }
       />
-      <Card variant="flat" className="dashboard-filter-card">
-        <CardContent className="dashboard-filters">
-          <label className="field">
-            <span>{t('Pricing Plan')}</span>
-            <SearchableSelect
-              value={filters.pricing_plan_id}
-              placeholder={t('All pricing plans', { defaultValue: 'All pricing plans' })}
-              searchPlaceholder={t('Search pricing plans...', { defaultValue: 'Search pricing plans...' })}
-              onChange={(pricing_plan_id) => setFilters((current) => ({ ...current, pricing_plan_id }))}
-              options={[
-                { label: t('All pricing plans', { defaultValue: 'All pricing plans' }), value: '' },
-                ...((plansQuery.data?.data ?? []).map((plan) => ({
-                  label: plan.name,
-                  value: String(plan.id),
-                  keywords: [plan.code ?? ''],
-                }))),
-              ]}
-            />
-          </label>
-          <GovernorateAreaSelector
-            governorateId={filters.governorate_id}
-            areaId={filters.area_id}
-            includeAllOption
-            governorateLabel={t('Governorate')}
-            areaLabel={t('Area')}
-            onChange={({ governorate_id, area_id }) =>
-              setFilters((current) => ({
-                ...current,
-                governorate_id,
-                area_id,
-              }))
+
+      <div className="page-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
+        <AppliedFilterChips
+          chips={appliedChips}
+          onRemove={handleRemoveChip}
+          onClearAll={handleReset}
+        />
+        <div style={{ marginInlineStart: 'auto' }}>
+          <FilterPopover
+            title={t('Filter Rates', { defaultValue: 'Filter Rates' })}
+            open={filtersOpen}
+            onOpenChange={handleOpenChange}
+            onApply={handleApply}
+            onReset={handleReset}
+            activeCount={activeFilterCount}
+            trigger={
+              <FilterButton
+                activeCount={activeFilterCount}
+                open={filtersOpen}
+                onClick={() => handleOpenChange(!filtersOpen)}
+              />
             }
-          />
-        </CardContent>
-        <CardContent>
-          <div className="form-actions">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setFilters({ pricing_plan_id: '', governorate_id: '', area_id: '' })}
-            >
-              {t('Reset filters')}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          >
+            <div className="space-y-4">
+              <FilterField label={t('Pricing Plan')}>
+                <SearchableSelect
+                  value={draftFilters.pricing_plan_id}
+                  placeholder={t('All pricing plans', { defaultValue: 'All pricing plans' })}
+                  searchPlaceholder={t('Search pricing plans...', { defaultValue: 'Search pricing plans...' })}
+                  onChange={(pricing_plan_id) => setDraftFilters((current) => ({ ...current, pricing_plan_id }))}
+                  options={[
+                    { label: t('All pricing plans', { defaultValue: 'All pricing plans' }), value: '' },
+                    ...((plansQuery.data?.data ?? []).map((plan) => ({
+                      label: plan.name,
+                      value: String(plan.id),
+                      keywords: [plan.code ?? ''],
+                    }))),
+                  ]}
+                />
+              </FilterField>
+              <GovernorateAreaSelector
+                governorateId={draftFilters.governorate_id}
+                areaId={draftFilters.area_id}
+                includeAllOption
+                governorateLabel={t('Governorate')}
+                areaLabel={t('Area')}
+                onChange={({ governorate_id, area_id }) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    governorate_id,
+                    area_id,
+                  }))
+                }
+              />
+            </div>
+          </FilterPopover>
+        </div>
+      </div>
       <Card className="table-card">
         <CardHeader className="table-card__header">
           <CardTitle>{t('Pricing Plan Rates')}</CardTitle>

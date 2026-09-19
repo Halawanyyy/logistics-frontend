@@ -23,6 +23,10 @@ import { FieldError } from '../../../shared/components/forms/FieldError'
 import { DriverSelector } from '../../../shared/components/selectors/DriverSelector'
 import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
 import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
+import { FilterPopover } from '../../../shared/components/filters/FilterPopover'
+import { FilterButton } from '../../../shared/components/filters/FilterButton'
+import { FilterField } from '../../../shared/components/filters/FilterField'
+import { AppliedFilterChips, type AppliedFilterChip } from '../../../shared/components/filters/AppliedFilterChips'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
 import { ErrorState } from '../../../shared/components/states/ErrorState'
 import { LoadingState } from '../../../shared/components/states/LoadingState'
@@ -560,6 +564,60 @@ export function DriverManifestsPage() {
     },
   })
 
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [draftFilters, setDraftFilters] = useState<ManifestFiltersState>(filters)
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.driver_id) count++
+    if (filters.manifest_date) count++
+    if (filters.status) count++
+    if (filters.date_from || filters.date_to) count++
+    return count
+  }, [filters])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setDraftFilters(filters)
+    }
+    setFiltersOpen(nextOpen)
+  }
+
+  const handleApply = () => {
+    setFilters(draftFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleReset = () => {
+    setDraftFilters(initialFilters)
+    setFilters(initialFilters)
+    setFiltersOpen(false)
+  }
+
+  const appliedChips: AppliedFilterChip[] = useMemo(() => {
+    const chips: AppliedFilterChip[] = []
+    if (filters.driver_id) {
+      chips.push({ key: 'driver_id', label: t('Driver', { defaultValue: 'Driver' }), value: filters.driver_id })
+    }
+    if (filters.manifest_date) {
+      chips.push({ key: 'manifest_date', label: t('Manifest Date', { defaultValue: 'Manifest Date' }), value: filters.manifest_date })
+    }
+    if (filters.status) {
+      chips.push({ key: 'status', label: t('Status'), value: filters.status })
+    }
+    if (filters.date_from || filters.date_to) {
+      chips.push({ key: 'date_range', label: t('Date Range', { defaultValue: 'Date Range' }), value: `${filters.date_from || '...'} -> ${filters.date_to || '...'}` })
+    }
+    return chips
+  }, [filters, t])
+
+  const handleRemoveChip = (key: string) => {
+    if (key === 'driver_id') setFilters((c) => ({ ...c, driver_id: '' }))
+    if (key === 'manifest_date') setFilters((c) => ({ ...c, manifest_date: '' }))
+    if (key === 'status') setFilters((c) => ({ ...c, status: '' }))
+    if (key === 'date_range') setFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+  }
+
   const manifests = manifestsQuery.data?.data ?? []
 
   return (
@@ -578,49 +636,64 @@ export function DriverManifestsPage() {
         )}
       />
 
-      <Card variant="flat" className="dashboard-filter-card">
-        <CardContent className="dashboard-filters">
-          <label className="field">
-            <span>{t('Driver', { defaultValue: 'Driver' })}</span>
-            <DriverSelector
-              value={filters.driver_id}
-              includeAllOption
-              onChange={(driver_id) => setFilters((current) => ({ ...current, driver_id }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Manifest Date', { defaultValue: 'Manifest Date' })}</span>
-            <Input
-              type="date"
-              value={filters.manifest_date}
-              onChange={(event) => setFilters((current) => ({ ...current, manifest_date: event.target.value }))}
-            />
-          </label>
-          <DateRangeFilter
-            dateFrom={filters.date_from}
-            dateTo={filters.date_to}
-            onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))}
-          />
-          <label className="field">
-            <span>{t('Status')}</span>
-            <Select
-              value={filters.status}
-              onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
-            >
-              <option value="">{t('All statuses')}</option>
-              <option value="open">{t('open', { defaultValue: 'open' })}</option>
-              <option value="closed">{t('closed', { defaultValue: 'closed' })}</option>
-            </Select>
-          </label>
-        </CardContent>
-        <CardContent>
-          <div className="form-actions">
-            <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
-              {t('Reset filters')}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="page-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
+        <AppliedFilterChips
+          chips={appliedChips}
+          onRemove={handleRemoveChip}
+          onClearAll={handleReset}
+        />
+        <div style={{ marginInlineStart: 'auto' }}>
+          <FilterPopover
+            title={t('Filter Manifests', { defaultValue: 'Filter Manifests' })}
+            open={filtersOpen}
+            onOpenChange={handleOpenChange}
+            onApply={handleApply}
+            onReset={handleReset}
+            activeCount={activeFilterCount}
+            trigger={
+              <FilterButton
+                activeCount={activeFilterCount}
+                open={filtersOpen}
+                onClick={() => handleOpenChange(!filtersOpen)}
+              />
+            }
+          >
+            <div className="space-y-4">
+              <FilterField label={t('Driver', { defaultValue: 'Driver' })}>
+                <DriverSelector
+                  value={draftFilters.driver_id}
+                  includeAllOption
+                  onChange={(driver_id) => setDraftFilters((current) => ({ ...current, driver_id }))}
+                />
+              </FilterField>
+              <FilterField label={t('Manifest Date', { defaultValue: 'Manifest Date' })}>
+                <Input
+                  type="date"
+                  value={draftFilters.manifest_date}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, manifest_date: event.target.value }))}
+                />
+              </FilterField>
+              <FilterField label={t('Date Range', { defaultValue: 'Date Range' })}>
+                <DateRangeFilter
+                  dateFrom={draftFilters.date_from}
+                  dateTo={draftFilters.date_to}
+                  onChange={({ date_from, date_to }) => setDraftFilters((current) => ({ ...current, date_from, date_to }))}
+                />
+              </FilterField>
+              <FilterField label={t('Status')}>
+                <Select
+                  value={draftFilters.status}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}
+                >
+                  <option value="">{t('All statuses')}</option>
+                  <option value="open">{t('open', { defaultValue: 'open' })}</option>
+                  <option value="closed">{t('closed', { defaultValue: 'closed' })}</option>
+                </Select>
+              </FilterField>
+            </div>
+          </FilterPopover>
+        </div>
+      </div>
 
       <Card className="table-card">
         <CardHeader>

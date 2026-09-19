@@ -10,7 +10,14 @@ import { Can } from '../../../shared/auth/Can'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { ExportButton } from '../../../shared/components/export/ExportButton'
 import { FieldError } from '../../../shared/components/forms/FieldError'
-import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
+import {
+  FilterButton,
+  FilterPopover,
+  FilterField,
+  AppliedFilterChips,
+  DateRangeFilter,
+  type AppliedChip,
+} from '../../../shared/components/filters'
 import { DriverSelector } from '../../../shared/components/selectors/DriverSelector'
 import { MerchantSelector } from '../../../shared/components/selectors/MerchantSelector'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
@@ -196,19 +203,22 @@ function GenerateExportDialog({
 export function ExportsPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const [filters, setFilters] = useState<ExportFiltersState>(initialFilters)
+  const [appliedFilters, setAppliedFilters] = useState<ExportFiltersState>(initialFilters)
+  const [draftFilters, setDraftFilters] = useState<ExportFiltersState>(initialFilters)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filterError, setFilterError] = useState('')
   const [generateOpen, setGenerateOpen] = useState(false)
   const [downloadingExportId, setDownloadingExportId] = useState<number | null>(null)
   const params: ExportLogFilters = useMemo(
     () => ({
-      ...(filters.export_type ? { export_type: filters.export_type } : {}),
-      ...(filters.format ? { format: filters.format } : {}),
-      ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.date_from ? { date_from: filters.date_from } : {}),
-      ...(filters.date_to ? { date_to: filters.date_to } : {}),
-      ...(filters.per_page ? { per_page: filters.per_page } : {}),
+      ...(appliedFilters.export_type ? { export_type: appliedFilters.export_type } : {}),
+      ...(appliedFilters.format ? { format: appliedFilters.format } : {}),
+      ...(appliedFilters.status ? { status: appliedFilters.status } : {}),
+      ...(appliedFilters.date_from ? { date_from: appliedFilters.date_from } : {}),
+      ...(appliedFilters.date_to ? { date_to: appliedFilters.date_to } : {}),
+      ...(appliedFilters.per_page ? { per_page: appliedFilters.per_page } : {}),
     }),
-    [filters],
+    [appliedFilters],
   )
   const exportsQuery = useQuery({
     queryKey: ['exports', params],
@@ -245,89 +255,175 @@ export function ExportsPage() {
   })
   const exportLogs = exportsQuery.data?.data ?? []
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (appliedFilters.export_type) count += 1
+    if (appliedFilters.format) count += 1
+    if (appliedFilters.status) count += 1
+    if (appliedFilters.date_from || appliedFilters.date_to) count += 1
+    if (appliedFilters.per_page && appliedFilters.per_page !== '50') count += 1
+    return count
+  }, [appliedFilters])
+
+  const handleOpenChange = (open: boolean) => {
+    setFiltersOpen(open)
+    if (open) {
+      setDraftFilters(appliedFilters)
+      setFilterError('')
+    }
+  }
+
+  const handleApply = () => {
+    if (draftFilters.date_from && draftFilters.date_to && draftFilters.date_from > draftFilters.date_to) {
+      setFilterError(t('Date From must not be later than Date To.', { defaultValue: 'Date From must not be later than Date To.' }))
+      return
+    }
+    setFilterError('')
+    setAppliedFilters(draftFilters)
+    setFiltersOpen(false)
+  }
+
+  const handleReset = () => {
+    setDraftFilters(initialFilters)
+    setAppliedFilters(initialFilters)
+    setFilterError('')
+    setFiltersOpen(false)
+  }
+
+  const appliedChips = useMemo<AppliedChip[]>(() => {
+    const chips: AppliedChip[] = []
+    if (appliedFilters.export_type) {
+      chips.push({
+        id: 'export_type',
+        label: t('Export Type'),
+        value: getExportTypeLabel(appliedFilters.export_type, t),
+      })
+    }
+    if (appliedFilters.format) {
+      chips.push({
+        id: 'format',
+        label: t('Format'),
+        value: appliedFilters.format,
+      })
+    }
+    if (appliedFilters.status) {
+      chips.push({
+        id: 'status',
+        label: t('Status'),
+        value: appliedFilters.status,
+      })
+    }
+    if (appliedFilters.date_from || appliedFilters.date_to) {
+      chips.push({
+        id: 'date_range',
+        label: t('Date'),
+        value: `${appliedFilters.date_from || ''} → ${appliedFilters.date_to || ''}`,
+      })
+    }
+    if (appliedFilters.per_page && appliedFilters.per_page !== '50') {
+      chips.push({
+        id: 'per_page',
+        label: t('Per Page'),
+        value: appliedFilters.per_page,
+      })
+    }
+    return chips
+  }, [appliedFilters, t])
+
+  const handleRemoveChip = (chipId: string) => {
+    if (chipId === 'date_range') {
+      setAppliedFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+    } else if (chipId === 'per_page') {
+      setAppliedFilters((c) => ({ ...c, per_page: '50' }))
+    } else {
+      setAppliedFilters((c) => ({ ...c, [chipId]: '' }))
+    }
+  }
+
+  const handleClearAllChips = () => {
+    setAppliedFilters(initialFilters)
+  }
+
   return (
-    <section className="page-section page-section--with-sidebar">
+    <section className="page-section page-layout--fullwidth">
       <PageHeader
         title={t('Exports')}
         description={t('Asynchronous-ready export history and CSV generation.', {
           defaultValue: 'Asynchronous-ready export history and CSV generation.',
         })}
         actions={(
-          <Can permission={PERMISSIONS.EXPORTS_CREATE}>
-            <ExportButton onExport={() => setGenerateOpen(true)} />
-          </Can>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <FilterPopover
+              title={t('Export filters', { defaultValue: 'Export filters' })}
+              activeCount={activeFilterCount}
+              open={filtersOpen}
+              onOpenChange={handleOpenChange}
+              onApply={handleApply}
+              onReset={handleReset}
+              trigger={<FilterButton activeCount={activeFilterCount} />}
+            >
+              <FilterField label={t('Export Type')}>
+                <Select
+                  value={draftFilters.export_type}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, export_type: event.target.value }))}
+                >
+                  <option value="">{t('All types')}</option>
+                  {exportTypes.map((type) => (
+                    <option key={type} value={type}>{getExportTypeLabel(type, t)}</option>
+                  ))}
+                </Select>
+              </FilterField>
+              <FilterField label={t('Format')}>
+                <Select
+                  value={draftFilters.format}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, format: event.target.value }))}
+                >
+                  <option value="">{t('All formats')}</option>
+                  <option value="csv">csv</option>
+                </Select>
+              </FilterField>
+              <FilterField label={t('Status')}>
+                <Select
+                  value={draftFilters.status}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, status: event.target.value }))}
+                >
+                  <option value="">{t('All statuses')}</option>
+                  <option value="pending">{t('pending', { defaultValue: 'pending' })}</option>
+                  <option value="processing">{t('processing', { defaultValue: 'processing' })}</option>
+                  <option value="completed">{t('completed', { defaultValue: 'completed' })}</option>
+                  <option value="failed">{t('failed', { defaultValue: 'failed' })}</option>
+                </Select>
+              </FilterField>
+              <DateRangeFilter
+                dateFrom={draftFilters.date_from}
+                dateTo={draftFilters.date_to}
+                onChange={({ date_from, date_to }) => setDraftFilters((current) => ({ ...current, date_from, date_to }))}
+                error={filterError}
+              />
+              <FilterField label={t('Per Page')}>
+                <Select
+                  value={draftFilters.per_page}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, per_page: event.target.value }))}
+                >
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </Select>
+              </FilterField>
+            </FilterPopover>
+
+            <Can permission={PERMISSIONS.EXPORTS_CREATE}>
+              <ExportButton onExport={() => setGenerateOpen(true)} />
+            </Can>
+          </div>
         )}
       />
 
-      <aside className="page-sidebar-filters">
-        <Card variant="flat" className="dashboard-filter-card">
-          <CardContent className="dashboard-filters dashboard-filters--sidebar">
-          <label className="field">
-            <span>{t('Export Type')}</span>
-            <Select
-              value={filters.export_type}
-              onChange={(event) => setFilters((current) => ({ ...current, export_type: event.target.value }))}
-            >
-              <option value="">{t('All types')}</option>
-              {exportTypes.map((type) => (
-                <option key={type} value={type}>{getExportTypeLabel(type, t)}</option>
-              ))}
-            </Select>
-          </label>
-          <label className="field">
-            <span>{t('Format')}</span>
-            <Select
-              value={filters.format}
-              onChange={(event) => setFilters((current) => ({ ...current, format: event.target.value }))}
-            >
-              <option value="">{t('All formats')}</option>
-              <option value="csv">csv</option>
-            </Select>
-          </label>
-          <label className="field">
-            <span>{t('Status')}</span>
-            <Select
-              value={filters.status}
-              onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
-            >
-              <option value="">{t('All statuses')}</option>
-              <option value="pending">{t('pending', { defaultValue: 'pending' })}</option>
-              <option value="processing">{t('processing', { defaultValue: 'processing' })}</option>
-              <option value="completed">{t('completed', { defaultValue: 'completed' })}</option>
-              <option value="failed">{t('failed', { defaultValue: 'failed' })}</option>
-            </Select>
-          </label>
-          <DateRangeFilter
-            dateFrom={filters.date_from}
-            dateTo={filters.date_to}
-            onChange={({ date_from, date_to }) => setFilters((current) => ({ ...current, date_from, date_to }))}
-          />
-          <label className="field">
-            <span>{t('Per Page')}</span>
-            <Select
-              value={filters.per_page}
-              onChange={(event) => setFilters((current) => ({ ...current, per_page: event.target.value }))}
-            >
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </Select>
-          </label>
-        </CardContent>
-        <CardContent>
-          <div className="form-actions">
-            <Button type="button" variant="secondary" onClick={() => setFilters(initialFilters)}>
-              {t('Reset filters')}
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => void exportsQuery.refetch()}>
-              {t('Refresh')}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      </aside>
-
-      <main className="page-main-content">
+      <AppliedFilterChips
+        chips={appliedChips}
+        onRemove={handleRemoveChip}
+        onClearAll={handleClearAllChips}
+      />
       <Card className="table-card">
         <CardHeader>
           <CardTitle>{t('Export History')}</CardTitle>
@@ -423,7 +519,6 @@ export function ExportsPage() {
         onSubmit={(values) => generateMutation.mutate(values)}
         open={generateOpen}
       />
-      </main>
     </section>
   )
 }

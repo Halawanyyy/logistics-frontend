@@ -4,7 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronDown, Headset, LogOut } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { cn } from '../../utils/cn'
-import { BrandMark } from '../branding/BrandMark'
+import { BrandLogo } from '../branding/BrandLogo'
 import type { NavGroup, SidebarItem } from './AppShell'
 
 const SIDEBAR_GROUPS_STORAGE_KEY = 'sidebar-groups-state'
@@ -104,7 +104,7 @@ export function Sidebar({
   return (
     <aside className={cn('app-sidebar', sidebarOpen && 'app-sidebar--open')}>
       <div className="app-sidebar__brand">
-        <BrandMark className="app-sidebar__logo" logoUrl={companyLogo} name={companyName} size="lg" />
+        <BrandLogo className="app-sidebar__logo" logoUrl={companyLogo} name={companyName} size="lg" />
         <div className="app-sidebar__brand-copy">
           <p className="eyebrow">{t('Logistics')}</p>
           <h2>{companyName}</h2>

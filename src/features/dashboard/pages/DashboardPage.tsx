@@ -10,7 +10,14 @@ import {
   Package,
   Truck,
 } from 'lucide-react'
-import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
+import {
+  FilterButton,
+  FilterPopover,
+  FilterField,
+  AppliedFilterChips,
+  DateRangeFilter,
+  type AppliedChip,
+} from '../../../shared/components/filters'
 import { DriverSelector } from '../../../shared/components/selectors/DriverSelector'
 import { MerchantSelector } from '../../../shared/components/selectors/MerchantSelector'
 import { EmptyState } from '../../../shared/components/states/EmptyState'
@@ -106,15 +113,24 @@ function getPresetRange(preset: Exclude<DashboardDatePreset, 'all' | 'custom'>) 
 
 export function DashboardPage() {
   const { t } = useTranslation()
-  const [datePreset, setDatePreset] = useState<DashboardDatePreset>('all')
-  const [filters, setFilters] = useState<DashboardFilters>({
+  const [appliedFilters, setAppliedFilters] = useState<DashboardFilters>({
     date_from: '',
     date_to: '',
     merchant_id: '',
     assigned_driver_id: '',
   })
+  const [draftFilters, setDraftFilters] = useState<DashboardFilters>({
+    date_from: '',
+    date_to: '',
+    merchant_id: '',
+    assigned_driver_id: '',
+  })
+  const [appliedDatePreset, setAppliedDatePreset] = useState<DashboardDatePreset>('all')
+  const [draftDatePreset, setDraftDatePreset] = useState<DashboardDatePreset>('all')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filterError, setFilterError] = useState('')
 
-  const queryFilters = useMemo(() => buildFilters(filters), [filters])
+  const queryFilters = useMemo(() => buildFilters(appliedFilters), [appliedFilters])
 
   const dashboardSummaryQuery = useQuery({
     queryKey: ['dashboard-summary', queryFilters],
@@ -215,13 +231,97 @@ export function DashboardPage() {
 
   const hasDashboardData = Boolean(summary || overview)
 
-  const updateDatePreset = (preset: DashboardDatePreset) => {
-    setDatePreset(preset)
-    if (preset === 'all') {
-      setFilters((current) => ({ ...current, date_from: '', date_to: '' }))
-    } else if (preset !== 'custom') {
-      setFilters((current) => ({ ...current, ...getPresetRange(preset) }))
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (appliedDatePreset !== 'all') count += 1
+    if (appliedFilters.merchant_id) count += 1
+    if (appliedFilters.assigned_driver_id) count += 1
+    return count
+  }, [appliedDatePreset, appliedFilters])
+
+  const handleOpenChange = (open: boolean) => {
+    setFiltersOpen(open)
+    if (open) {
+      setDraftFilters(appliedFilters)
+      setDraftDatePreset(appliedDatePreset)
+      setFilterError('')
     }
+  }
+
+  const updateDraftDatePreset = (preset: DashboardDatePreset) => {
+    setDraftDatePreset(preset)
+    if (preset === 'all') {
+      setDraftFilters((current) => ({ ...current, date_from: '', date_to: '' }))
+    } else if (preset !== 'custom') {
+      setDraftFilters((current) => ({ ...current, ...getPresetRange(preset) }))
+    }
+  }
+
+  const handleApply = () => {
+    if (draftFilters.date_from && draftFilters.date_to && draftFilters.date_from > draftFilters.date_to) {
+      setFilterError(t('Date From must not be later than Date To.', { defaultValue: 'Date From must not be later than Date To.' }))
+      return
+    }
+    setFilterError('')
+    setAppliedFilters(draftFilters)
+    setAppliedDatePreset(draftDatePreset)
+    setFiltersOpen(false)
+  }
+
+  const handleReset = () => {
+    const defaultFilters: DashboardFilters = {
+      date_from: '',
+      date_to: '',
+      merchant_id: '',
+      assigned_driver_id: '',
+    }
+    setDraftFilters(defaultFilters)
+    setAppliedFilters(defaultFilters)
+    setDraftDatePreset('all')
+    setAppliedDatePreset('all')
+    setFilterError('')
+    setFiltersOpen(false)
+  }
+
+  const appliedChips = useMemo<AppliedChip[]>(() => {
+    const chips: AppliedChip[] = []
+    if (appliedDatePreset !== 'all') {
+      chips.push({
+        id: 'date_preset',
+        label: t('Date Range', { defaultValue: 'Date Range' }),
+        value: appliedDatePreset === 'custom'
+          ? `${appliedFilters.date_from || ''} → ${appliedFilters.date_to || ''}`
+          : appliedDatePreset,
+      })
+    }
+    if (appliedFilters.merchant_id) {
+      chips.push({
+        id: 'merchant_id',
+        label: t('Merchant'),
+        value: String(appliedFilters.merchant_id),
+      })
+    }
+    if (appliedFilters.assigned_driver_id) {
+      chips.push({
+        id: 'assigned_driver_id',
+        label: t('Assigned Driver', { defaultValue: 'Assigned Driver' }),
+        value: String(appliedFilters.assigned_driver_id),
+      })
+    }
+    return chips
+  }, [appliedDatePreset, appliedFilters, t])
+
+  const handleRemoveChip = (chipId: string) => {
+    if (chipId === 'date_preset') {
+      setAppliedDatePreset('all')
+      setAppliedFilters((c) => ({ ...c, date_from: '', date_to: '' }))
+    } else {
+      setAppliedFilters((c) => ({ ...c, [chipId]: '' }))
+    }
+  }
+
+  const handleClearAllChips = () => {
+    handleReset()
   }
 
   return (
@@ -232,10 +332,17 @@ export function DashboardPage() {
           defaultValue: "Welcome back! Here's what's happening across logistics operations today.",
         })}
         actions={(
-          <div className="dashboard-header-date-filter">
-            <label className="field">
-              <span>{t('Date Range', { defaultValue: 'Date Range' })}</span>
-              <Select value={datePreset} onChange={(event) => updateDatePreset(event.target.value as DashboardDatePreset)}>
+          <FilterPopover
+            title={t('Dashboard filters', { defaultValue: 'Dashboard filters' })}
+            activeCount={activeFilterCount}
+            open={filtersOpen}
+            onOpenChange={handleOpenChange}
+            onApply={handleApply}
+            onReset={handleReset}
+            trigger={<FilterButton activeCount={activeFilterCount} />}
+          >
+            <FilterField label={t('Date Range', { defaultValue: 'Date Range' })}>
+              <Select value={draftDatePreset} onChange={(event) => updateDraftDatePreset(event.target.value as DashboardDatePreset)}>
                 <option value="all">{t('All Time', { defaultValue: 'All Time' })}</option>
                 <option value="today">{t('Today', { defaultValue: 'Today' })}</option>
                 <option value="this_week">{t('This Week', { defaultValue: 'This Week' })}</option>
@@ -243,26 +350,39 @@ export function DashboardPage() {
                 <option value="last_month">{t('Last Month', { defaultValue: 'Last Month' })}</option>
                 <option value="custom">{t('Custom Range', { defaultValue: 'Custom Range' })}</option>
               </Select>
-            </label>
+            </FilterField>
             <DateRangeFilter
-              dateFrom={filters.date_from}
-              dateTo={filters.date_to}
+              dateFrom={draftFilters.date_from}
+              dateTo={draftFilters.date_to}
               onChange={({ date_from, date_to }) => {
-                setDatePreset('custom')
-                setFilters((current) => ({ ...current, date_from, date_to }))
+                setDraftDatePreset('custom')
+                setDraftFilters((current) => ({ ...current, date_from, date_to }))
               }}
+              error={filterError}
             />
-          </div>
+            <FilterField label={t('Merchant')}>
+              <MerchantSelector
+                includeAllOption
+                value={String(draftFilters.merchant_id ?? '')}
+                onChange={(merchant_id) => setDraftFilters((current) => ({ ...current, merchant_id }))}
+              />
+            </FilterField>
+            <FilterField label={t('Assigned Driver', { defaultValue: 'Assigned Driver' })}>
+              <DriverSelector
+                includeAllOption
+                value={String(draftFilters.assigned_driver_id ?? '')}
+                onChange={(assigned_driver_id) => setDraftFilters((current) => ({ ...current, assigned_driver_id }))}
+              />
+            </FilterField>
+          </FilterPopover>
         )}
       />
 
-      <details className="dashboard-more-filters">
-        <summary>{t('More Filters', { defaultValue: 'More Filters' })}</summary>
-        <div className="dashboard-more-filters__content">
-          <label className="dashboard-filter"><span className="eyebrow">{t('Merchant')}</span><MerchantSelector includeAllOption value={String(filters.merchant_id ?? '')} onChange={(merchant_id) => setFilters((current) => ({ ...current, merchant_id }))} /></label>
-          <label className="dashboard-filter"><span className="eyebrow">{t('Assigned Driver')}</span><DriverSelector includeAllOption value={String(filters.assigned_driver_id ?? '')} onChange={(assigned_driver_id) => setFilters((current) => ({ ...current, assigned_driver_id }))} /></label>
-        </div>
-      </details>
+      <AppliedFilterChips
+        chips={appliedChips}
+        onRemove={handleRemoveChip}
+        onClearAll={handleClearAllChips}
+      />
 
       {dashboardSummaryQuery.isLoading || financeOverviewQuery.isLoading ? <StatSkeletonGrid /> : null}
 

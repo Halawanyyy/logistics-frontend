@@ -49,6 +49,7 @@ export type MerchantPortalDashboardSummaryResponse = {
     total_inbound_requests?: number
   } | null
   finance?: {
+    currency?: string
     available_balance: string | number
     pending_balance: string | number
     total_cod_collected: string | number
@@ -119,4 +120,20 @@ export type UpdateMerchantPortalSettingsPayload = {
     payout_status_changed?: boolean
   }
   integration_preferences?: Record<string, any>
+}
+
+export type DashboardDatePreset = 'all' | 'today' | '7days' | '30days' | 'custom'
+
+export type DashboardFilters = {
+  preset: DashboardDatePreset
+  date_from: string
+  date_to: string
+  delivery_governorate_id: string
+}
+
+export const INITIAL_DASHBOARD_FILTERS: DashboardFilters = {
+  preset: 'all',
+  date_from: '',
+  date_to: '',
+  delivery_governorate_id: '',
 }

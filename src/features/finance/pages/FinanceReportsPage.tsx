@@ -24,7 +24,14 @@ import { Can } from '../../../shared/auth/Can'
 import { hasPermission } from '../../../shared/auth/permissions'
 import { PERMISSIONS } from '../../../shared/auth/permission-keys'
 import { MoneyDisplay } from '../../../shared/components/display/MoneyDisplay'
-import { DateRangeFilter } from '../../../shared/components/filters/DateRangeFilter'
+import {
+  FilterButton,
+  FilterPopover,
+  FilterField,
+  AppliedFilterChips,
+  DateRangeFilter,
+  type AppliedChip,
+} from '../../../shared/components/filters'
 import { DriverSelector } from '../../../shared/components/selectors/DriverSelector'
 import { MerchantSelector } from '../../../shared/components/selectors/MerchantSelector'
 import { TreasuryAccountSelector } from '../../../shared/components/selectors/TreasuryAccountSelector'
@@ -104,17 +111,22 @@ const initialFilters: FinanceReportsFiltersState = {
 export function FinanceReportsPage() {
   const { t } = useTranslation()
   const user = useAuthStore((state) => state.user)
-  const [filters, setFilters] = useState<FinanceReportsFiltersState>(initialFilters)
-  const [datePreset, setDatePreset] = useState<DatePreset>('this_month')
+  const [appliedFilters, setAppliedFilters] = useState<FinanceReportsFiltersState>(initialFilters)
+  const [draftFilters, setDraftFilters] = useState<FinanceReportsFiltersState>(initialFilters)
+  const [appliedDatePreset, setAppliedDatePreset] = useState<DatePreset>('this_month')
+  const [draftDatePreset, setDraftDatePreset] = useState<DatePreset>('this_month')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filterError, setFilterError] = useState('')
+
   const params: FinanceReportFilters = useMemo(
     () => ({
-      ...(filters.date_from ? { date_from: filters.date_from } : {}),
-      ...(filters.date_to ? { date_to: filters.date_to } : {}),
-      ...(filters.merchant_id ? { merchant_id: filters.merchant_id } : {}),
-      ...(filters.driver_id ? { driver_id: filters.driver_id } : {}),
-      ...(filters.treasury_account_id ? { treasury_account_id: filters.treasury_account_id } : {}),
+      ...(appliedFilters.date_from ? { date_from: appliedFilters.date_from } : {}),
+      ...(appliedFilters.date_to ? { date_to: appliedFilters.date_to } : {}),
+      ...(appliedFilters.merchant_id ? { merchant_id: appliedFilters.merchant_id } : {}),
+      ...(appliedFilters.driver_id ? { driver_id: appliedFilters.driver_id } : {}),
+      ...(appliedFilters.treasury_account_id ? { treasury_account_id: appliedFilters.treasury_account_id } : {}),
     }),
-    [filters],
+    [appliedFilters],
   )
   const previousRange = useMemo(
     () => getPreviousRange(params.date_from, params.date_to),
@@ -191,12 +203,99 @@ export function FinanceReportsPage() {
     ],
   })
 
-  const updateDatePreset = (preset: DatePreset) => {
-    setDatePreset(preset)
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (appliedDatePreset !== 'this_month') count += 1
+    if (appliedFilters.merchant_id) count += 1
+    if (appliedFilters.driver_id) count += 1
+    if (appliedFilters.treasury_account_id) count += 1
+    return count
+  }, [appliedDatePreset, appliedFilters])
+
+  const handleOpenChange = (open: boolean) => {
+    setFiltersOpen(open)
+    if (open) {
+      setDraftFilters(appliedFilters)
+      setDraftDatePreset(appliedDatePreset)
+      setFilterError('')
+    }
+  }
+
+  const updateDraftDatePreset = (preset: DatePreset) => {
+    setDraftDatePreset(preset)
     if (preset !== 'custom') {
       const range = getPresetRange(preset)
-      setFilters((current) => ({ ...current, ...range }))
+      setDraftFilters((current) => ({ ...current, ...range }))
     }
+  }
+
+  const handleApply = () => {
+    if (draftFilters.date_from && draftFilters.date_to && draftFilters.date_from > draftFilters.date_to) {
+      setFilterError(t('Date From must not be later than Date To.', { defaultValue: 'Date From must not be later than Date To.' }))
+      return
+    }
+    setFilterError('')
+    setAppliedFilters(draftFilters)
+    setAppliedDatePreset(draftDatePreset)
+    setFiltersOpen(false)
+  }
+
+  const handleReset = () => {
+    setDraftFilters(initialFilters)
+    setAppliedFilters(initialFilters)
+    setDraftDatePreset('this_month')
+    setAppliedDatePreset('this_month')
+    setFilterError('')
+    setFiltersOpen(false)
+  }
+
+  const appliedChips = useMemo<AppliedChip[]>(() => {
+    const chips: AppliedChip[] = []
+    if (appliedDatePreset !== 'this_month') {
+      chips.push({
+        id: 'date_preset',
+        label: t('Date Range', { defaultValue: 'Date Range' }),
+        value: appliedDatePreset === 'custom'
+          ? `${appliedFilters.date_from || ''} → ${appliedFilters.date_to || ''}`
+          : appliedDatePreset,
+      })
+    }
+    if (appliedFilters.merchant_id) {
+      chips.push({
+        id: 'merchant_id',
+        label: t('Merchant'),
+        value: appliedFilters.merchant_id,
+      })
+    }
+    if (appliedFilters.driver_id) {
+      chips.push({
+        id: 'driver_id',
+        label: t('Driver', { defaultValue: 'Driver' }),
+        value: appliedFilters.driver_id,
+      })
+    }
+    if (appliedFilters.treasury_account_id) {
+      chips.push({
+        id: 'treasury_account_id',
+        label: t('Treasury Account', { defaultValue: 'Treasury Account' }),
+        value: appliedFilters.treasury_account_id,
+      })
+    }
+    return chips
+  }, [appliedDatePreset, appliedFilters, t])
+
+  const handleRemoveChip = (chipId: string) => {
+    if (chipId === 'date_preset') {
+      const range = getPresetRange('this_month')
+      setAppliedDatePreset('this_month')
+      setAppliedFilters((c) => ({ ...c, ...range }))
+    } else {
+      setAppliedFilters((c) => ({ ...c, [chipId]: '' }))
+    }
+  }
+
+  const handleClearAllChips = () => {
+    handleReset()
   }
 
   const currentReconciliation = reconciliationQuery.data?.data
@@ -210,56 +309,64 @@ export function FinanceReportsPage() {
           title={t('Finance Overview', { defaultValue: 'Finance Overview' })}
           description={t('Financial reports and analytics', { defaultValue: 'Financial reports and analytics' })}
           actions={(
-            <div className="finance-header-date-filter">
-              <label className="field finance-header-date-filter__preset">
-                <span>{t('Date Range', { defaultValue: 'Date Range' })}</span>
-                <Select value={datePreset} onChange={(event) => updateDatePreset(event.target.value as DatePreset)}>
+            <FilterPopover
+              title={t('Report filters', { defaultValue: 'Report filters' })}
+              activeCount={activeFilterCount}
+              open={filtersOpen}
+              onOpenChange={handleOpenChange}
+              onApply={handleApply}
+              onReset={handleReset}
+              trigger={<FilterButton activeCount={activeFilterCount} />}
+            >
+              <FilterField label={t('Date Range', { defaultValue: 'Date Range' })}>
+                <Select value={draftDatePreset} onChange={(event) => updateDraftDatePreset(event.target.value as DatePreset)}>
                   <option value="today">{t('Today', { defaultValue: 'Today' })}</option>
                   <option value="this_week">{t('This Week', { defaultValue: 'This Week' })}</option>
                   <option value="this_month">{t('This Month', { defaultValue: 'This Month' })}</option>
                   <option value="last_month">{t('Last Month', { defaultValue: 'Last Month' })}</option>
                   <option value="custom">{t('Custom Range', { defaultValue: 'Custom Range' })}</option>
                 </Select>
-              </label>
+              </FilterField>
               <DateRangeFilter
-                dateFrom={filters.date_from}
-                dateTo={filters.date_to}
+                dateFrom={draftFilters.date_from}
+                dateTo={draftFilters.date_to}
                 onChange={({ date_from, date_to }) => {
-                  setDatePreset('custom')
-                  setFilters((current) => ({ ...current, date_from, date_to }))
+                  setDraftDatePreset('custom')
+                  setDraftFilters((current) => ({ ...current, date_from, date_to }))
                 }}
+                error={filterError}
               />
-            </div>
+              <FilterField label={t('Merchant')}>
+                <MerchantSelector
+                  value={draftFilters.merchant_id}
+                  includeAllOption
+                  onChange={(merchant_id) => setDraftFilters((current) => ({ ...current, merchant_id }))}
+                />
+              </FilterField>
+              <FilterField label={t('Driver', { defaultValue: 'Driver' })}>
+                <DriverSelector
+                  value={draftFilters.driver_id}
+                  includeAllOption
+                  onChange={(driver_id) => setDraftFilters((current) => ({ ...current, driver_id }))}
+                />
+              </FilterField>
+              <FilterField label={t('Treasury Account', { defaultValue: 'Treasury Account' })}>
+                <TreasuryAccountSelector
+                  value={draftFilters.treasury_account_id}
+                  includeAllOption
+                  onChange={(treasury_account_id) => setDraftFilters((current) => ({ ...current, treasury_account_id }))}
+                />
+              </FilterField>
+            </FilterPopover>
           )}
         />
       </div>
 
-      <div className="filters-bar finance-overview-filters" aria-label={t('Report filters', { defaultValue: 'Report filters' })}>
-          <label className="field">
-            <span>{t('Merchant')}</span>
-            <MerchantSelector
-              value={filters.merchant_id}
-              includeAllOption
-              onChange={(merchant_id) => setFilters((current) => ({ ...current, merchant_id }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Driver', { defaultValue: 'Driver' })}</span>
-            <DriverSelector
-              value={filters.driver_id}
-              includeAllOption
-              onChange={(driver_id) => setFilters((current) => ({ ...current, driver_id }))}
-            />
-          </label>
-          <label className="field">
-            <span>{t('Treasury Account', { defaultValue: 'Treasury Account' })}</span>
-            <TreasuryAccountSelector
-              value={filters.treasury_account_id}
-              includeAllOption
-              onChange={(treasury_account_id) => setFilters((current) => ({ ...current, treasury_account_id }))}
-            />
-          </label>
-      </div>
+      <AppliedFilterChips
+        chips={appliedChips}
+        onRemove={handleRemoveChip}
+        onClearAll={handleClearAllChips}
+      />
 
       <CollapsibleReportSection
         title={t('Revenue & Profit', { defaultValue: 'Revenue & Profit' })}
