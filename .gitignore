@@ -27,3 +27,5 @@ Figma design.zip
 figma_extracted/
 temp_expenses.tsx
 update_selectors.cjs
+.vercel
+.env*
